@@ -107,16 +107,17 @@ export default function AddEntry({ onAdd, onDone }: Props) {
       )}
 
       <div className="flex flex-col gap-3">
-        <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Date</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className={inputCls} style={{ fontSize: '16px' }} />
-        </div>
-
-        <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Amount ($)</label>
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-            placeholder="0.00" step="0.01" inputMode="decimal" className={inputCls} style={{ fontSize: '16px' }} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-zinc-400 mb-1 block">Date</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              className={inputCls} style={{ fontSize: '16px' }} />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 mb-1 block">Amount ($)</label>
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+              placeholder="0.00" step="0.01" inputMode="decimal" className={inputCls} style={{ fontSize: '16px' }} />
+          </div>
         </div>
 
         <div>
