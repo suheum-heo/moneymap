@@ -12,9 +12,27 @@ const RECURRING = [
   { label: 'YouTube', category: 'Subscription', amount: 9.09, summary: 'YouTube Premium', remarks: 'Google' },
 ]
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function todayParts() {
+  const d = new Date()
+  return { m: d.getMonth(), day: d.getDate(), y: d.getFullYear() }
+}
+
+function toDateStr(m: number, day: number, y: number) {
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function daysInMonth(m: number, y: number) {
+  return new Date(y, m + 1, 0).getDate()
+}
+
 export default function AddEntry({ onAdd, onDone }: Props) {
+  const init = todayParts()
+  const [month, setMonth] = useState(init.m)
+  const [day, setDay] = useState(init.day)
+  const [year, setYear] = useState(init.y)
   const [entryType, setEntryType] = useState<'expense' | 'income'>('expense')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [amount, setAmount] = useState('')
   const [summary, setSummary] = useState('')
   const [venue, setVenue] = useState('')
@@ -25,6 +43,9 @@ export default function AddEntry({ onAdd, onDone }: Props) {
   const [showRecurring, setShowRecurring] = useState(false)
 
   const cats = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const maxDay = daysInMonth(month, year)
+  const days = Array.from({ length: maxDay }, (_, i) => i + 1)
+  const years = [2025, 2026, 2027]
 
   const handleTypeChange = (t: 'expense' | 'income') => {
     setEntryType(t)
@@ -37,14 +58,13 @@ export default function AddEntry({ onAdd, onDone }: Props) {
     setAmount(r.amount.toString())
     setCategory(r.category)
     setRemarks(r.remarks || '')
-    setVenue('')
-    setLocation('')
+    setVenue(''); setLocation('')
     setShowRecurring(false)
   }
 
   const handleSubmit = () => {
-    if (!date || !amount || !summary.trim()) {
-      setError('Please fill in date, amount, and summary.')
+    if (!amount || !summary.trim()) {
+      setError('Please fill in amount and summary.')
       return
     }
     const parsed = parseFloat(amount)
@@ -53,7 +73,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
     onAdd({
       id: Date.now().toString(),
       type: entryType,
-      date,
+      date: toDateStr(month, day, year),
       summary: summary.trim(),
       venue: venue.trim(),
       location: location.trim(),
@@ -65,6 +85,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
     onDone()
   }
 
+  const selCls = "w-full px-2 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
   const inputCls = "w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
 
   return (
@@ -82,10 +103,8 @@ export default function AddEntry({ onAdd, onDone }: Props) {
 
       {entryType === 'expense' && (
         <div className="mb-4">
-          <button
-            onClick={() => setShowRecurring(v => !v)}
-            className="text-xs text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 w-full text-left flex justify-between items-center"
-          >
+          <button onClick={() => setShowRecurring(v => !v)}
+            className="text-xs text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 w-full text-left flex justify-between items-center">
             <span>⟳ Recurring payments</span>
             <span>{showRecurring ? '▲' : '▼'}</span>
           </button>
@@ -107,11 +126,22 @@ export default function AddEntry({ onAdd, onDone }: Props) {
       )}
 
       <div className="flex flex-col gap-3">
+        {/* Date: 3 dropdowns */}
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">Date</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className={inputCls} style={{ fontSize: '16px' }} />
+          <div className="grid grid-cols-3 gap-2">
+            <select value={month} onChange={e => setMonth(Number(e.target.value))} className={selCls} style={{fontSize:'16px'}}>
+              {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+            </select>
+            <select value={day} onChange={e => setDay(Number(e.target.value))} className={selCls} style={{fontSize:'16px'}}>
+              {days.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={year} onChange={e => setYear(Number(e.target.value))} className={selCls} style={{fontSize:'16px'}}>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
         </div>
+
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">Amount ($)</label>
           <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
