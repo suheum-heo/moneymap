@@ -11,7 +11,7 @@ export function useEntries() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY)
-      setEntries(raw ? JSON.parse(raw) : SEED)
+      setEntries(raw ? JSON.parse(raw) : [])
     } catch {
       setEntries(SEED)
     }

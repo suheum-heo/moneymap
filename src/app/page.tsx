@@ -20,7 +20,7 @@ type Tab = 'overview' | 'entries' | 'add'
 export default function Home() {
   const { entries, loaded, addEntry, deleteEntry } = useEntries()
   const [tab, setTab] = useState<Tab>('overview')
-  const [month, setMonth] = useState('2026-02')
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
 
   const monthLabel = useMemo(() =>
     MONTHS.find(m => m.value === month)?.label || month, [month])
