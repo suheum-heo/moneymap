@@ -86,7 +86,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
   }
 
   const selCls = "w-full px-2 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
-  const inputCls = "w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
+  const inputCls = "w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none focus:border-amber-400 dark:focus:border-amber-500"
 
   return (
     <div className="px-4 pb-8">
@@ -94,7 +94,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
         {(['expense', 'income'] as const).map(t => (
           <button key={t} onClick={() => handleTypeChange(t)}
             className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${entryType === t
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
+              ? 'bg-amber-500 text-white border-amber-500'
               : 'bg-transparent border-zinc-200 dark:border-zinc-700 text-zinc-500'}`}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -104,7 +104,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
       {entryType === 'expense' && (
         <div className="mb-4">
           <button onClick={() => setShowRecurring(v => !v)}
-            className="text-xs text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 w-full text-left flex justify-between items-center">
+            className="text-xs text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-1.5 w-full text-left flex justify-between items-center bg-amber-50 dark:bg-amber-950/30">
             <span>⟳ Recurring payments</span>
             <span>{showRecurring ? '▲' : '▼'}</span>
           </button>
@@ -117,7 +117,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
                     <span className="text-sm text-zinc-800 dark:text-zinc-100">{r.label}</span>
                     {r.remarks && <span className="text-xs text-zinc-400 ml-1.5">{r.remarks}</span>}
                   </div>
-                  <span className="text-sm font-medium text-zinc-500">${r.amount.toFixed(2)}</span>
+                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">${r.amount.toFixed(2)}</span>
                 </button>
               ))}
             </div>
@@ -126,7 +126,6 @@ export default function AddEntry({ onAdd, onDone }: Props) {
       )}
 
       <div className="flex flex-col gap-3">
-        {/* Date: 3 dropdowns */}
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">Date</label>
           <div className="grid grid-cols-3 gap-2">
@@ -187,7 +186,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
         {error && <div className="text-xs text-red-500">{error}</div>}
 
         <button onClick={handleSubmit}
-          className="w-full py-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium mt-1">
+          className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium mt-1 transition-colors">
           Add entry
         </button>
       </div>

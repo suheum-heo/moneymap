@@ -6,13 +6,21 @@ import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
 
 const MONTHS = [
-  { value: '2026-02', label: 'Feb 2026' },
-  { value: '2026-03', label: 'Mar 2026' },
-  { value: '2026-04', label: 'Apr 2026' },
-  { value: '2026-05', label: 'May 2026' },
-  { value: '2026-06', label: 'Jun 2026' },
-  { value: '2026-07', label: 'Jul 2026' },
-  { value: '2026-08', label: 'Aug 2026' },
+  { value: '2025-01', label: 'Jan 2025' }, { value: '2025-02', label: 'Feb 2025' },
+  { value: '2025-03', label: 'Mar 2025' }, { value: '2025-04', label: 'Apr 2025' },
+  { value: '2025-05', label: 'May 2025' }, { value: '2025-06', label: 'Jun 2025' },
+  { value: '2025-07', label: 'Jul 2025' }, { value: '2025-08', label: 'Aug 2025' },
+  { value: '2025-09', label: 'Sep 2025' }, { value: '2025-10', label: 'Oct 2025' },
+  { value: '2025-11', label: 'Nov 2025' }, { value: '2025-12', label: 'Dec 2025' },
+  { value: '2026-01', label: 'Jan 2026' }, { value: '2026-02', label: 'Feb 2026' },
+  { value: '2026-03', label: 'Mar 2026' }, { value: '2026-04', label: 'Apr 2026' },
+  { value: '2026-05', label: 'May 2026' }, { value: '2026-06', label: 'Jun 2026' },
+  { value: '2026-07', label: 'Jul 2026' }, { value: '2026-08', label: 'Aug 2026' },
+  { value: '2026-09', label: 'Sep 2026' }, { value: '2026-10', label: 'Oct 2026' },
+  { value: '2026-11', label: 'Nov 2026' }, { value: '2026-12', label: 'Dec 2026' },
+  { value: '2027-01', label: 'Jan 2027' }, { value: '2027-02', label: 'Feb 2027' },
+  { value: '2027-03', label: 'Mar 2027' }, { value: '2027-04', label: 'Apr 2027' },
+  { value: '2027-05', label: 'May 2027' }, { value: '2027-06', label: 'Jun 2027' },
 ]
 
 type Tab = 'overview' | 'entries' | 'add'
@@ -30,12 +38,12 @@ export default function Home() {
   )
 
   return (
-    <div className="max-w-md mx-auto min-h-dvh flex flex-col bg-white dark:bg-zinc-900">
+    <div className="max-w-md mx-auto min-h-dvh flex flex-col bg-[#fafaf8] dark:bg-[#0f0f0d]">
       {/* Header */}
       <div className="px-4 pt-14 pb-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">가계부</h1>
-          <p className="text-sm text-zinc-400">{monthLabel}</p>
+          <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
         </div>
         <select
           value={month}
@@ -55,7 +63,7 @@ export default function Home() {
         ] as { id: Tab; label: string }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`mr-4 pb-2 text-sm border-b-2 transition-colors ${tab === t.id
-              ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-medium'
+              ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-medium'
               : 'border-transparent text-zinc-400'}`}>
             {t.label}
           </button>
