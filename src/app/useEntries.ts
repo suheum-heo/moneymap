@@ -1,35 +1,46 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Entry, SEED } from './types'
-
-const KEY = 'gaegyebu-entries'
+import { Entry } from './types'
 
 export function useEntries() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    fetch('/api/entries')
+      .then(r => r.json())
+      .then(data => {
+        setEntries(Array.isArray(data) ? data : [])
+        setLoaded(true)
+      })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  const addEntry = useCallback(async (entry: Entry) => {
+    // Optimistic update
+    setEntries(prev => [...prev, entry])
     try {
-      const raw = localStorage.getItem(KEY)
-      setEntries(raw ? JSON.parse(raw) : [])
+      await fetch('/api/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      })
     } catch {
-      setEntries(SEED)
+      // Revert on failure
+      setEntries(prev => prev.filter(e => e.id !== entry.id))
     }
-    setLoaded(true)
   }, [])
 
-  const save = useCallback((next: Entry[]) => {
-    setEntries(next)
-    try { localStorage.setItem(KEY, JSON.stringify(next)) } catch {}
+  const deleteEntry = useCallback(async (id: string) => {
+    // Optimistic update
+    setEntries(prev => prev.filter(e => e.id !== id))
+    try {
+      await fetch(`/api/entries/${id}`, { method: 'DELETE' })
+    } catch {
+      // Refetch on failure
+      fetch('/api/entries').then(r => r.json()).then(data => setEntries(data))
+    }
   }, [])
-
-  const addEntry = useCallback((e: Entry) => {
-    save([...entries, e])
-  }, [entries, save])
-
-  const deleteEntry = useCallback((id: string) => {
-    save(entries.filter(e => e.id !== id))
-  }, [entries, save])
 
   return { entries, loaded, addEntry, deleteEntry }
 }
