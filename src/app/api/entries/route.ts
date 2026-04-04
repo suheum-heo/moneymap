@@ -24,9 +24,10 @@ export async function GET() {
         remarks: r[8] || '',
       }))
     return NextResponse.json(entries)
-  } catch (e) {
-    console.error(e)
-    return NextResponse.json({ error: 'Failed to fetch entries' }, { status: 500 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('GET /api/entries error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
@@ -47,8 +48,9 @@ export async function POST(req: Request) {
       },
     })
     return NextResponse.json({ success: true })
-  } catch (e) {
-    console.error(e)
-    return NextResponse.json({ error: 'Failed to add entry' }, { status: 500 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('POST /api/entries error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
