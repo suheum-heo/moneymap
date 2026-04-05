@@ -3,14 +3,17 @@ import { google } from 'googleapis'
 const SHEET_ID = process.env.GOOGLE_SHEET_ID!
 const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 
-// Handle both escaped \n and real newlines
-const rawKey = process.env.GOOGLE_PRIVATE_KEY!
-const PRIVATE_KEY = rawKey.includes('\\n')
-  ? rawKey.replace(/\\n/g, '\n')
-  : rawKey
+function getPrivateKey() {
+  const raw = process.env.GOOGLE_PRIVATE_KEY!
+  // If it looks like base64 (no dashes), decode it
+  if (!raw.includes('-----')) {
+    return Buffer.from(raw, 'base64').toString('utf-8')
+  }
+  return raw.replace(/\\n/g, '\n')
+}
 
 function getAuth() {
-  return new google.auth.JWT(CLIENT_EMAIL, undefined, PRIVATE_KEY, [
+  return new google.auth.JWT(CLIENT_EMAIL, undefined, getPrivateKey(), [
     'https://www.googleapis.com/auth/spreadsheets',
   ])
 }
