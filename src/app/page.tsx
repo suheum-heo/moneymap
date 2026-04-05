@@ -5,23 +5,22 @@ import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
 
-const MONTHS = [
-  { value: '2025-01', label: 'Jan 2025' }, { value: '2025-02', label: 'Feb 2025' },
-  { value: '2025-03', label: 'Mar 2025' }, { value: '2025-04', label: 'Apr 2025' },
-  { value: '2025-05', label: 'May 2025' }, { value: '2025-06', label: 'Jun 2025' },
-  { value: '2025-07', label: 'Jul 2025' }, { value: '2025-08', label: 'Aug 2025' },
-  { value: '2025-09', label: 'Sep 2025' }, { value: '2025-10', label: 'Oct 2025' },
-  { value: '2025-11', label: 'Nov 2025' }, { value: '2025-12', label: 'Dec 2025' },
-  { value: '2026-01', label: 'Jan 2026' }, { value: '2026-02', label: 'Feb 2026' },
-  { value: '2026-03', label: 'Mar 2026' }, { value: '2026-04', label: 'Apr 2026' },
-  { value: '2026-05', label: 'May 2026' }, { value: '2026-06', label: 'Jun 2026' },
-  { value: '2026-07', label: 'Jul 2026' }, { value: '2026-08', label: 'Aug 2026' },
-  { value: '2026-09', label: 'Sep 2026' }, { value: '2026-10', label: 'Oct 2026' },
-  { value: '2026-11', label: 'Nov 2026' }, { value: '2026-12', label: 'Dec 2026' },
-  { value: '2027-01', label: 'Jan 2027' }, { value: '2027-02', label: 'Feb 2027' },
-  { value: '2027-03', label: 'Mar 2027' }, { value: '2027-04', label: 'Apr 2027' },
-  { value: '2027-05', label: 'May 2027' }, { value: '2027-06', label: 'Jun 2027' },
-]
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function generateMonths() {
+  const months = []
+  const now = new Date()
+  const start = new Date(now.getFullYear() - 1, now.getMonth(), 1)
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth() + i, 1)
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+    months.push({ value, label })
+  }
+  return months
+}
+
+const MONTHS = generateMonths()
 
 type Tab = 'overview' | 'entries' | 'add'
 
