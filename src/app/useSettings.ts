@@ -54,6 +54,10 @@ export function useSettings() {
     }
   }, [contexts, saveContexts, activeContextId])
 
+  const renameContext = useCallback((id: string, name: string) => {
+    saveContexts(contexts.map(c => c.id === id ? { ...c, name: name.trim() } : c))
+  }, [contexts, saveContexts])
+
   const switchContext = useCallback((id: string) => {
     setActiveContextId(id)
     localStorage.setItem('gagyebu-active-context', id)
@@ -85,7 +89,7 @@ export function useSettings() {
   const activeContext = contexts.find(c => c.id === activeContextId) || contexts[0]
 
   return {
-    contexts, addContext, removeContext,
+    contexts, addContext, removeContext, renameContext,
     activeContext, activeContextId, switchContext,
     rates, updateRate,
     convert,
