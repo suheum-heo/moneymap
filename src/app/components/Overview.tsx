@@ -2,6 +2,7 @@
 import { useMemo, useEffect, useRef } from 'react'
 import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount } from '../types'
 import { useSettings } from '../useSettings'
+import { useBudgets } from '../useBudgets'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -13,6 +14,7 @@ export default function Overview({ entries, month }: Props) {
   const catChartInstance = useRef<Chart | null>(null)
   const locChartInstance = useRef<Chart | null>(null)
   const { activeContext, convert } = useSettings()
+  const { getBudget } = useBudgets()
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -183,18 +185,36 @@ export default function Overview({ entries, month }: Props) {
         {byCategory.map(([cat, amt]) => {
           const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
           const col = CAT_COLORS[cat] || '#888'
+          const budget = activeContext ? getBudget(activeContext.id, cat) : null
+          const budgetPct = budget ? (amt / budget) * 100 : null
+          const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
+          const isDanger = budgetPct !== null && budgetPct >= 100
           return (
-            <div key={cat} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2 flex justify-between items-center">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col }} />
-                  <span className="text-sm text-zinc-800 dark:text-zinc-200">{cat}</span>
+            <div key={cat} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
+              <div className="flex justify-between items-start mb-1">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col }} />
+                    <span className="text-sm text-zinc-800 dark:text-zinc-200">{cat}</span>
+                    {isDanger && <span className="text-xs text-red-500">Over!</span>}
+                    {isWarning && <span className="text-xs text-amber-500">80%</span>}
+                  </div>
+                  <div className="text-xs text-zinc-400 mt-0.5 pl-3.5">{pct}% of spend</div>
                 </div>
-                <div className="text-xs text-zinc-400 mt-0.5 pl-3.5">{pct}%</div>
+                <div className="text-xs font-medium text-zinc-800 dark:text-zinc-100 text-right">
+                  {formatAmount(amt, cur)}
+                  {budget && <div className="text-xs text-zinc-400">/ {formatAmount(budget, cur)}</div>}
+                </div>
               </div>
-              <div className="text-xs font-medium text-zinc-800 dark:text-zinc-100 text-right">
-                {formatAmount(amt, cur)}
-              </div>
+              {budget && (
+                <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden mt-1">
+                  <div className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(budgetPct || 0, 100)}%`,
+                      background: isDanger ? '#E24B4A' : isWarning ? '#BA7517' : col
+                    }} />
+                </div>
+              )}
             </div>
           )
         })}

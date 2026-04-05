@@ -2,9 +2,14 @@
 import { useState } from 'react'
 import { CURRENCIES, Context } from '../types'
 import { useSettings, ExchangeRate } from '../useSettings'
+import { useBudgets } from '../useBudgets'
+import { EXPENSE_CATEGORIES } from '../types'
 
 export default function Settings() {
-  const { contexts, addContext, removeContext, renameContext, rates, updateRate } = useSettings()
+  const { contexts, addContext, removeContext, renameContext, rates, updateRate, activeContext } = useSettings()
+  const { budgets, setBudget, getBudget } = useBudgets()
+  const [budgetCat, setBudgetCat] = useState(EXPENSE_CATEGORIES[0])
+  const [budgetAmt, setBudgetAmt] = useState("")
 
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -136,6 +141,44 @@ export default function Settings() {
             if (!isNaN(r) && r > 0) { updateRate(rateFrom, rateTo, r); setRateVal('') }
           }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">
             Save rate
+          </button>
+        </div>
+      </div>
+
+      {/* Budgets */}
+      <div>
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Monthly budgets</div>
+        <p className="text-xs text-zinc-400 mb-3">Set spending limits per category for <span className="text-amber-500 font-medium">{activeContext?.name}</span>. Leave blank for no limit.</p>
+        <div className="flex flex-col gap-2 mb-3">
+          {EXPENSE_CATEGORIES.map(cat => {
+            const b = activeContext ? getBudget(activeContext.id, cat) : null
+            return b ? (
+              <div key={cat} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
+                <span className="text-sm text-zinc-800 dark:text-zinc-100">{cat}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">{activeContext?.currency} {b.toLocaleString()}</span>
+                  <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)}
+                    className="text-xs text-red-400">Remove</button>
+                </div>
+              </div>
+            ) : null
+          })}
+        </div>
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
+          <div className="text-xs text-zinc-400 mb-1">Add / update budget</div>
+          <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className="w-full px-2 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm" style={{fontSize:'16px'}}>
+            {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+          </select>
+          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(e.target.value)}
+            placeholder="Monthly limit (leave blank for none)"
+            className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
+            style={{fontSize:'16px'}} />
+          <button onClick={() => {
+            if (!activeContext) return
+            const amt = parseFloat(budgetAmt)
+            if (!isNaN(amt) && amt > 0) { setBudget(activeContext.id, budgetCat, amt); setBudgetAmt('') }
+          }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">
+            Save budget
           </button>
         </div>
       </div>
