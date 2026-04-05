@@ -36,8 +36,17 @@ export default function Entries({ entries, month, onDelete, onUpdate }: Props) {
     let f = monthEntries
     if (typeFilter !== 'all') f = f.filter(e => e.type === typeFilter)
     if (catFilter !== 'all') f = f.filter(e => e.category === catFilter)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      f = f.filter(e =>
+        e.summary.toLowerCase().includes(q) ||
+        (e.venue || '').toLowerCase().includes(q) ||
+        (e.location || '').toLowerCase().includes(q) ||
+        (e.remarks || '').toLowerCase().includes(q)
+      )
+    }
     return [...f].sort((a, b) => a.date.localeCompare(b.date))
-  }, [monthEntries, typeFilter, catFilter])
+  }, [monthEntries, typeFilter, catFilter, search])
 
   const pastVenues = useMemo(() => [...new Set(entries.map(e => e.venue).filter(Boolean))].sort(), [entries])
   const pastLocations = useMemo(() => [...new Set(entries.map(e => e.location).filter(Boolean))].sort(), [entries])
@@ -48,8 +57,7 @@ export default function Entries({ entries, month, onDelete, onUpdate }: Props) {
       e.date, e.type, e.summary, e.venue || '', e.location || '',
       e.category, e.amount, e.currency || cur, e.remarks || ''
     ])
-    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('
-')
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -198,6 +206,16 @@ export default function Entries({ entries, month, onDelete, onUpdate }: Props) {
       )}
 
       {/* Filters */}
+      <div className="mb-3">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search entries..."
+          className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none focus:border-amber-400 text-sm"
+          style={{fontSize:'16px'}}
+        />
+      </div>
       <div className="flex gap-2 mb-4 flex-wrap items-center">
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={selCls}>
           <option value="all">All types</option>
