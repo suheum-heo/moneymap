@@ -78,6 +78,6 @@ export const CAT_COLORS: Record<string, string> = {
 }
 
 export const DEFAULT_CONTEXTS: Context[] = [
-  { id: 'madison', name: 'Madison', currency: 'USD', homeCurrency: 'USD', startDate: '2026-01' },
+  { id: 'madison', name: 'UW-Madison 25-26', currency: 'USD', homeCurrency: 'USD', startDate: '2025-08' },
   { id: 'korea', name: 'Korea', currency: 'KRW', homeCurrency: 'KRW', startDate: '2026-01' },
 ]
