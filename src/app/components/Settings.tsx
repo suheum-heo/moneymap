@@ -1,16 +1,16 @@
 'use client'
 import { useState } from 'react'
-import { MAJOR_CURRENCIES } from '../types'
+import { CURRENCIES, Context } from '../types'
 import { useSettings, ExchangeRate } from '../useSettings'
 
 export default function Settings() {
-  const {
-    contexts, addContext, removeContext,
-    rates, updateRate,
-    baseCurrency, setBaseCurrency,
-  } = useSettings()
+  const { contexts, addContext, removeContext, rates, updateRate } = useSettings()
 
-  const [newContext, setNewContext] = useState('')
+  const [name, setName] = useState('')
+  const [currency, setCurrency] = useState('USD')
+  const [homeCurrency, setHomeCurrency] = useState('USD')
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 7))
+
   const [rateFrom, setRateFrom] = useState('KRW')
   const [rateTo, setRateTo] = useState('USD')
   const [rateVal, setRateVal] = useState('')
@@ -18,43 +18,67 @@ export default function Settings() {
   const inputCls = "w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
   const selCls = "px-2 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
 
+  const handleAddContext = () => {
+    if (!name.trim()) return
+    const ctx: Context = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      currency,
+      homeCurrency,
+      startDate,
+    }
+    addContext(ctx)
+    setName('')
+  }
+
   return (
     <div className="px-4 pb-8 flex flex-col gap-6">
-
-      {/* Base currency */}
-      <div>
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Base currency</div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex items-center justify-between">
-          <span className="text-sm text-zinc-600 dark:text-zinc-300">Show totals in</span>
-          <select value={baseCurrency} onChange={e => setBaseCurrency(e.target.value)} className={selCls}>
-            {MAJOR_CURRENCIES.map(c => <option key={c}>{c}</option>)}
-          </select>
-        </div>
-      </div>
 
       {/* Contexts */}
       <div>
         <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Contexts</div>
-        <div className="flex flex-col gap-2 mb-3">
-          {contexts.map(c => (
-            <div key={c} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
-              <span className="text-sm text-zinc-800 dark:text-zinc-100">{c}</span>
-              {c !== 'Madison' && (
-                <button onClick={() => removeContext(c)} className="text-xs text-red-400 hover:text-red-500">Remove</button>
+        <div className="flex flex-col gap-2 mb-4">
+          {contexts.map((c: Context) => (
+            <div key={c.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{c.name}</div>
+                <div className="text-xs text-zinc-400 mt-0.5">
+                  {c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · from {c.startDate}
+                </div>
+              </div>
+              {c.id !== 'madison' && c.id !== 'korea' && (
+                <button onClick={() => removeContext(c.id)} className="text-xs text-red-400 hover:text-red-500 ml-3">Remove</button>
               )}
             </div>
           ))}
         </div>
-        <div className="flex gap-2">
-          <input
-            type="text" value={newContext} onChange={e => setNewContext(e.target.value)}
-            placeholder="e.g. Korea Summer 2026"
-            className={inputCls}
-            onKeyDown={e => { if (e.key === 'Enter') { addContext(newContext); setNewContext('') } }}
-          />
-          <button onClick={() => { addContext(newContext); setNewContext('') }}
-            className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium flex-shrink-0">
-            Add
+
+        {/* Add context form */}
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
+          <div className="text-xs text-zinc-400 mb-1">New context</div>
+          <input type="text" value={name} onChange={e => setName(e.target.value)}
+            placeholder="e.g. Europe Trip 2027" className={inputCls} style={{fontSize:'16px'}} />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Local currency</label>
+              <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${selCls} w-full`} style={{fontSize:'16px'}}>
+                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Home currency</label>
+              <select value={homeCurrency} onChange={e => setHomeCurrency(e.target.value)} className={`${selCls} w-full`} style={{fontSize:'16px'}}>
+                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 block mb-1">Start date</label>
+            <input type="month" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
+          </div>
+          <button onClick={handleAddContext}
+            className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">
+            Add context
           </button>
         </div>
       </div>
@@ -66,24 +90,23 @@ export default function Settings() {
           {rates.map((r: ExchangeRate) => (
             <div key={`${r.from}-${r.to}`} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
               <span className="text-sm text-zinc-800 dark:text-zinc-100">1 {r.from} = {r.rate} {r.to}</span>
-              <button onClick={() => {
-                setRateFrom(r.from); setRateTo(r.to); setRateVal(r.rate.toString())
-              }} className="text-xs text-amber-500">Edit</button>
+              <button onClick={() => { setRateFrom(r.from); setRateTo(r.to); setRateVal(r.rate.toString()) }}
+                className="text-xs text-amber-500">Edit</button>
             </div>
           ))}
         </div>
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
           <div className="text-xs text-zinc-400 mb-1">Add / update rate</div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-zinc-500">1</span>
-            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={selCls}>
-              {MAJOR_CURRENCIES.map(c => <option key={c}>{c}</option>)}
+            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
+              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
             </select>
             <span className="text-xs text-zinc-500">=</span>
             <input type="number" value={rateVal} onChange={e => setRateVal(e.target.value)}
-              placeholder="0.00" step="any" className={`${inputCls} w-24`} />
-            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={selCls}>
-              {MAJOR_CURRENCIES.map(c => <option key={c}>{c}</option>)}
+              placeholder="0.00" step="any" className={`${inputCls} w-28`} style={{fontSize:'16px'}} />
+            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
+              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
             </select>
           </div>
           <button onClick={() => {

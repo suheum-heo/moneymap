@@ -1,20 +1,24 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useEntries } from './useEntries'
+import { useSettings } from './useSettings'
 import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
 import Settings from './components/Settings'
+import { getCurrencySymbol } from './types'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i) // 2020–2029
+const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
 
 type Tab = 'overview' | 'entries' | 'add' | 'settings'
 
 export default function Home() {
-  const { entries, loaded, addEntry, deleteEntry } = useEntries()
+  const { entries, loaded: entriesLoaded, addEntry, deleteEntry } = useEntries()
+  const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings()
   const [tab, setTab] = useState<Tab>('overview')
   const [dark, setDark] = useState<boolean | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const now = new Date()
   const [selMonth, setSelMonth] = useState(now.getMonth())
@@ -25,11 +29,8 @@ export default function Home() {
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
-    if (saved) {
-      setDark(saved === 'dark')
-    } else {
-      setDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
-    }
+    if (saved) setDark(saved === 'dark')
+    else setDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
   }, [])
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function Home() {
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
 
-  if (!loaded || dark === null) return (
+  if (!entriesLoaded || !settingsLoaded || dark === null) return (
     <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">Loading…</div>
   )
 
@@ -49,8 +50,8 @@ export default function Home() {
     { id: 'settings' as Tab, label: 'Settings' },
   ]
 
-  const MonthYearPicker = ({ className }: { className?: string }) => (
-    <div className={`flex gap-1.5 ${className}`}>
+  const MonthYearPicker = ({ col = false }: { col?: boolean }) => (
+    <div className={`flex gap-1.5 ${col ? 'flex-col' : ''}`}>
       <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
         className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
         {MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}
@@ -62,48 +63,95 @@ export default function Home() {
     </div>
   )
 
+  const Sidebar = () => (
+    <div className="flex flex-col h-full px-3 py-6">
+      {/* App title */}
+      <div className="px-2 mb-6">
+        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">가계부</h1>
+      </div>
+
+      {/* Context switcher */}
+      <div className="mb-4">
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest px-2 mb-2">Contexts</div>
+        {contexts.map(c => {
+          const sym = getCurrencySymbol(c.currency)
+          const isActive = c.id === activeContextId
+          return (
+            <button key={c.id} onClick={() => { switchContext(c.id); setTab('overview') }}
+              className={`w-full text-left px-2 py-2 rounded-lg text-sm mb-0.5 transition-colors flex items-center justify-between ${isActive
+                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-medium'
+                : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+              <span>{c.name}</span>
+              <span className="text-xs opacity-60">{sym} {c.currency}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="border-t border-zinc-100 dark:border-zinc-800 my-2" />
+
+      {/* Nav tabs */}
+      <nav className="flex flex-col gap-0.5 flex-1">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`text-left px-2 py-2 rounded-lg text-sm transition-colors ${tab === t.id
+              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium'
+              : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Bottom: month picker + dark mode */}
+      <div className="flex flex-col gap-2 mt-4">
+        <div className="text-xs text-zinc-400 px-1">{monthLabel}</div>
+        <MonthYearPicker col />
+        <button onClick={() => setDark(d => !d)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+          {dark ? '☀️ Light' : '🌙 Dark'}
+        </button>
+      </div>
+    </div>
+  )
+
+  const TabContent = () => (
+    <>
+      {tab === 'overview' && <Overview entries={entries} month={month} />}
+      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} />}
+      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} />}
+      {tab === 'settings' && <Settings />}
+    </>
+  )
+
   return (
     <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d]">
-      {/* Desktop layout */}
+      {/* Desktop */}
       <div className="hidden md:flex h-screen">
-        <div className="w-56 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 flex flex-col px-4 py-8">
-          <div className="mb-8">
-            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">가계부</h1>
-            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium mt-0.5">{monthLabel}</p>
-          </div>
-          <nav className="flex flex-col gap-1 flex-1">
-            {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${tab === t.id
-                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-medium'
-                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
-                {t.label}
-              </button>
-            ))}
-          </nav>
-          <div className="flex flex-col gap-3">
-            <MonthYearPicker className="flex-col" />
-            <button onClick={() => setDark(d => !d)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm">
-              {dark ? '☀️ Light mode' : '🌙 Dark mode'}
-            </button>
-          </div>
+        <div className="w-52 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto">
+          <Sidebar />
         </div>
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto py-8">
-            {tab === 'overview' && <Overview entries={entries} month={month} />}
-            {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} />}
-            {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} />}
-            {tab === 'settings' && <Settings />}
+            {/* Context + month header */}
+            <div className="px-4 mb-6">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{activeContext?.name}</h2>
+              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
+            </div>
+            <TabContent />
           </div>
         </div>
       </div>
 
-      {/* Mobile layout */}
+      {/* Mobile */}
       <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
-        <div className="px-4 pt-14 pb-4 flex items-center justify-between">
+        {/* Mobile header */}
+        <div className="px-4 pt-14 pb-3 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">가계부</h1>
+            <button onClick={() => setMobileMenuOpen(true)}
+              className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1.5">
+              {activeContext?.name}
+              <span className="text-base text-zinc-400">▾</span>
+            </button>
             <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -114,6 +162,31 @@ export default function Home() {
             <MonthYearPicker />
           </div>
         </div>
+
+        {/* Mobile context menu */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setMobileMenuOpen(false)}>
+            <div className="absolute bottom-0 left-0 right-0 bg-[#fafaf8] dark:bg-[#1a1a18] rounded-t-2xl p-4 pb-8"
+              onClick={e => e.stopPropagation()}>
+              <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Switch context</div>
+              {contexts.map(c => {
+                const sym = getCurrencySymbol(c.currency)
+                const isActive = c.id === activeContextId
+                return (
+                  <button key={c.id} onClick={() => { switchContext(c.id); setMobileMenuOpen(false); setTab('overview') }}
+                    className={`w-full text-left px-3 py-3 rounded-xl text-sm mb-1.5 flex items-center justify-between ${isActive
+                      ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-medium'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
+                    <span>{c.name}</span>
+                    <span className="text-xs opacity-60">{sym} {c.currency}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile tabs */}
         <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 mb-4">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -124,11 +197,9 @@ export default function Home() {
             </button>
           ))}
         </div>
+
         <div className="flex-1 overflow-y-auto">
-          {tab === 'overview' && <Overview entries={entries} month={month} />}
-          {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} />}
-          {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} />}
-          {tab === 'settings' && <Settings />}
+          <TabContent />
         </div>
       </div>
     </div>

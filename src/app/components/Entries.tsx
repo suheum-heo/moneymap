@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { Entry, CAT_COLORS } from '../types'
+import { Entry, CAT_COLORS, getCurrencySymbol } from '../types'
 import { useSettings } from '../useSettings'
 
 interface Props { entries: Entry[]; month: string; onDelete: (id: string) => void }
@@ -8,11 +8,17 @@ interface Props { entries: Entry[]; month: string; onDelete: (id: string) => voi
 export default function Entries({ entries, month, onDelete }: Props) {
   const [typeFilter, setTypeFilter] = useState('all')
   const [catFilter, setCatFilter] = useState('all')
-  const [ctxFilter, setCtxFilter] = useState('all')
-  const { baseCurrency, convert, contexts } = useSettings()
+  const { activeContext, convert } = useSettings()
+
+  const cur = activeContext?.currency || 'USD'
+  const homeCur = activeContext?.homeCurrency || cur
+  const showConversion = cur !== homeCur
+  const sym = getCurrencySymbol(cur)
+  const homeSym = getCurrencySymbol(homeCur)
 
   const monthEntries = useMemo(() =>
-    entries.filter(e => e.date.startsWith(month)), [entries, month])
+    entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
+    [entries, month, activeContext])
 
   const allCats = useMemo(() =>
     [...new Set(monthEntries.map(e => e.category))].sort(), [monthEntries])
@@ -21,9 +27,8 @@ export default function Entries({ entries, month, onDelete }: Props) {
     let f = monthEntries
     if (typeFilter !== 'all') f = f.filter(e => e.type === typeFilter)
     if (catFilter !== 'all') f = f.filter(e => e.category === catFilter)
-    if (ctxFilter !== 'all') f = f.filter(e => e.context === ctxFilter)
     return [...f].sort((a, b) => a.date.localeCompare(b.date))
-  }, [monthEntries, typeFilter, catFilter, ctxFilter])
+  }, [monthEntries, typeFilter, catFilter])
 
   const [confirmId, setConfirmId] = useState<string | null>(null)
 
@@ -41,10 +46,6 @@ export default function Entries({ entries, month, onDelete }: Props) {
           <option value="all">All categories</option>
           {allCats.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <select value={ctxFilter} onChange={e => setCtxFilter(e.target.value)} className={selCls}>
-          <option value="all">All contexts</option>
-          {contexts.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
       </div>
 
       {filtered.length === 0 ? (
@@ -54,9 +55,8 @@ export default function Entries({ entries, month, onDelete }: Props) {
           {filtered.map(e => {
             const col = CAT_COLORS[e.category] || '#888'
             const isIncome = e.type === 'income'
-            const cur = e.currency || 'USD'
-            const converted = convert(e.amount, cur)
-            const showConverted = cur !== baseCurrency
+            const entrySym = getCurrencySymbol(e.currency || cur)
+            const converted = showConversion ? convert(e.amount, cur, homeCur) : null
             return (
               <div key={e.id} className="py-3 flex items-start gap-3">
                 <div className="text-xs text-zinc-400 pt-0.5 w-12 flex-shrink-0">{e.date.slice(5)}</div>
@@ -64,22 +64,17 @@ export default function Entries({ entries, month, onDelete }: Props) {
                   <div className="text-sm text-zinc-800 dark:text-zinc-100 leading-snug truncate">{e.summary}</div>
                   {e.venue && <div className="text-xs text-zinc-400 mt-0.5 truncate">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
                   {e.remarks && <div className="text-xs text-zinc-400 truncate">{e.remarks}</div>}
-                  <div className="flex gap-1.5 mt-1 flex-wrap">
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: col + '22', color: col }}>{e.category}</span>
-                    {e.context && <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-700 text-zinc-500">{e.context}</span>}
-                  </div>
+                  <span className="inline-block text-xs px-2 py-0.5 rounded-full mt-1" style={{ background: col + '22', color: col }}>{e.category}</span>
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-0.5">
                   <div className={`text-sm font-medium ${isIncome ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {isIncome ? '+' : '-'}{cur} {e.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {isIncome ? '+' : '-'}{entrySym}{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  {showConverted && (
-                    <div className="text-xs text-zinc-400">
-                      ≈ {baseCurrency} {converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
+                  {converted !== null && (
+                    <div className="text-xs text-zinc-400">≈{homeSym}{converted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                   )}
                   {confirmId === e.id ? (
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 mt-1">
                       <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="text-xs text-red-500 border border-red-300 rounded px-1.5 py-0.5">Delete</button>
                       <button onClick={() => setConfirmId(null)} className="text-xs text-zinc-400 border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5">Cancel</button>
                     </div>

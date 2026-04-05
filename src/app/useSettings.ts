@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Context, DEFAULT_CONTEXTS } from './types'
 
 export interface ExchangeRate {
   from: string
@@ -7,44 +8,56 @@ export interface ExchangeRate {
   rate: number
 }
 
-const DEFAULT_CONTEXTS = ['Madison']
 const DEFAULT_RATES: ExchangeRate[] = [
   { from: 'KRW', to: 'USD', rate: 0.00073 },
+  { from: 'USD', to: 'KRW', rate: 1370 },
   { from: 'EUR', to: 'USD', rate: 1.08 },
+  { from: 'EUR', to: 'KRW', rate: 1480 },
   { from: 'GBP', to: 'USD', rate: 1.27 },
+  { from: 'GBP', to: 'KRW', rate: 1740 },
   { from: 'JPY', to: 'USD', rate: 0.0067 },
+  { from: 'JPY', to: 'KRW', rate: 9.2 },
 ]
 
 export function useSettings() {
-  const [contexts, setContexts] = useState<string[]>(DEFAULT_CONTEXTS)
+  const [contexts, setContexts] = useState<Context[]>(DEFAULT_CONTEXTS)
+  const [activeContextId, setActiveContextId] = useState<string>('madison')
   const [rates, setRates] = useState<ExchangeRate[]>(DEFAULT_RATES)
-  const [baseCurrency, setBaseCurrency] = useState<string>('USD')
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     try {
       const c = localStorage.getItem('gagyebu-contexts')
+      const a = localStorage.getItem('gagyebu-active-context')
       const r = localStorage.getItem('gagyebu-rates')
-      const b = localStorage.getItem('gagyebu-base')
       if (c) setContexts(JSON.parse(c))
+      if (a) setActiveContextId(a)
       if (r) setRates(JSON.parse(r))
-      if (b) setBaseCurrency(b)
     } catch {}
+    setLoaded(true)
   }, [])
 
-  const saveContexts = useCallback((next: string[]) => {
+  const saveContexts = useCallback((next: Context[]) => {
     setContexts(next)
     localStorage.setItem('gagyebu-contexts', JSON.stringify(next))
   }, [])
 
-  const addContext = useCallback((name: string) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    saveContexts([...contexts, trimmed])
+  const addContext = useCallback((ctx: Context) => {
+    saveContexts([...contexts, ctx])
   }, [contexts, saveContexts])
 
-  const removeContext = useCallback((name: string) => {
-    saveContexts(contexts.filter(c => c !== name))
-  }, [contexts, saveContexts])
+  const removeContext = useCallback((id: string) => {
+    saveContexts(contexts.filter(c => c.id !== id))
+    if (activeContextId === id) {
+      const remaining = contexts.filter(c => c.id !== id)
+      if (remaining.length > 0) setActiveContextId(remaining[0].id)
+    }
+  }, [contexts, saveContexts, activeContextId])
+
+  const switchContext = useCallback((id: string) => {
+    setActiveContextId(id)
+    localStorage.setItem('gagyebu-active-context', id)
+  }, [])
 
   const saveRates = useCallback((next: ExchangeRate[]) => {
     setRates(next)
@@ -56,31 +69,26 @@ export function useSettings() {
     saveRates([...next, { from, to, rate }])
   }, [rates, saveRates])
 
-  const saveBase = useCallback((b: string) => {
-    setBaseCurrency(b)
-    localStorage.setItem('gagyebu-base', b)
-  }, [])
-
-  // Convert any amount to base currency
-  const convert = useCallback((amount: number, from: string): number => {
-    if (from === baseCurrency) return amount
-    // Try direct rate
-    const direct = rates.find(r => r.from === from && r.to === baseCurrency)
+  const convert = useCallback((amount: number, from: string, to: string): number => {
+    if (from === to) return amount
+    const direct = rates.find(r => r.from === from && r.to === to)
     if (direct) return amount * direct.rate
-    // Try via USD
-    const toUSD = rates.find(r => r.from === from && r.to === 'USD')
-    const fromUSD = rates.find(r => r.from === 'USD' && r.to === baseCurrency)
-    if (toUSD && fromUSD) return amount * toUSD.rate * fromUSD.rate
-    // Try inverse
-    const inverse = rates.find(r => r.from === baseCurrency && r.to === from)
+    const inverse = rates.find(r => r.from === to && r.to === from)
     if (inverse) return amount / inverse.rate
+    // via USD
+    const toUSD = rates.find(r => r.from === from && r.to === 'USD')
+    const fromUSD = rates.find(r => r.from === 'USD' && r.to === to)
+    if (toUSD && fromUSD) return amount * toUSD.rate * fromUSD.rate
     return amount
-  }, [rates, baseCurrency])
+  }, [rates])
+
+  const activeContext = contexts.find(c => c.id === activeContextId) || contexts[0]
 
   return {
     contexts, addContext, removeContext,
+    activeContext, activeContextId, switchContext,
     rates, updateRate,
-    baseCurrency, setBaseCurrency: saveBase,
     convert,
+    loaded,
   }
 }
