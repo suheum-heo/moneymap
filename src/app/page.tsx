@@ -6,7 +6,7 @@ import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const YEARS = Array.from({ length: 10 }, (_, i) => 2020 + i) // 2020–2029
+const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i) // 2020–2029
 
 type Tab = 'overview' | 'entries' | 'add'
 
