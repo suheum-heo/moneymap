@@ -17,6 +17,7 @@ function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDat
 export default function Entries({ entries, month, onDelete, onUpdate }: Props) {
   const [typeFilter, setTypeFilter] = useState('all')
   const [catFilter, setCatFilter] = useState('all')
+  const [search, setSearch] = useState('')
   const { activeContext, convert } = useSettings()
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
