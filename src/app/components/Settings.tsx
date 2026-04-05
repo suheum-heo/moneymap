@@ -139,6 +139,25 @@ export default function Settings() {
           </button>
         </div>
       </div>
+
+      {/* Reset */}
+      <div>
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Reset</div>
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
+          <p className="text-xs text-zinc-400 mb-3">Clear all local settings (contexts, exchange rates) and reload defaults. Your entries in Google Sheets are not affected.</p>
+          <button onClick={() => {
+            if (confirm('Reset all local settings? Your entries will not be deleted.')) {
+              localStorage.removeItem('gagyebu-contexts')
+              localStorage.removeItem('gagyebu-active-context')
+              localStorage.removeItem('gagyebu-rates')
+              localStorage.removeItem('theme')
+              window.location.reload()
+            }
+          }} className="w-full py-2 rounded-xl bg-red-500 text-white text-sm font-medium">
+            Reset local settings
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
