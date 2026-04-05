@@ -33,6 +33,35 @@ export default function Overview({ entries, month }: Props) {
 
   const net = income - expenses
 
+  // Last month comparison
+  const lastMonth = useMemo(() => {
+    const [y, m] = month.split('-').map(Number)
+    const lm = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+    return lm
+  }, [month])
+
+  const lastMonthEntries = useMemo(() =>
+    entries.filter(e => e.date.startsWith(lastMonth) && e.context === activeContext?.id),
+    [entries, lastMonth, activeContext])
+
+  const lastMonthExpenses = useMemo(() =>
+    lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
+    [lastMonthEntries])
+
+  const sameDayLastMonth = useMemo(() => {
+    const today = new Date()
+    const cutoff = `${lastMonth}-${String(today.getDate()).padStart(2, '0')}`
+    return lastMonthEntries
+      .filter(e => e.type === 'expense' && e.date <= cutoff)
+      .reduce((s, e) => s + e.amount, 0)
+  }, [lastMonthEntries, lastMonth])
+
+  const isCurrentMonth = useMemo(() => {
+    const now = new Date()
+    const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    return month === cur
+  }, [month])
+
   const byCategory = useMemo(() => {
     const cats: Record<string, number> = {}
     monthEntries.filter(e => e.type === 'expense').forEach(e => {
@@ -125,6 +154,28 @@ export default function Overview({ entries, month }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Monthly comparison banner */}
+      {lastMonthExpenses > 0 && (
+        <div className="mb-5 bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-zinc-500">vs last month full</span>
+            <span className={expenses <= lastMonthExpenses ? "text-green-600 dark:text-green-400 font-medium" : "text-red-500 font-medium"}>
+              {expenses <= lastMonthExpenses ? "▼" : "▲"} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)}
+              {" "}{expenses <= lastMonthExpenses ? "less" : "more"}
+            </span>
+          </div>
+          {isCurrentMonth && sameDayLastMonth > 0 && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-500">vs same day last month</span>
+              <span className={expenses <= sameDayLastMonth ? "text-green-600 dark:text-green-400 font-medium" : "text-red-500 font-medium"}>
+                {expenses <= sameDayLastMonth ? "▼" : "▲"} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)}
+                {" "}{expenses <= sameDayLastMonth ? "less" : "more"}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* By category */}
       <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">By category</div>
