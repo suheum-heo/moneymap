@@ -42,6 +42,23 @@ export default function Entries({ entries, month, onDelete, onUpdate }: Props) {
   const pastVenues = useMemo(() => [...new Set(entries.map(e => e.venue).filter(Boolean))].sort(), [entries])
   const pastLocations = useMemo(() => [...new Set(entries.map(e => e.location).filter(Boolean))].sort(), [entries])
 
+  const exportCSV = () => {
+    const headers = ['Date','Type','Summary','Venue','Location','Category','Amount','Currency','Remarks']
+    const rows = filtered.map(e => [
+      e.date, e.type, e.summary, e.venue || '', e.location || '',
+      e.category, e.amount, e.currency || cur, e.remarks || ''
+    ])
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('
+')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${activeContext?.name || 'entries'}-${month}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // Edit form state
   const [editMonth, setEditMonth] = useState(0)
   const [editDay, setEditDay] = useState(1)
@@ -181,7 +198,7 @@ export default function Entries({ entries, month, onDelete, onUpdate }: Props) {
       )}
 
       {/* Filters */}
-      <div className="flex gap-2 mb-4 flex-wrap">
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={selCls}>
           <option value="all">All types</option>
           <option value="expense">Expenses</option>
@@ -191,6 +208,10 @@ export default function Entries({ entries, month, onDelete, onUpdate }: Props) {
           <option value="all">All categories</option>
           {allCats.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        <button onClick={exportCSV}
+          className="ml-auto text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-300 transition-colors">
+          ↓ Export CSV
+        </button>
       </div>
 
       {filtered.length === 0 ? (
