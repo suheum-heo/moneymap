@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Context, DEFAULT_CONTEXTS } from './types'
+import { Context } from './types'
 
 export interface ExchangeRate {
   from: string
@@ -20,43 +20,75 @@ const DEFAULT_RATES: ExchangeRate[] = [
 ]
 
 export function useSettings() {
-  const [contexts, setContexts] = useState<Context[]>(DEFAULT_CONTEXTS)
+  const [contexts, setContexts] = useState<Context[]>([])
   const [activeContextId, setActiveContextId] = useState<string>('madison')
   const [rates, setRates] = useState<ExchangeRate[]>(DEFAULT_RATES)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    // Load contexts from Google Sheets
+    fetch('/api/contexts')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setContexts(data)
+      })
+      .catch(() => {})
+
+    // Load active context and rates from localStorage only
     try {
-      const c = localStorage.getItem('gagyebu-contexts')
       const a = localStorage.getItem('gagyebu-active-context')
       const r = localStorage.getItem('gagyebu-rates')
-      if (c) setContexts(JSON.parse(c))
       if (a) setActiveContextId(a)
       if (r) setRates(JSON.parse(r))
     } catch {}
+
     setLoaded(true)
   }, [])
 
-  const saveContexts = useCallback((next: Context[]) => {
-    setContexts(next)
-    localStorage.setItem('gagyebu-contexts', JSON.stringify(next))
+  const addContext = useCallback(async (ctx: Context) => {
+    setContexts(prev => [...prev, ctx])
+    try {
+      await fetch('/api/contexts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ctx),
+      })
+    } catch {
+      setContexts(prev => prev.filter(c => c.id !== ctx.id))
+    }
   }, [])
 
-  const addContext = useCallback((ctx: Context) => {
-    saveContexts([...contexts, ctx])
-  }, [contexts, saveContexts])
-
-  const removeContext = useCallback((id: string) => {
-    saveContexts(contexts.filter(c => c.id !== id))
+  const removeContext = useCallback(async (id: string) => {
+    setContexts(prev => prev.filter(c => c.id !== id))
     if (activeContextId === id) {
       const remaining = contexts.filter(c => c.id !== id)
-      if (remaining.length > 0) setActiveContextId(remaining[0].id)
+      if (remaining.length > 0) {
+        setActiveContextId(remaining[0].id)
+        localStorage.setItem('gagyebu-active-context', remaining[0].id)
+      }
     }
-  }, [contexts, saveContexts, activeContextId])
+    try {
+      await fetch(`/api/contexts/${id}`, { method: 'DELETE' })
+    } catch {
+      fetch('/api/contexts').then(r => r.json()).then(data => setContexts(data))
+    }
+  }, [contexts, activeContextId])
 
-  const renameContext = useCallback((id: string, name: string) => {
-    saveContexts(contexts.map(c => c.id === id ? { ...c, name: name.trim() } : c))
-  }, [contexts, saveContexts])
+  const renameContext = useCallback(async (id: string, name: string) => {
+    const updated = contexts.map(c => c.id === id ? { ...c, name: name.trim() } : c)
+    setContexts(updated)
+    const ctx = updated.find(c => c.id === id)
+    if (!ctx) return
+    try {
+      await fetch(`/api/contexts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ctx),
+      })
+    } catch {
+      fetch('/api/contexts').then(r => r.json()).then(data => setContexts(data))
+    }
+  }, [contexts])
 
   const switchContext = useCallback((id: string) => {
     setActiveContextId(id)
@@ -79,7 +111,6 @@ export function useSettings() {
     if (direct) return amount * direct.rate
     const inverse = rates.find(r => r.from === to && r.to === from)
     if (inverse) return amount / inverse.rate
-    // via USD
     const toUSD = rates.find(r => r.from === from && r.to === 'USD')
     const fromUSD = rates.find(r => r.from === 'USD' && r.to === to)
     if (toUSD && fromUSD) return amount * toUSD.rate * fromUSD.rate
