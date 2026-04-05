@@ -3,12 +3,10 @@ import { getSheets, SHEET_ID } from '../../../lib/sheets'
 import { RecurringItem } from '../route'
 
 async function findRowIndex(id: string) {
-  const sheets = await getSheets()
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: 'Recurring!A:A',
-  })
-  return (res.data.values || []).findIndex(r => r[0] === id)
+  // id format: rec-{index}-{context}-{label}
+  const parts = id.split('-')
+  const rowIndex = parseInt(parts[1])
+  return isNaN(rowIndex) ? -1 : rowIndex + 1 // +1 for header row
 }
 
 async function getSheetId() {
@@ -26,10 +24,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const sheets = await getSheets()
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `Recurring!A${rowIndex + 1}:H${rowIndex + 1}`,
+      range: `Recurring!A${rowIndex + 1}:G${rowIndex + 1}`,
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[item.id, item.context, item.label, item.category, item.amount, item.currency, item.summary, item.remarks]],
+        values: [[item.context, item.label, item.category, item.amount, item.currency, item.summary, item.remarks]],
       },
     })
     return NextResponse.json({ success: true })

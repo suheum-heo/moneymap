@@ -126,7 +126,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
                     {r.remarks && <span className="text-xs text-zinc-400 ml-1.5">{r.remarks}</span>}
                   </div>
                   <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
-                    {getCurrencySymbol(r.currency)}{r.amount.toLocaleString()} {r.currency !== contextCur ? r.currency : ''}
+                    {getCurrencySymbol(r.currency)}{r.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.currency !== contextCur ? r.currency : ''}
                   </span>
                 </button>
               ))}

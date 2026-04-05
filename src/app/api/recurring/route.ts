@@ -17,20 +17,20 @@ export async function GET() {
     const sheets = await getSheets()
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: 'Recurring!A2:H',
+      range: 'Recurring!A2:G',
     })
     const rows = res.data.values || []
     const items: RecurringItem[] = rows
       .filter(r => r[0])
-      .map(r => ({
-        id: r[0] || '',
-        context: r[1] || '',
-        label: r[2] || '',
-        category: r[3] || '',
-        amount: parseFloat(r[4]) || 0,
-        currency: r[5] || 'USD',
-        summary: r[6] || '',
-        remarks: r[7] || '',
+      .map((r, i) => ({
+        id: `rec-${i}-${r[0]}-${r[1]}`,
+        context: r[0] || '',
+        label: r[1] || '',
+        category: r[2] || '',
+        amount: parseFloat(r[3]) || 0,
+        currency: r[4] || 'USD',
+        summary: r[5] || '',
+        remarks: r[6] || '',
       }))
     return NextResponse.json(items)
   } catch (e: unknown) {
@@ -45,10 +45,10 @@ export async function POST(req: Request) {
     const sheets = await getSheets()
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range: 'Recurring!A:H',
+      range: 'Recurring!A:G',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[item.id, item.context, item.label, item.category, item.amount, item.currency, item.summary, item.remarks]],
+        values: [[item.context, item.label, item.category, item.amount, item.currency, item.summary, item.remarks]],
       },
     })
     return NextResponse.json({ success: true })

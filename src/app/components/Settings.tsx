@@ -195,7 +195,7 @@ export default function Settings() {
                   <div>
                     <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{item.label}</div>
                     <div className="text-xs text-zinc-400 mt-0.5">
-                      {getCurrencySymbol(item.currency)}{item.amount.toLocaleString()} {item.currency} · {item.category}
+                      {getCurrencySymbol(item.currency)}{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {item.currency} · {item.category}
                       {item.remarks ? ` · ${item.remarks}` : ''}
                     </div>
                   </div>
