@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { Entry, CAT_COLORS, getCurrencySymbol } from '../types'
+import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount } from '../types'
 import { useSettings } from '../useSettings'
 
 interface Props { entries: Entry[]; month: string; onDelete: (id: string) => void }
@@ -68,10 +68,10 @@ export default function Entries({ entries, month, onDelete }: Props) {
                 </div>
                 <div className="flex flex-col items-end gap-0.5">
                   <div className={`text-sm font-medium ${isIncome ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {isIncome ? '+' : '-'}{entrySym}{e.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {isIncome ? '+' : '-'}{formatAmount(e.amount, e.currency || cur)}
                   </div>
                   {converted !== null && (
-                    <div className="text-xs text-zinc-400">≈{homeSym}{converted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                    <div className="text-xs text-zinc-400">≈{formatAmount(converted, homeCur)}</div>
                   )}
                   {confirmId === e.id ? (
                     <div className="flex gap-1 mt-1">

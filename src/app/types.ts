@@ -57,6 +57,31 @@ export function getCurrencySymbol(code: string): string {
   return CURRENCIES.find(c => c.code === code)?.symbol || code
 }
 
+// Currencies that don't use decimal places
+const NO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY', 'VND', 'IDR', 'HUF', 'ISK', 'CLP', 'PYG'])
+
+export function formatAmount(amount: number, currency: string): string {
+  const sym = getCurrencySymbol(currency)
+  const noDecimal = NO_DECIMAL_CURRENCIES.has(currency)
+  const formatted = amount.toLocaleString(undefined, {
+    minimumFractionDigits: noDecimal ? 0 : 2,
+    maximumFractionDigits: noDecimal ? 0 : 2,
+  })
+  return `${sym}${formatted}`
+}
+
+export const NO_DECIMAL_CURRENCIES = ['KRW', 'JPY', 'VND']
+
+export function formatAmount(amount: number, currency: string): string {
+  const sym = getCurrencySymbol(currency)
+  const noDecimal = NO_DECIMAL_CURRENCIES.includes(currency)
+  const formatted = amount.toLocaleString(undefined, {
+    minimumFractionDigits: noDecimal ? 0 : 2,
+    maximumFractionDigits: noDecimal ? 0 : 2,
+  })
+  return `${sym}${formatted}`
+}
+
 export const CAT_COLORS: Record<string, string> = {
   Rent:'#378ADD', Utilities:'#3B6D11', Subscription:'#534AB7',
   'Food/Drink':'#D85A30', 'Coffee/Snack':'#BA7517', Grocery:'#1D9E75',
