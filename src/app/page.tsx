@@ -1,34 +1,26 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useEntries } from './useEntries'
 import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
-function generateMonths() {
-  const months = []
-  const now = new Date()
-  const start = new Date(now.getFullYear() - 1, now.getMonth(), 1)
-  for (let i = 0; i < 24; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth() + i, 1)
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
-    months.push({ value, label })
-  }
-  return months
-}
-
-const MONTHS = generateMonths()
+const YEARS = Array.from({ length: 10 }, (_, i) => 2020 + i) // 2020–2029
 
 type Tab = 'overview' | 'entries' | 'add'
 
 export default function Home() {
   const { entries, loaded, addEntry, deleteEntry } = useEntries()
   const [tab, setTab] = useState<Tab>('overview')
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [dark, setDark] = useState<boolean | null>(null)
+
+  const now = new Date()
+  const [selMonth, setSelMonth] = useState(now.getMonth())
+  const [selYear, setSelYear] = useState(now.getFullYear())
+
+  const month = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
+  const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
@@ -45,9 +37,6 @@ export default function Home() {
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
 
-  const monthLabel = useMemo(() =>
-    MONTHS.find(m => m.value === month)?.label || month, [month])
-
   if (!loaded || dark === null) return (
     <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">Loading…</div>
   )
@@ -58,18 +47,28 @@ export default function Home() {
     { id: 'add' as Tab, label: '+ Add' },
   ]
 
+  const MonthYearPicker = ({ className }: { className?: string }) => (
+    <div className={`flex gap-1.5 ${className}`}>
+      <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+        className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
+        {MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}
+      </select>
+      <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+        className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
+        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+      </select>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d]">
       {/* Desktop layout */}
       <div className="hidden md:flex h-screen">
-        {/* Sidebar */}
         <div className="w-56 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 flex flex-col px-4 py-8">
           <div className="mb-8">
             <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">가계부</h1>
             <p className="text-sm text-amber-600 dark:text-amber-400 font-medium mt-0.5">{monthLabel}</p>
           </div>
-
-          {/* Sidebar nav */}
           <nav className="flex flex-col gap-1 flex-1">
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
@@ -80,26 +79,14 @@ export default function Home() {
               </button>
             ))}
           </nav>
-
-          {/* Bottom controls */}
           <div className="flex flex-col gap-3">
-            <select
-              value={month}
-              onChange={e => setMonth(e.target.value)}
-              className="text-sm px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 w-full"
-            >
-              {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-            <button
-              onClick={() => setDark(d => !d)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm"
-            >
+            <MonthYearPicker className="flex-col" />
+            <button onClick={() => setDark(d => !d)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm">
               {dark ? '☀️ Light mode' : '🌙 Dark mode'}
             </button>
           </div>
         </div>
-
-        {/* Main content */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto py-8">
             {tab === 'overview' && <Overview entries={entries} month={month} />}
@@ -117,22 +104,13 @@ export default function Home() {
             <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDark(d => !d)}
-              className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-base"
-            >
+            <button onClick={() => setDark(d => !d)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-base">
               {dark ? '☀️' : '🌙'}
             </button>
-            <select
-              value={month}
-              onChange={e => setMonth(e.target.value)}
-              className="text-sm px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
-            >
-              {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
+            <MonthYearPicker />
           </div>
         </div>
-
         <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 mb-4">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -143,7 +121,6 @@ export default function Home() {
             </button>
           ))}
         </div>
-
         <div className="flex-1 overflow-y-auto">
           {tab === 'overview' && <Overview entries={entries} month={month} />}
           {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} />}
