@@ -1,16 +1,16 @@
 'use client'
 import { useState } from 'react'
-import { CURRENCIES, Context } from '../types'
+import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol } from '../types'
 import { useSettings, ExchangeRate } from '../useSettings'
 import { useBudgets } from '../useBudgets'
-import { EXPENSE_CATEGORIES } from '../types'
+import { useRecurring, RecurringItem } from '../useRecurring'
 
 export default function Settings() {
   const { contexts, addContext, removeContext, renameContext, rates, updateRate, activeContext } = useSettings()
-  const { budgets, setBudget, getBudget } = useBudgets()
-  const [budgetCat, setBudgetCat] = useState(EXPENSE_CATEGORIES[0])
-  const [budgetAmt, setBudgetAmt] = useState("")
+  const { setBudget, getBudget } = useBudgets()
+  const { items, addItem, updateItem, deleteItem } = useRecurring()
 
+  // Context state
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [homeCurrency, setHomeCurrency] = useState('USD')
@@ -18,24 +18,61 @@ export default function Settings() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
+  // Rate state
   const [rateFrom, setRateFrom] = useState('KRW')
   const [rateTo, setRateTo] = useState('USD')
   const [rateVal, setRateVal] = useState('')
+
+  // Budget state
+  const [budgetCat, setBudgetCat] = useState(EXPENSE_CATEGORIES[0])
+  const [budgetAmt, setBudgetAmt] = useState('')
+
+  // Recurring state
+  const [recLabel, setRecLabel] = useState('')
+  const [recCategory, setRecCategory] = useState(EXPENSE_CATEGORIES[3])
+  const [recAmount, setRecAmount] = useState('')
+  const [recCurrency, setRecCurrency] = useState(activeContext?.currency || 'USD')
+  const [recSummary, setRecSummary] = useState('')
+  const [recRemarks, setRecRemarks] = useState('')
+  const [editingRecId, setEditingRecId] = useState<string | null>(null)
+  const [editRec, setEditRec] = useState<RecurringItem | null>(null)
+
+  const contextRecurring = items.filter(i => i.context === activeContext?.id)
 
   const inputCls = "w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
   const selCls = "px-2 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
 
   const handleAddContext = () => {
     if (!name.trim()) return
-    const ctx: Context = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      currency,
-      homeCurrency,
-      startDate,
-    }
+    const ctx: Context = { id: Date.now().toString(), name: name.trim(), currency, homeCurrency, startDate }
     addContext(ctx)
     setName('')
+  }
+
+  const handleAddRecurring = () => {
+    if (!recLabel.trim() || !recAmount || !activeContext) return
+    const amt = parseFloat(recAmount)
+    if (isNaN(amt) || amt <= 0) return
+    const item: RecurringItem = {
+      id: Date.now().toString(),
+      context: activeContext.id,
+      label: recLabel.trim(),
+      category: recCategory,
+      amount: amt,
+      currency: recCurrency,
+      summary: recSummary.trim() || recLabel.trim(),
+      remarks: recRemarks.trim(),
+    }
+    addItem(item)
+    setRecLabel(''); setRecAmount(''); setRecSummary(''); setRecRemarks('')
+  }
+
+  const handleSaveRec = () => {
+    if (!editRec) return
+    const amt = parseFloat(editRec.amount.toString())
+    if (isNaN(amt) || amt <= 0) return
+    updateItem({ ...editRec, amount: amt })
+    setEditingRecId(null); setEditRec(null)
   }
 
   return (
@@ -50,28 +87,22 @@ export default function Settings() {
               {editingId === c.id ? (
                 <div className="flex gap-2 items-center">
                   <input value={editName} onChange={e => setEditName(e.target.value)}
-                    className={inputCls} style={{ fontSize: '16px' }}
-                    onKeyDown={e => { if (e.key === 'Enter') { renameContext(c.id, editName); setEditingId(null) } }}
-                    autoFocus />
+                    className={inputCls} style={{ fontSize: '16px' }} autoFocus
+                    onKeyDown={e => { if (e.key === 'Enter') { renameContext(c.id, editName); setEditingId(null) } }} />
                   <button onClick={() => { renameContext(c.id, editName); setEditingId(null) }}
                     className="text-xs text-amber-500 font-medium whitespace-nowrap">Save</button>
-                  <button onClick={() => setEditingId(null)}
-                    className="text-xs text-zinc-400 whitespace-nowrap">Cancel</button>
+                  <button onClick={() => setEditingId(null)} className="text-xs text-zinc-400 whitespace-nowrap">Cancel</button>
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{c.name}</div>
-                    <div className="text-xs text-zinc-400 mt-0.5">
-                      {c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · from {c.startDate}
-                    </div>
+                    <div className="text-xs text-zinc-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · from {c.startDate}</div>
                   </div>
                   <div className="flex gap-3 ml-3">
-                    <button onClick={() => { setEditingId(c.id); setEditName(c.name) }}
-                      className="text-xs text-amber-500">Rename</button>
+                    <button onClick={() => { setEditingId(c.id); setEditName(c.name) }} className="text-xs text-amber-500">Rename</button>
                     {c.id !== 'madison' && c.id !== 'korea' && (
-                      <button onClick={() => removeContext(c.id)}
-                        className="text-xs text-red-400 hover:text-red-500">Remove</button>
+                      <button onClick={() => removeContext(c.id)} className="text-xs text-red-400">Remove</button>
                     )}
                   </div>
                 </div>
@@ -79,8 +110,6 @@ export default function Settings() {
             </div>
           ))}
         </div>
-
-        {/* Add context form */}
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
           <div className="text-xs text-zinc-400 mb-1">New context</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
@@ -103,10 +132,160 @@ export default function Settings() {
             <label className="text-xs text-zinc-400 block mb-1">Start date</label>
             <input type="month" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
-          <button onClick={handleAddContext}
-            className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">
-            Add context
-          </button>
+          <button onClick={handleAddContext} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">Add context</button>
+        </div>
+      </div>
+
+      {/* Recurring payments */}
+      <div>
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Recurring payments</div>
+        <p className="text-xs text-zinc-400 mb-3">For <span className="text-amber-500 font-medium">{activeContext?.name}</span>. Tap any item to pre-fill the Add form.</p>
+        <div className="flex flex-col gap-2 mb-3">
+          {contextRecurring.map(item => (
+            <div key={item.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5">
+              {editingRecId === item.id && editRec ? (
+                <div className="flex flex-col gap-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Label</label>
+                      <input value={editRec.label} onChange={e => setEditRec({ ...editRec, label: e.target.value })}
+                        className={inputCls} style={{ fontSize: '16px' }} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Summary</label>
+                      <input value={editRec.summary} onChange={e => setEditRec({ ...editRec, summary: e.target.value })}
+                        className={inputCls} style={{ fontSize: '16px' }} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Amount</label>
+                      <input type="number" value={editRec.amount} onChange={e => setEditRec({ ...editRec, amount: parseFloat(e.target.value) })}
+                        className={inputCls} style={{ fontSize: '16px' }} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Currency</label>
+                      <select value={editRec.currency} onChange={e => setEditRec({ ...editRec, currency: e.target.value })}
+                        className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                        {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Category</label>
+                      <select value={editRec.category} onChange={e => setEditRec({ ...editRec, category: e.target.value })}
+                        className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                        {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Remarks</label>
+                      <input value={editRec.remarks} onChange={e => setEditRec({ ...editRec, remarks: e.target.value })}
+                        className={inputCls} style={{ fontSize: '16px' }} />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveRec} className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">Save</button>
+                    <button onClick={() => { setEditingRecId(null); setEditRec(null) }} className="flex-1 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-500 text-sm">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{item.label}</div>
+                    <div className="text-xs text-zinc-400 mt-0.5">
+                      {getCurrencySymbol(item.currency)}{item.amount.toLocaleString()} {item.currency} · {item.category}
+                      {item.remarks ? ` · ${item.remarks}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex gap-3 ml-3">
+                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }}
+                      className="text-xs text-amber-500">Edit</button>
+                    <button onClick={() => deleteItem(item.id)} className="text-xs text-red-400">Remove</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {contextRecurring.length === 0 && (
+            <div className="text-xs text-zinc-400 text-center py-3">No recurring payments yet</div>
+          )}
+        </div>
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
+          <div className="text-xs text-zinc-400 mb-1">Add recurring payment</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Label</label>
+              <input value={recLabel} onChange={e => setRecLabel(e.target.value)} placeholder="e.g. Rent"
+                className={inputCls} style={{ fontSize: '16px' }} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Summary</label>
+              <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder="e.g. Monthly Rent"
+                className={inputCls} style={{ fontSize: '16px' }} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Amount</label>
+              <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder="0.00"
+                className={inputCls} style={{ fontSize: '16px' }} />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Currency</label>
+              <select value={recCurrency} onChange={e => setRecCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Category</label>
+              <select value={recCategory} onChange={e => setRecCategory(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">Remarks</label>
+              <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder="e.g. Spectrum"
+                className={inputCls} style={{ fontSize: '16px' }} />
+            </div>
+          </div>
+          <button onClick={handleAddRecurring} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">Add</button>
+        </div>
+      </div>
+
+      {/* Budgets */}
+      <div>
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Monthly budgets</div>
+        <p className="text-xs text-zinc-400 mb-3">For <span className="text-amber-500 font-medium">{activeContext?.name}</span>. Leave blank for no limit.</p>
+        <div className="flex flex-col gap-2 mb-3">
+          {EXPENSE_CATEGORIES.map(cat => {
+            const b = activeContext ? getBudget(activeContext.id, cat) : null
+            return b ? (
+              <div key={cat} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
+                <span className="text-sm text-zinc-800 dark:text-zinc-100">{cat}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">{activeContext?.currency} {b.toLocaleString()}</span>
+                  <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs text-red-400">Remove</button>
+                </div>
+              </div>
+            ) : null
+          })}
+        </div>
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
+          <div className="text-xs text-zinc-400 mb-1">Add / update budget</div>
+          <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+            {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+          </select>
+          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(e.target.value)}
+            placeholder="Monthly limit (leave blank for none)" className={inputCls} style={{ fontSize: '16px' }} />
+          <button onClick={() => {
+            if (!activeContext) return
+            const amt = parseFloat(budgetAmt)
+            if (!isNaN(amt) && amt > 0) { setBudget(activeContext.id, budgetCat, amt); setBudgetAmt('') }
+          }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">Save budget</button>
         </div>
       </div>
 
@@ -117,8 +296,7 @@ export default function Settings() {
           {rates.map((r: ExchangeRate) => (
             <div key={`${r.from}-${r.to}`} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
               <span className="text-sm text-zinc-800 dark:text-zinc-100">1 {r.from} = {r.rate} {r.to}</span>
-              <button onClick={() => { setRateFrom(r.from); setRateTo(r.to); setRateVal(r.rate.toString()) }}
-                className="text-xs text-amber-500">Edit</button>
+              <button onClick={() => { setRateFrom(r.from); setRateTo(r.to); setRateVal(r.rate.toString()) }} className="text-xs text-amber-500">Edit</button>
             </div>
           ))}
         </div>
@@ -139,47 +317,7 @@ export default function Settings() {
           <button onClick={() => {
             const r = parseFloat(rateVal)
             if (!isNaN(r) && r > 0) { updateRate(rateFrom, rateTo, r); setRateVal('') }
-          }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">
-            Save rate
-          </button>
-        </div>
-      </div>
-
-      {/* Budgets */}
-      <div>
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Monthly budgets</div>
-        <p className="text-xs text-zinc-400 mb-3">Set spending limits per category for <span className="text-amber-500 font-medium">{activeContext?.name}</span>. Leave blank for no limit.</p>
-        <div className="flex flex-col gap-2 mb-3">
-          {EXPENSE_CATEGORIES.map(cat => {
-            const b = activeContext ? getBudget(activeContext.id, cat) : null
-            return b ? (
-              <div key={cat} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
-                <span className="text-sm text-zinc-800 dark:text-zinc-100">{cat}</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">{activeContext?.currency} {b.toLocaleString()}</span>
-                  <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)}
-                    className="text-xs text-red-400">Remove</button>
-                </div>
-              </div>
-            ) : null
-          })}
-        </div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
-          <div className="text-xs text-zinc-400 mb-1">Add / update budget</div>
-          <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className="w-full px-2 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm" style={{fontSize:'16px'}}>
-            {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
-          </select>
-          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(e.target.value)}
-            placeholder="Monthly limit (leave blank for none)"
-            className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
-            style={{fontSize:'16px'}} />
-          <button onClick={() => {
-            if (!activeContext) return
-            const amt = parseFloat(budgetAmt)
-            if (!isNaN(amt) && amt > 0) { setBudget(activeContext.id, budgetCat, amt); setBudgetAmt('') }
-          }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">
-            Save budget
-          </button>
+          }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">Save rate</button>
         </div>
       </div>
 
@@ -187,18 +325,15 @@ export default function Settings() {
       <div>
         <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Reset</div>
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
-          <p className="text-xs text-zinc-400 mb-3">Clear all local settings (contexts, exchange rates) and reload defaults. Your entries in Google Sheets are not affected.</p>
+          <p className="text-xs text-zinc-400 mb-3">Clear local settings (exchange rates, theme). Contexts and entries in Google Sheets are not affected.</p>
           <button onClick={() => {
-            if (confirm('Reset all local settings? Your entries will not be deleted.')) {
-              localStorage.removeItem('gagyebu-contexts')
+            if (confirm('Reset local settings?')) {
               localStorage.removeItem('gagyebu-active-context')
               localStorage.removeItem('gagyebu-rates')
               localStorage.removeItem('theme')
               window.location.reload()
             }
-          }} className="w-full py-2 rounded-xl bg-red-500 text-white text-sm font-medium">
-            Reset local settings
-          </button>
+          }} className="w-full py-2 rounded-xl bg-red-500 text-white text-sm font-medium">Reset local settings</button>
         </div>
       </div>
     </div>
