@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Entry, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol } from '../types'
 import { useSettings } from '../useSettings'
 
-interface Props { onAdd: (e: Entry) => void; onDone: () => void }
+interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[] }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -20,10 +20,13 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
   const { activeContext } = useSettings()
   const cur = activeContext?.currency || 'USD'
   const sym = getCurrencySymbol(cur)
+
+  const pastVenues = [...new Set(entries.map(e => e.venue).filter(Boolean))].sort()
+  const pastLocations = [...new Set(entries.map(e => e.location).filter(Boolean))].sort()
 
   const RECURRING = [
     { label: 'Rent', category: 'Rent', amount: 899.50, summary: 'Monthly Rent' },
@@ -162,12 +165,12 @@ export default function AddEntry({ onAdd, onDone }: Props) {
             <div>
               <label className="text-xs text-zinc-400 mb-1 block">Venue</label>
               <input type="text" value={venue} onChange={e => setVenue(e.target.value)}
-                placeholder="e.g. Chipotle" className={inputCls} style={{ fontSize: '16px' }} />
+                placeholder="e.g. Chipotle" className={inputCls} style={{ fontSize: '16px' }} list="venue-list" />
             </div>
             <div>
               <label className="text-xs text-zinc-400 mb-1 block">Location</label>
               <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-                placeholder="e.g. Madison, WI" className={inputCls} style={{ fontSize: '16px' }} />
+                placeholder="e.g. Madison, WI" className={inputCls} style={{ fontSize: '16px' }} list="location-list" />
             </div>
           </div>
         )}
@@ -187,6 +190,13 @@ export default function AddEntry({ onAdd, onDone }: Props) {
         </div>
 
         {error && <div className="text-xs text-red-500">{error}</div>}
+
+        <datalist id="venue-list">
+          {pastVenues.map(v => <option key={v} value={v} />)}
+        </datalist>
+        <datalist id="location-list">
+          {pastLocations.map(l => <option key={l} value={l} />)}
+        </datalist>
 
         <button onClick={handleSubmit}
           className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium mt-1 transition-colors">
