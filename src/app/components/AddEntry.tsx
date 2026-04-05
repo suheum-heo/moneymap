@@ -1,15 +1,16 @@
 'use client'
 import { useState } from 'react'
-import { Entry, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../types'
+import { Entry, EXPENSE_CATEGORIES, INCOME_CATEGORIES, MAJOR_CURRENCIES } from '../types'
+import { useSettings } from '../useSettings'
 
 interface Props { onAdd: (e: Entry) => void; onDone: () => void }
 
 const RECURRING = [
-  { label: 'Rent', category: 'Rent', amount: 899.50, summary: 'Monthly Rent' },
-  { label: 'Water', category: 'Utilities', amount: 12.00, summary: 'Monthly Water' },
-  { label: 'Internet', category: 'Utilities', amount: 24.99, summary: 'Monthly Internet', remarks: 'Spectrum' },
-  { label: 'iCloud', category: 'Subscription', amount: 9.99, summary: 'iCloud', remarks: 'Apple' },
-  { label: 'YouTube', category: 'Subscription', amount: 9.09, summary: 'YouTube Premium', remarks: 'Google' },
+  { label: 'Rent', category: 'Rent', amount: 899.50, summary: 'Monthly Rent', currency: 'USD' },
+  { label: 'Water', category: 'Utilities', amount: 12.00, summary: 'Monthly Water', currency: 'USD' },
+  { label: 'Internet', category: 'Utilities', amount: 24.99, summary: 'Monthly Internet', remarks: 'Spectrum', currency: 'USD' },
+  { label: 'iCloud', category: 'Subscription', amount: 9.99, summary: 'iCloud', remarks: 'Apple', currency: 'USD' },
+  { label: 'YouTube', category: 'Subscription', amount: 9.09, summary: 'YouTube Premium', remarks: 'Google', currency: 'USD' },
 ]
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -28,12 +29,15 @@ function daysInMonth(m: number, y: number) {
 }
 
 export default function AddEntry({ onAdd, onDone }: Props) {
+  const { contexts } = useSettings()
   const init = todayParts()
   const [month, setMonth] = useState(init.m)
   const [day, setDay] = useState(init.day)
   const [year, setYear] = useState(init.y)
   const [entryType, setEntryType] = useState<'expense' | 'income'>('expense')
   const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState('USD')
+  const [context, setContext] = useState(contexts[0] || 'Madison')
   const [summary, setSummary] = useState('')
   const [venue, setVenue] = useState('')
   const [location, setLocation] = useState('')
@@ -45,7 +49,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
   const cats = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
   const maxDay = daysInMonth(month, year)
   const days = Array.from({ length: maxDay }, (_, i) => i + 1)
-  const years = [2025, 2026, 2027]
+  const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
 
   const handleTypeChange = (t: 'expense' | 'income') => {
     setEntryType(t)
@@ -58,6 +62,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
     setAmount(r.amount.toString())
     setCategory(r.category)
     setRemarks(r.remarks || '')
+    setCurrency(r.currency)
     setVenue(''); setLocation('')
     setShowRecurring(false)
   }
@@ -80,6 +85,8 @@ export default function AddEntry({ onAdd, onDone }: Props) {
       category,
       amount: parsed,
       remarks: remarks.trim(),
+      currency,
+      context,
     })
     setSummary(''); setAmount(''); setVenue(''); setLocation(''); setRemarks('')
     onDone()
@@ -126,6 +133,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
       )}
 
       <div className="flex flex-col gap-3">
+        {/* Date */}
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">Date</label>
           <div className="grid grid-cols-3 gap-2">
@@ -141,16 +149,34 @@ export default function AddEntry({ onAdd, onDone }: Props) {
           </div>
         </div>
 
-        <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Amount ($)</label>
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-            placeholder="0.00" step="0.01" inputMode="decimal" className={inputCls} style={{ fontSize: '16px' }} />
+        {/* Amount + Currency */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-zinc-400 mb-1 block">Amount</label>
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+              placeholder="0.00" step="0.01" inputMode="decimal" className={inputCls} style={{ fontSize: '16px' }} />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 mb-1 block">Currency</label>
+            <select value={currency} onChange={e => setCurrency(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
+              {MAJOR_CURRENCIES.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
 
+        {/* Summary */}
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">Summary</label>
           <input type="text" value={summary} onChange={e => setSummary(e.target.value)}
             placeholder="e.g. Chipotle before class" className={inputCls} style={{ fontSize: '16px' }} />
+        </div>
+
+        {/* Context */}
+        <div>
+          <label className="text-xs text-zinc-400 mb-1 block">Context</label>
+          <select value={context} onChange={e => setContext(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
+            {contexts.map(c => <option key={c}>{c}</option>)}
+          </select>
         </div>
 
         {entryType === 'expense' && (
@@ -172,7 +198,7 @@ export default function AddEntry({ onAdd, onDone }: Props) {
           <div>
             <label className="text-xs text-zinc-400 mb-1 block">Category</label>
             <select value={category} onChange={e => setCategory(e.target.value)}
-              className={inputCls} style={{ fontSize: '16px' }}>
+              className={selCls} style={{ fontSize: '16px' }}>
               {cats.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>

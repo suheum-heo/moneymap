@@ -7,7 +7,7 @@ export async function GET() {
     const sheets = await getSheets()
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: 'Entries!A2:I',
+      range: 'Entries!A2:K',
     })
     const rows = res.data.values || []
     const entries: Entry[] = rows
@@ -22,11 +22,12 @@ export async function GET() {
         category: r[6] || '',
         amount: parseFloat(r[7]) || 0,
         remarks: r[8] || '',
+        currency: r[9] || 'USD',
+        context: r[10] || 'Madison',
       }))
     return NextResponse.json(entries)
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    console.error('GET /api/entries error:', msg)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
@@ -37,20 +38,21 @@ export async function POST(req: Request) {
     const sheets = await getSheets()
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range: 'Entries!A:I',
+      range: 'Entries!A:K',
       valueInputOption: 'RAW',
       requestBody: {
         values: [[
           entry.id, entry.type, entry.date, entry.summary,
           entry.venue, entry.location, entry.category,
           entry.amount, entry.remarks,
+          entry.currency || 'USD',
+          entry.context || 'Madison',
         ]],
       },
     })
     return NextResponse.json({ success: true })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    console.error('POST /api/entries error:', msg)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

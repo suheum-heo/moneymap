@@ -4,11 +4,12 @@ import { useEntries } from './useEntries'
 import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
+import Settings from './components/Settings'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i) // 2020–2029
 
-type Tab = 'overview' | 'entries' | 'add'
+type Tab = 'overview' | 'entries' | 'add' | 'settings'
 
 export default function Home() {
   const { entries, loaded, addEntry, deleteEntry } = useEntries()
@@ -45,6 +46,7 @@ export default function Home() {
     { id: 'overview' as Tab, label: 'Overview' },
     { id: 'entries' as Tab, label: 'Entries' },
     { id: 'add' as Tab, label: '+ Add' },
+    { id: 'settings' as Tab, label: 'Settings' },
   ]
 
   const MonthYearPicker = ({ className }: { className?: string }) => (
@@ -92,6 +94,7 @@ export default function Home() {
             {tab === 'overview' && <Overview entries={entries} month={month} />}
             {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} />}
             {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} />}
+            {tab === 'settings' && <Settings />}
           </div>
         </div>
       </div>
@@ -125,6 +128,7 @@ export default function Home() {
           {tab === 'overview' && <Overview entries={entries} month={month} />}
           {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} />}
           {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} />}
+          {tab === 'settings' && <Settings />}
         </div>
       </div>
     </div>
