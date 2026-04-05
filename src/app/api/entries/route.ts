@@ -23,7 +23,7 @@ export async function GET() {
         amount: parseFloat(r[7]) || 0,
         remarks: r[8] || '',
         currency: r[9] || 'USD',
-        context: r[10] || 'Madison',
+        context: r[10] || 'madison',
       }))
     return NextResponse.json(entries)
   } catch (e: unknown) {
