@@ -14,7 +14,7 @@ const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
 type Tab = 'overview' | 'entries' | 'add' | 'settings'
 
 export default function Home() {
-  const { entries, loaded: entriesLoaded, addEntry, deleteEntry } = useEntries()
+  const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
   const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings()
   const [tab, setTab] = useState<Tab>('overview')
   const [dark, setDark] = useState<boolean | null>(null)
@@ -117,7 +117,7 @@ export default function Home() {
   const TabContent = () => (
     <>
       {tab === 'overview' && <Overview entries={entries} month={month} />}
-      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} />}
+      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
       {tab === 'settings' && <Settings />}
     </>

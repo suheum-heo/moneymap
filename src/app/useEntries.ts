@@ -17,7 +17,6 @@ export function useEntries() {
   }, [])
 
   const addEntry = useCallback(async (entry: Entry) => {
-    // Optimistic update
     setEntries(prev => [...prev, entry])
     try {
       await fetch('/api/entries', {
@@ -26,21 +25,32 @@ export function useEntries() {
         body: JSON.stringify(entry),
       })
     } catch {
-      // Revert on failure
       setEntries(prev => prev.filter(e => e.id !== entry.id))
     }
   }, [])
 
-  const deleteEntry = useCallback(async (id: string) => {
-    // Optimistic update
-    setEntries(prev => prev.filter(e => e.id !== id))
+  const updateEntry = useCallback(async (updated: Entry) => {
+    setEntries(prev => prev.map(e => e.id === updated.id ? updated : e))
     try {
-      await fetch(`/api/entries/${id}`, { method: 'DELETE' })
+      await fetch(`/api/entries/${updated.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      })
     } catch {
       // Refetch on failure
       fetch('/api/entries').then(r => r.json()).then(data => setEntries(data))
     }
   }, [])
 
-  return { entries, loaded, addEntry, deleteEntry }
+  const deleteEntry = useCallback(async (id: string) => {
+    setEntries(prev => prev.filter(e => e.id !== id))
+    try {
+      await fetch(`/api/entries/${id}`, { method: 'DELETE' })
+    } catch {
+      fetch('/api/entries').then(r => r.json()).then(data => setEntries(data))
+    }
+  }, [])
+
+  return { entries, loaded, addEntry, updateEntry, deleteEntry }
 }
