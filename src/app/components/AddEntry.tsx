@@ -66,7 +66,8 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
     setRemarks(r.remarks || '')
     setCurrency(r.currency)
     setShowCurrencyOverride(r.currency !== contextCur)
-    setVenue(''); setLocation('')
+    setVenue('')
+    setLocation('')
     setShowRecurring(false)
   }
 
@@ -122,7 +123,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
                 <button key={r.id} onClick={() => applyRecurring(r)}
                   className="flex justify-between items-center px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-left w-full">
                   <div>
-                    <span className="text-sm text-zinc-800 dark:text-zinc-100">{r.label}</span>
+                    <span className="text-sm text-zinc-800 dark:text-zinc-100">{r.summary}</span>
                     {r.remarks && <span className="text-xs text-zinc-400 ml-1.5">{r.remarks}</span>}
                   </div>
                   <span className="text-sm font-medium text-amber-600 dark:text-amber-400">

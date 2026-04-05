@@ -24,10 +24,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const sheets = await getSheets()
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: `Recurring!A${rowIndex + 1}:G${rowIndex + 1}`,
+      range: `Recurring!A${rowIndex + 1}:F${rowIndex + 1}`,
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[item.context, item.label, item.category, item.amount, item.currency, item.summary, item.remarks]],
+        values: [[item.context, item.summary, item.category, item.amount, item.currency, item.remarks]],
       },
     })
     return NextResponse.json({ success: true })

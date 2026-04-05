@@ -17,7 +17,7 @@ export async function GET() {
     const sheets = await getSheets()
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: 'Recurring!A2:G',
+      range: 'Recurring!A2:F',
     })
     const rows = res.data.values || []
     const items: RecurringItem[] = rows
@@ -29,8 +29,8 @@ export async function GET() {
         category: r[2] || '',
         amount: parseFloat(r[3]) || 0,
         currency: r[4] || 'USD',
-        summary: r[5] || '',
-        remarks: r[6] || '',
+        summary: r[1] || '',
+        remarks: r[5] || '',
       }))
     return NextResponse.json(items)
   } catch (e: unknown) {
@@ -45,10 +45,10 @@ export async function POST(req: Request) {
     const sheets = await getSheets()
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range: 'Recurring!A:G',
+      range: 'Recurring!A:F',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[item.context, item.label, item.category, item.amount, item.currency, item.summary, item.remarks]],
+        values: [[item.context, item.summary, item.category, item.amount, item.currency, item.remarks]],
       },
     })
     return NextResponse.json({ success: true })

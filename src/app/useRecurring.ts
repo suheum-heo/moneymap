@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 export interface RecurringItem {
   id: string
   context: string
-  label: string
   category: string
   amount: number
   currency: string

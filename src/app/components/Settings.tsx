@@ -28,7 +28,6 @@ export default function Settings() {
   const [budgetAmt, setBudgetAmt] = useState('')
 
   // Recurring state
-  const [recLabel, setRecLabel] = useState('')
   const [recCategory, setRecCategory] = useState(EXPENSE_CATEGORIES[3])
   const [recAmount, setRecAmount] = useState('')
   const [recCurrency, setRecCurrency] = useState(activeContext?.currency || 'USD')
@@ -50,21 +49,20 @@ export default function Settings() {
   }
 
   const handleAddRecurring = () => {
-    if (!recLabel.trim() || !recAmount || !activeContext) return
+    if (!recSummary.trim() || !recAmount || !activeContext) return
     const amt = parseFloat(recAmount)
     if (isNaN(amt) || amt <= 0) return
     const item: RecurringItem = {
       id: Date.now().toString(),
       context: activeContext.id,
-      label: recLabel.trim(),
       category: recCategory,
       amount: amt,
       currency: recCurrency,
-      summary: recSummary.trim() || recLabel.trim(),
+      summary: recSummary.trim(),
       remarks: recRemarks.trim(),
     }
     addItem(item)
-    setRecLabel(''); setRecAmount(''); setRecSummary(''); setRecRemarks('')
+    setRecAmount(''); setRecSummary(''); setRecRemarks('')
   }
 
   const handleSaveRec = () => {
@@ -145,17 +143,10 @@ export default function Settings() {
             <div key={item.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5">
               {editingRecId === item.id && editRec ? (
                 <div className="flex flex-col gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Label</label>
-                      <input value={editRec.label} onChange={e => setEditRec({ ...editRec, label: e.target.value })}
-                        className={inputCls} style={{ fontSize: '16px' }} />
-                    </div>
-                    <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Summary</label>
-                      <input value={editRec.summary} onChange={e => setEditRec({ ...editRec, summary: e.target.value })}
-                        className={inputCls} style={{ fontSize: '16px' }} />
-                    </div>
+                  <div>
+                    <label className="text-xs text-zinc-400 block mb-1">Summary</label>
+                    <input value={editRec.summary} onChange={e => setEditRec({ ...editRec, summary: e.target.value })}
+                      className={inputCls} style={{ fontSize: '16px' }} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -193,7 +184,7 @@ export default function Settings() {
               ) : (
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{item.label}</div>
+                    <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{item.summary}</div>
                     <div className="text-xs text-zinc-400 mt-0.5">
                       {getCurrencySymbol(item.currency)}{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {item.currency} · {item.category}
                       {item.remarks ? ` · ${item.remarks}` : ''}
@@ -214,17 +205,10 @@ export default function Settings() {
         </div>
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
           <div className="text-xs text-zinc-400 mb-1">Add recurring payment</div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Label</label>
-              <input value={recLabel} onChange={e => setRecLabel(e.target.value)} placeholder="e.g. Rent"
-                className={inputCls} style={{ fontSize: '16px' }} />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Summary</label>
-              <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder="e.g. Monthly Rent"
-                className={inputCls} style={{ fontSize: '16px' }} />
-            </div>
+          <div>
+            <label className="text-xs text-zinc-400 block mb-1">Summary</label>
+            <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder="e.g. Monthly Rent"
+              className={inputCls} style={{ fontSize: '16px' }} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
