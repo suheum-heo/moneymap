@@ -81,16 +81,16 @@ export default function Calendar({ entries, month }: Props) {
                   : 'transparent',
                 border: isToday ? '1.5px solid #BA7517' : '1px solid transparent',
               }}>
-              <span className={`text-xs ${isToday ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-600 dark:text-zinc-400'}`}>
+              <span className={`text-xs md:text-base ${isToday ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-600 dark:text-zinc-400'}`}>
                 {day}
               </span>
               {totals?.expense > 0 && (
-                <span className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '10px', lineHeight: 1.2 }}>
+                <span className="text-zinc-500 dark:text-zinc-400 text-[10px] md:text-sm">
                   {formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
                 </span>
               )}
               {totals?.income > 0 && (
-                <span className="text-green-600 dark:text-green-400" style={{ fontSize: '10px', lineHeight: 1.2 }}>
+                <span className="text-green-600 dark:text-green-400 text-[10px] md:text-sm">
                   +{formatAmount(totals.income, cur).replace(/[^0-9.,]/g, '')}
                 </span>
               )}
