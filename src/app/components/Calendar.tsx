@@ -85,12 +85,14 @@ export default function Calendar({ entries, month }: Props) {
                 {day}
               </span>
               {totals?.expense > 0 && (
-                <span className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '8px', lineHeight: 1 }}>
+                <span className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '10px', lineHeight: 1.2 }}>
                   {formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
                 </span>
               )}
               {totals?.income > 0 && (
-                <span className="text-green-600 dark:text-green-400" style={{ fontSize: '7px', lineHeight: 1 }}>+</span>
+                <span className="text-green-600 dark:text-green-400" style={{ fontSize: '10px', lineHeight: 1.2 }}>
+                  +{formatAmount(totals.income, cur).replace(/[^0-9.,]/g, '')}
+                </span>
               )}
             </button>
           )
