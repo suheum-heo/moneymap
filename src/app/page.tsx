@@ -134,7 +134,7 @@ export default function Home() {
           <Sidebar />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto py-8">
+          <div className={`${tab === "calendar" ? "max-w-4xl" : "max-w-2xl"} mx-auto py-8`}>
             {/* Context + month header */}
             <div className="px-4 mb-6">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{activeContext?.name}</h2>
