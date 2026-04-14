@@ -120,6 +120,7 @@ export default function Home() {
     <>
       {tab === 'overview' && <Overview entries={entries} month={month} />}
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} />}
+      {tab === 'calendar' && <Calendar entries={entries} month={month} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
       {tab === 'settings' && <Settings />}
     </>
