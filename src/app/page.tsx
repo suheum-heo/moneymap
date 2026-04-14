@@ -6,12 +6,13 @@ import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
 import Settings from './components/Settings'
+import Calendar from './components/Calendar'
 import { getCurrencySymbol } from './types'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
 
-type Tab = 'overview' | 'entries' | 'add' | 'settings'
+type Tab = 'overview' | 'entries' | 'calendar' | 'add' | 'settings'
 
 export default function Home() {
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
@@ -46,6 +47,7 @@ export default function Home() {
   const tabs = [
     { id: 'overview' as Tab, label: 'Overview' },
     { id: 'entries' as Tab, label: 'Entries' },
+    { id: 'calendar' as Tab, label: 'Calendar' },
     { id: 'add' as Tab, label: '+ Add' },
     { id: 'settings' as Tab, label: 'Settings' },
   ]
