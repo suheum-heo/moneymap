@@ -17,7 +17,6 @@ export default function Calendar({ entries, month }: Props) {
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
     [entries, month, activeContext])
 
-  // Build day totals
   const dayTotals = useMemo(() => {
     const totals: Record<string, { expense: number; income: number }> = {}
     monthEntries.forEach(e => {
@@ -28,7 +27,6 @@ export default function Calendar({ entries, month }: Props) {
     return totals
   }, [monthEntries])
 
-  // Build calendar grid
   const [year, m] = month.split('-').map(Number)
   const firstDay = new Date(year, m - 1, 1).getDay()
   const daysInMonth = new Date(year, m, 0).getDate()
@@ -47,19 +45,16 @@ export default function Calendar({ entries, month }: Props) {
   const selectedExpense = selectedEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
   const selectedIncome = selectedEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
 
-  // Max expense for color intensity
   const maxExpense = Math.max(...Object.values(dayTotals).map(d => d.expense), 1)
 
   return (
     <div className="px-4 pb-8">
-      {/* Day headers */}
       <div className="grid grid-cols-7 mb-1">
         {DAYS.map(d => (
           <div key={d} className="text-center text-xs text-zinc-400 py-1">{d}</div>
         ))}
       </div>
 
-      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1 mb-6">
         {cells.map((date, i) => {
           if (!date) return <div key={`empty-${i}`} />
@@ -85,8 +80,8 @@ export default function Calendar({ entries, month }: Props) {
                 {day}
               </span>
               {totals?.expense > 0 && (
-                <span className="text-zinc-500 dark:text-zinc-400 text-[10px] md:text-sm">
-                  {formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
+                <span className="text-red-500 dark:text-red-400 text-[10px] md:text-sm">
+                  -{formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
                 </span>
               )}
               {totals?.income > 0 && (
@@ -99,7 +94,6 @@ export default function Calendar({ entries, month }: Props) {
         })}
       </div>
 
-      {/* Selected day detail */}
       {selectedDay && (
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -113,7 +107,6 @@ export default function Calendar({ entries, month }: Props) {
             <div className="text-center text-zinc-400 py-6 text-sm">No entries</div>
           ) : (
             <>
-              {/* Day summary */}
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {selectedExpense > 0 && (
                   <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
@@ -129,7 +122,6 @@ export default function Calendar({ entries, month }: Props) {
                 )}
               </div>
 
-              {/* Entry list */}
               <div className="flex flex-col gap-1.5">
                 {selectedEntries.map(e => {
                   const col = e.type === 'income' ? '#3B6D11' : (CAT_COLORS[e.category] || '#888')
