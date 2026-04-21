@@ -12,8 +12,7 @@ interface Props {
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-export default function Calendar({ entries, month }: Props) {
-  const { activeContext } = useSettings()
+export default function Calendar({ entries, month, onUpdate, onDelete }: Props) {  const { activeContext } = useSettings()
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   const cur = activeContext?.currency || 'USD'
