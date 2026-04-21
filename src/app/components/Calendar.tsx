@@ -3,7 +3,12 @@ import { useState, useMemo } from 'react'
 import { Entry, CAT_COLORS, formatAmount } from '../types'
 import { useSettings } from '../useSettings'
 
-interface Props { entries: Entry[]; month: string }
+interface Props {
+  entries: Entry[]
+  month: string
+  onUpdate: (entry: Entry) => void
+  onDelete: (id: string) => void
+}
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
