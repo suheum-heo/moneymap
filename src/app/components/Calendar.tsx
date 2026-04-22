@@ -202,6 +202,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
               <span className={`text-xs md:text-base ${isToday ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-600 dark:text-zinc-400'}`}>
                 {day}
               </span>
+              {isToday && <span className="text-[8px] md:text-[10px] bg-amber-500 text-white rounded px-1 leading-tight">Today</span>}
               {totals?.expense > 0 && (
                 <span className="text-red-500 dark:text-red-400 text-[10px] md:text-sm">
                   -{formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}

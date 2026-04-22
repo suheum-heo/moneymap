@@ -136,6 +136,7 @@ export default function Home() {
             <div className="px-4 mb-6">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{activeContext?.name}</h2>
               <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
+              <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
             </div>
             <TabContent />
           </div>
@@ -152,6 +153,7 @@ export default function Home() {
               <span className="text-base text-zinc-400">▾</span>
             </button>
             <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
+            <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setDark(d => !d)}
