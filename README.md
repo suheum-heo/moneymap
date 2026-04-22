@@ -1,40 +1,69 @@
 # 가계부
 
-A personal budget tracker PWA built with Next.js. Works offline, installable on iPhone.
+A personal budget tracker PWA built with Next.js. Multi-context, multi-currency, Google Sheets-backed, installable on iPhone.
 
-## Deploy to Vercel (5 minutes)
+## Features
 
-### 1. Push to GitHub
-```bash
-cd gaegyebu
-git init
-git add .
-git commit -m "init: gaegyebu PWA"
-# Create a new repo on github.com, then:
-git remote add origin https://github.com/YOUR_USERNAME/gaegyebu.git
-git push -u origin main
+- **Multiple contexts** — separate trackers for different life situations (e.g. Madison, Korea, Europe Trip)
+- **Multi-currency** — each context has its own currency; travel contexts show converted amounts in your home currency
+- **Google Sheets sync** — all data lives in Google Sheets, syncs across all devices and browsers in real time
+- **Calendar view** — see spending by day, tap to view and edit entries
+- **Budget goals** — set monthly limits per category with progress bars and warnings at 80% and 100%
+- **Recurring payments** — save recurring items per context, tap to pre-fill the add form
+- **Monthly comparison** — see how you're tracking vs last month
+- **Location breakdown** — visualize spending by city
+- **Search, filter, edit, delete** — full entry management with week filter and CSV export
+- **Dark/light mode** — manual toggle, remembers your preference
+- **PWA** — installable on iPhone via Safari, works like a native app
+
+## Stack
+
+- **Frontend** — Next.js 14, TypeScript, Tailwind CSS, Chart.js
+- **Backend** — Next.js API routes, Google Sheets API (via service account)
+- **Deployment** — Vercel
+
+## Google Sheets setup
+
+Create a Google Sheet with these tabs and headers:
+
+| Tab | Headers |
+|-----|---------|
+| `Entries` | id · type · date · summary · venue · location · category · amount · remarks · currency · context |
+| `Contexts` | id · name · currency · homeCurrency · startDate |
+| `Budgets` | context · category · amount |
+| `Recurring` | context · summary · category · amount · currency · remarks |
+
+Share the sheet with your service account email (Editor access).
+
+## Environment variables
+
+Set these in Vercel → Settings → Environment Variables:
+
+```
+GOOGLE_SHEET_ID=your_sheet_id
+GOOGLE_CLIENT_EMAIL=your_service_account@project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----
 ```
 
-### 2. Deploy on Vercel
-1. Go to [vercel.com](https://vercel.com) → New Project
-2. Import your `gaegyebu` GitHub repo
-3. Framework: **Next.js** (auto-detected)
-4. Click **Deploy** — done!
+## Deploy
 
-### 3. Install on iPhone (PWA)
-1. Open your Vercel URL in **Safari** on iPhone
-2. Tap the **Share** button (box with arrow)
-3. Tap **Add to Home Screen**
-4. Tap **Add** — it'll appear like a native app!
+1. Fork or clone this repo
+2. Set up Google Sheets and environment variables (see above)
+3. Push to GitHub
+4. Import to [vercel.com](https://vercel.com) — Next.js is auto-detected, hit Deploy
+
+## Install on iPhone
+
+1. Open your Vercel URL in **Safari**
+2. Tap the Share button → **Add to Home Screen**
+3. Tap **Add** — opens full screen like a native app
 
 ## Local dev
+
 ```bash
 npm install
 npm run dev
 # Open http://localhost:3000
 ```
 
-## Notes
-- Data is stored in `localStorage` — stays on your device
-- Adding months: edit the `MONTHS` array in `src/app/page.tsx`
-- Dark mode: follows your system setting automatically
+Copy `.env.local.example` to `.env.local` and fill in your Google credentials.
