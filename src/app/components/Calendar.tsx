@@ -51,7 +51,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
   const [year, m] = month.split('-').map(Number)
   const firstDay = new Date(year, m - 1, 1).getDay()
   const totalDays = new Date(year, m, 0).getDate()
-  const today = new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
   const cells: (string | null)[] = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
