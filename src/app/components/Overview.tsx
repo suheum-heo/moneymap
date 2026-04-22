@@ -6,9 +6,13 @@ import { useBudgets } from '../useBudgets'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
-interface Props { entries: Entry[]; month: string }
+interface Props {
+  entries: Entry[]
+  month: string
+  onNavigate: (tab: string, filter?: string) => void
+}
 
-export default function Overview({ entries, month }: Props) {
+export default function Overview({ entries, month, onNavigate }: Props) {
   const catChartRef = useRef<HTMLCanvasElement>(null)
   const locChartRef = useRef<HTMLCanvasElement>(null)
   const catChartInstance = useRef<Chart | null>(null)
@@ -35,7 +39,6 @@ export default function Overview({ entries, month }: Props) {
 
   const net = income - expenses
 
-  // Last month comparison
   const lastMonth = useMemo(() => {
     const [y, m] = month.split('-').map(Number)
     const lm = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
@@ -60,8 +63,8 @@ export default function Overview({ entries, month }: Props) {
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date()
-    const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    return month === cur
+    const c = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    return month === c
   }, [month])
 
   const byCategory = useMemo(() => {
@@ -88,16 +91,10 @@ export default function Overview({ entries, month }: Props) {
       type: 'bar',
       data: {
         labels: byCategory.map(([c]) => c),
-        datasets: [{
-          data: byCategory.map(([, v]) => parseFloat(v.toFixed(2))),
-          backgroundColor: byCategory.map(([c]) => CAT_COLORS[c] || '#888'),
-          borderRadius: 5,
-          borderSkipped: false,
-        }]
+        datasets: [{ data: byCategory.map(([, v]) => parseFloat(v.toFixed(2))), backgroundColor: byCategory.map(([c]) => CAT_COLORS[c] || '#888'), borderRadius: 5, borderSkipped: false }]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${(ctx.raw as number).toLocaleString()}` } } },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 40, autoSkip: false } },
@@ -115,17 +112,10 @@ export default function Overview({ entries, month }: Props) {
       type: 'bar',
       data: {
         labels: byLocation.map(([l]) => l),
-        datasets: [{
-          data: byLocation.map(([, v]) => parseFloat(v.toFixed(2))),
-          backgroundColor: '#BA7517',
-          borderRadius: 5,
-          borderSkipped: false,
-        }]
+        datasets: [{ data: byLocation.map(([, v]) => parseFloat(v.toFixed(2))), backgroundColor: '#BA7517', borderRadius: 5, borderSkipped: false }]
       },
       options: {
-        indexAxis: 'y' as const,
-        responsive: true,
-        maintainAspectRatio: false,
+        indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${(ctx.raw as number).toLocaleString()}` } } },
         scales: {
           x: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { callback: v => sym + Number(v).toLocaleString(), font: { size: 11 } } },
@@ -145,11 +135,12 @@ export default function Overview({ entries, month }: Props) {
       {/* Metric cards */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
-          { label: 'Expenses', value: fmt(expenses), sub: fmtConverted(expenses), color: 'text-red-600 dark:text-red-400' },
-          { label: 'Income', value: fmt(income), sub: fmtConverted(income), color: 'text-green-700 dark:text-green-400' },
-          { label: 'Net', value: (net < 0 ? '-' : '') + fmt(net), sub: fmtConverted(net), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400' },
+          { label: 'Expenses', value: fmt(expenses), sub: fmtConverted(expenses), color: 'text-red-600 dark:text-red-400', filter: 'expense' },
+          { label: 'Income', value: fmt(income), sub: fmtConverted(income), color: 'text-green-700 dark:text-green-400', filter: 'income' },
+          { label: 'Net', value: (net < 0 ? '-' : '') + fmt(net), sub: fmtConverted(net), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400', filter: 'all' },
         ].map(m => (
-          <div key={m.label} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
+          <div key={m.label} onClick={() => onNavigate('entries', m.filter)}
+            className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-amber-400 transition-all">
             <div className="text-xs text-zinc-500 mb-1">{m.label}</div>
             <div className={`text-sm font-medium ${m.color} leading-tight`}>{m.value}</div>
             {m.sub && <div className="text-xs text-zinc-400 mt-0.5 leading-tight">{m.sub}</div>}
@@ -162,17 +153,17 @@ export default function Overview({ entries, month }: Props) {
         <div className="mb-5 bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5 flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="text-zinc-500">vs last month full</span>
-            <span className={expenses <= lastMonthExpenses ? "text-green-600 dark:text-green-400 font-medium" : "text-red-500 font-medium"}>
-              {expenses <= lastMonthExpenses ? "▼" : "▲"} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)}
-              {" "}{expenses <= lastMonthExpenses ? "less" : "more"}
+            <span className={expenses <= lastMonthExpenses ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
+              {expenses <= lastMonthExpenses ? '▼' : '▲'} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)}
+              {' '}{expenses <= lastMonthExpenses ? 'less' : 'more'}
             </span>
           </div>
           {isCurrentMonth && sameDayLastMonth > 0 && (
             <div className="flex items-center justify-between text-xs">
               <span className="text-zinc-500">vs same day last month</span>
-              <span className={expenses <= sameDayLastMonth ? "text-green-600 dark:text-green-400 font-medium" : "text-red-500 font-medium"}>
-                {expenses <= sameDayLastMonth ? "▼" : "▲"} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)}
-                {" "}{expenses <= sameDayLastMonth ? "less" : "more"}
+              <span className={expenses <= sameDayLastMonth ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
+                {expenses <= sameDayLastMonth ? '▼' : '▲'} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)}
+                {' '}{expenses <= sameDayLastMonth ? 'less' : 'more'}
               </span>
             </div>
           )}
@@ -209,10 +200,7 @@ export default function Overview({ entries, month }: Props) {
               {budget && (
                 <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden mt-1">
                   <div className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(budgetPct || 0, 100)}%`,
-                      background: isDanger ? '#E24B4A' : isWarning ? '#BA7517' : col
-                    }} />
+                    style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#E24B4A' : isWarning ? '#BA7517' : col }} />
                 </div>
               )}
             </div>
@@ -245,8 +233,7 @@ export default function Overview({ entries, month }: Props) {
                       <span className="text-xs text-zinc-400 ml-2 flex-shrink-0">{pct}%</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                      <div className="h-full rounded-full bg-amber-500"
-                        style={{ width: `${pct}%` }} />
+                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                   <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100 flex-shrink-0 w-24 text-right">

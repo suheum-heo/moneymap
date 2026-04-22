@@ -18,6 +18,7 @@ export default function Home() {
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
   const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings()
   const [tab, setTab] = useState<Tab>('overview')
+  const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [dark, setDark] = useState<boolean | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -27,6 +28,11 @@ export default function Home() {
 
   const month = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
   const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`
+
+  const navigateTo = (newTab: string, filter?: string) => {
+    setTab(newTab as Tab)
+    if (filter) setEntriesFilter(filter)
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
@@ -67,12 +73,9 @@ export default function Home() {
 
   const Sidebar = () => (
     <div className="flex flex-col h-full px-3 py-6">
-      {/* App title */}
       <div className="px-2 mb-6">
         <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">가계부</h1>
       </div>
-
-      {/* Context switcher */}
       <div className="mb-4">
         <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest px-2 mb-2">Contexts</div>
         {contexts.map(c => {
@@ -89,10 +92,7 @@ export default function Home() {
           )
         })}
       </div>
-
       <div className="border-t border-zinc-100 dark:border-zinc-800 my-2" />
-
-      {/* Nav tabs */}
       <nav className="flex flex-col gap-0.5 flex-1">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -103,8 +103,6 @@ export default function Home() {
           </button>
         ))}
       </nav>
-
-      {/* Bottom: month picker + dark mode */}
       <div className="flex flex-col gap-2 mt-4">
         <div className="text-xs text-zinc-400 px-1">{monthLabel}</div>
         <MonthYearPicker col />
@@ -118,8 +116,8 @@ export default function Home() {
 
   const TabContent = () => (
     <>
-      {tab === 'overview' && <Overview entries={entries} month={month} />}
-      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} />}
+      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} />}
+      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
       {tab === 'settings' && <Settings />}
@@ -134,8 +132,7 @@ export default function Home() {
           <Sidebar />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <div className={`${tab === "calendar" ? "max-w-4xl" : "max-w-2xl"} mx-auto py-8`}>
-            {/* Context + month header */}
+          <div className={`${tab === 'calendar' ? 'max-w-4xl' : 'max-w-2xl'} mx-auto py-8`}>
             <div className="px-4 mb-6">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{activeContext?.name}</h2>
               <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
@@ -147,7 +144,6 @@ export default function Home() {
 
       {/* Mobile */}
       <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
-        {/* Mobile header */}
         <div className="px-4 pt-14 pb-3 flex items-center justify-between">
           <div>
             <button onClick={() => setMobileMenuOpen(true)}
@@ -166,7 +162,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Mobile context menu */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setMobileMenuOpen(false)}>
             <div className="absolute bottom-0 left-0 right-0 bg-[#fafaf8] dark:bg-[#1a1a18] rounded-t-2xl p-4 pb-8"
@@ -189,7 +184,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Mobile tabs */}
         <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 mb-4">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
