@@ -15,10 +15,23 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
+function getWeekRange() {
+  const now = new Date()
+  const day = now.getDay() // 0 = Sun
+  const mon = new Date(now)
+  mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+  mon.setHours(0,0,0,0)
+  const sun = new Date(mon)
+  sun.setDate(mon.getDate() + 6)
+  sun.setHours(23,59,59,999)
+  return { start: mon.toISOString().slice(0,10), end: sun.toISOString().slice(0,10) }
+}
+
 export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all' }: Props) {
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
   const [catFilter, setCatFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [weekOnly, setWeekOnly] = useState(false)
   const { activeContext, convert } = useSettings()
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -26,6 +39,8 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
   const showConversion = cur !== homeCur
+
+  const weekRange = useMemo(() => getWeekRange(), [])
 
   const monthEntries = useMemo(() =>
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
@@ -38,6 +53,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
     let f = monthEntries
     if (typeFilter !== 'all') f = f.filter(e => e.type === typeFilter)
     if (catFilter !== 'all') f = f.filter(e => e.category === catFilter)
+    if (weekOnly) f = f.filter(e => e.date >= weekRange.start && e.date <= weekRange.end)
     if (search.trim()) {
       const q = search.toLowerCase()
       f = f.filter(e =>
@@ -48,7 +64,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
       )
     }
     return [...f].sort((a, b) => a.date.localeCompare(b.date))
-  }, [monthEntries, typeFilter, catFilter, search])
+  }, [monthEntries, typeFilter, catFilter, search, weekOnly, weekRange])
 
   const pastVenues = useMemo(() => [...new Set(entries.map(e => e.venue).filter(Boolean))].sort(), [entries])
   const pastLocations = useMemo(() => [...new Set(entries.map(e => e.location).filter(Boolean))].sort(), [entries])
@@ -89,7 +105,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `${activeContext?.name || 'entries'}-${month}.csv`; a.click()
+    a.href = url; a.download = `${activeContext?.name || 'entries'}-${month}${weekOnly ? '-thisweek' : ''}.csv`; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -99,6 +115,12 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
   const editDays = Array.from({ length: daysInMonth(editMonth, editYear) }, (_, i) => i + 1)
   const editCats = editType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+
+  // Week total
+  const weekTotal = useMemo(() => {
+    if (!weekOnly) return null
+    return filtered.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+  }, [filtered, weekOnly])
 
   return (
     <div className="px-4 pb-8">
@@ -172,7 +194,8 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
         <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search entries..."
           className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none focus:border-amber-400 text-sm" style={{fontSize:'16px'}} />
       </div>
-      <div className="flex gap-2 mb-4 flex-wrap items-center">
+
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={selCls}>
           <option value="all">All types</option>
           <option value="expense">Expenses</option>
@@ -182,10 +205,23 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
           <option value="all">All categories</option>
           {allCats.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        <button onClick={() => setWeekOnly(v => !v)}
+          className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${weekOnly
+            ? 'bg-amber-500 text-white border-amber-500'
+            : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'}`}>
+          This week
+        </button>
         <button onClick={exportCSV} className="ml-auto text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-300 transition-colors">
           ↓ Export CSV
         </button>
       </div>
+
+      {weekOnly && weekTotal !== null && (
+        <div className="mb-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl px-3 py-2 flex justify-between items-center">
+          <span className="text-xs text-amber-700 dark:text-amber-400">This week ({weekRange.start.slice(5)} – {weekRange.end.slice(5)})</span>
+          <span className="text-sm font-medium text-red-600 dark:text-red-400">-{formatAmount(weekTotal, cur)}</span>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center text-zinc-400 py-12 text-sm">No entries found</div>
