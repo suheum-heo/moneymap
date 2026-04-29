@@ -80,12 +80,6 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     return Object.entries(locs).sort((a, b) => b[1] - a[1])
   }, [monthEntries])
 
-  const catEntries = useMemo(() => {
-    if (!expandedCat) return []
-    return monthEntries.filter(e => e.type === 'expense' && e.category === expandedCat)
-      .sort((a, b) => a.date.localeCompare(b.date))
-  }, [monthEntries, expandedCat])
-
   useEffect(() => {
     if (!catChartRef.current || byCategory.length === 0) return
     if (catChartInstance.current) catChartInstance.current.destroy()
@@ -132,6 +126,15 @@ export default function Overview({ entries, month, onNavigate }: Props) {
   const fmtConverted = (n: number) =>
     showConversion ? ` (≈${formatAmount(convert(Math.abs(n), cur, homeCur), homeCur)})` : ''
 
+  // Pair categories into rows of 2
+  const catRows = useMemo(() => {
+    const rows = []
+    for (let i = 0; i < byCategory.length; i += 2) {
+      rows.push(byCategory.slice(i, i + 2))
+    }
+    return rows
+  }, [byCategory])
+
   return (
     <div className="px-4 pb-8">
       {/* Metric cards */}
@@ -170,73 +173,80 @@ export default function Overview({ entries, month, onNavigate }: Props) {
         </div>
       )}
 
-      {/* By category */}
+      {/* By category — 2-column grid with expandable dropdown */}
       <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">By category</div>
-      <div className="flex flex-col gap-2 mb-5">
-        {byCategory.map(([cat, amt]) => {
-          const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
-          const col = CAT_COLORS[cat] || '#888'
-          const budget = activeContext ? getBudget(activeContext.id, cat) : null
-          const budgetPct = budget ? (amt / budget) * 100 : null
-          const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
-          const isDanger = budgetPct !== null && budgetPct >= 100
-          const isExpanded = expandedCat === cat
-          const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => a.date.localeCompare(b.date))
-
+      <div className="mb-5">
+        {catRows.map((row, rowIdx) => {
+          const expandedInRow = row.find(([cat]) => cat === expandedCat)
           return (
-            <div key={cat}>
-              <div
-                onClick={() => setExpandedCat(isExpanded ? null : cat)}
-                className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2 cursor-pointer hover:ring-1 hover:ring-amber-300 transition-all">
-                <div className="flex justify-between items-start mb-1">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col }} />
-                      <span className="text-sm text-zinc-800 dark:text-zinc-200">{cat}</span>
-                      {isDanger && <span className="text-xs text-red-500">Over!</span>}
-                      {isWarning && <span className="text-xs text-amber-500">80%</span>}
+            <div key={rowIdx} className="mb-2">
+              {/* 2-column row */}
+              <div className="grid grid-cols-2 gap-2">
+                {row.map(([cat, amt]) => {
+                  const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
+                  const col = CAT_COLORS[cat] || '#888'
+                  const budget = activeContext ? getBudget(activeContext.id, cat) : null
+                  const budgetPct = budget ? (amt / budget) * 100 : null
+                  const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
+                  const isDanger = budgetPct !== null && budgetPct >= 100
+                  const isExpanded = expandedCat === cat
+                  return (
+                    <div key={cat}
+                      onClick={() => setExpandedCat(isExpanded ? null : cat)}
+                      className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2 cursor-pointer hover:ring-1 hover:ring-amber-300 transition-all">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col }} />
+                            <span className="text-sm text-zinc-800 dark:text-zinc-200">{cat}</span>
+                            {isDanger && <span className="text-xs text-red-500">Over!</span>}
+                            {isWarning && <span className="text-xs text-amber-500">80%</span>}
+                          </div>
+                          <div className="text-xs text-zinc-400 mt-0.5 pl-3.5">{pct}%</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs font-medium text-zinc-800 dark:text-zinc-100">{formatAmount(amt, cur)}</div>
+                          {budget && <div className="text-xs text-zinc-400">/ {formatAmount(budget, cur)}</div>}
+                          <div className="text-zinc-400 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</div>
+                        </div>
+                      </div>
+                      {budget && (
+                        <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden mt-1.5">
+                          <div className="h-full rounded-full transition-all"
+                            style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#E24B4A' : isWarning ? '#BA7517' : col }} />
+                        </div>
+                      )}
                     </div>
-                    <div className="text-xs text-zinc-400 mt-0.5 pl-3.5">{pct}% of spend</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-xs font-medium text-zinc-800 dark:text-zinc-100 text-right">
-                      {formatAmount(amt, cur)}
-                      {budget && <div className="text-xs text-zinc-400">/ {formatAmount(budget, cur)}</div>}
-                    </div>
-                    <span className="text-zinc-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
-                  </div>
-                </div>
-                {budget && (
-                  <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden mt-1">
-                    <div className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#E24B4A' : isWarning ? '#BA7517' : col }} />
-                  </div>
-                )}
+                  )
+                })}
               </div>
 
-              {/* Expanded entries */}
-              {isExpanded && (
-                <div className="mt-1 ml-2 flex flex-col gap-1">
-                  {catEntriesForCat.length === 0 ? (
-                    <div className="text-xs text-zinc-400 px-3 py-2">No entries</div>
-                  ) : catEntriesForCat.map(e => (
-                    <div key={e.id} className="flex items-center gap-3 rounded-xl px-3 py-2"
-                      style={{ background: col + '12', borderLeft: `2px solid ${col}` }}>
-                      <div className="text-xs text-zinc-400 w-10 flex-shrink-0">{e.date.slice(5)}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm text-zinc-800 dark:text-zinc-100 truncate">{e.summary}</div>
-                        {e.venue && <div className="text-xs text-zinc-400 truncate">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+              {/* Expanded entries — full width below the row */}
+              {expandedInRow && (() => {
+                const [cat, amt] = expandedInRow
+                const col = CAT_COLORS[cat] || '#888'
+                const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => a.date.localeCompare(b.date))
+                return (
+                  <div className="mt-1.5 flex flex-col gap-1">
+                    {catEntriesForCat.map(e => (
+                      <div key={e.id} className="flex items-center gap-3 rounded-xl px-3 py-2"
+                        style={{ background: col + '12', borderLeft: `2px solid ${col}` }}>
+                        <div className="text-xs text-zinc-400 w-10 flex-shrink-0">{e.date.slice(5)}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-zinc-800 dark:text-zinc-100 truncate">{e.summary}</div>
+                          {e.venue && <div className="text-xs text-zinc-400 truncate">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                        </div>
+                        <div className="text-sm font-medium flex-shrink-0" style={{ color: col }}>
+                          -{formatAmount(e.amount, e.currency || cur)}
+                        </div>
                       </div>
-                      <div className="text-sm font-medium flex-shrink-0" style={{ color: col }}>
-                        -{formatAmount(e.amount, e.currency || cur)}
-                      </div>
+                    ))}
+                    <div className="text-xs text-zinc-400 px-3 pb-1">
+                      {catEntriesForCat.length} {catEntriesForCat.length === 1 ? 'entry' : 'entries'} · total {formatAmount(amt, cur)}
                     </div>
-                  ))}
-                  <div className="text-xs text-zinc-400 px-3 pb-1">
-                    {catEntriesForCat.length} {catEntriesForCat.length === 1 ? 'entry' : 'entries'} · total {formatAmount(amt, cur)}
                   </div>
-                </div>
-              )}
+                )
+              })()}
             </div>
           )
         })}
