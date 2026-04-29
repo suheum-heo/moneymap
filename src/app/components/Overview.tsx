@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount } from '../types'
 import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
@@ -19,6 +19,7 @@ export default function Overview({ entries, month, onNavigate }: Props) {
   const locChartInstance = useRef<Chart | null>(null)
   const { activeContext, convert } = useSettings()
   const { getBudget } = useBudgets()
+  const [expandedCat, setExpandedCat] = useState<string | null>(null)
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -41,8 +42,7 @@ export default function Overview({ entries, month, onNavigate }: Props) {
 
   const lastMonth = useMemo(() => {
     const [y, m] = month.split('-').map(Number)
-    const lm = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
-    return lm
+    return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
   }, [month])
 
   const lastMonthEntries = useMemo(() =>
@@ -56,15 +56,12 @@ export default function Overview({ entries, month, onNavigate }: Props) {
   const sameDayLastMonth = useMemo(() => {
     const today = new Date()
     const cutoff = `${lastMonth}-${String(today.getDate()).padStart(2, '0')}`
-    return lastMonthEntries
-      .filter(e => e.type === 'expense' && e.date <= cutoff)
-      .reduce((s, e) => s + e.amount, 0)
+    return lastMonthEntries.filter(e => e.type === 'expense' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0)
   }, [lastMonthEntries, lastMonth])
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date()
-    const c = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    return month === c
+    return month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   }, [month])
 
   const byCategory = useMemo(() => {
@@ -78,11 +75,16 @@ export default function Overview({ entries, month, onNavigate }: Props) {
   const byLocation = useMemo(() => {
     const locs: Record<string, number> = {}
     monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
-      const loc = e.location.trim()
-      locs[loc] = (locs[loc] || 0) + e.amount
+      locs[e.location.trim()] = (locs[e.location.trim()] || 0) + e.amount
     })
     return Object.entries(locs).sort((a, b) => b[1] - a[1])
   }, [monthEntries])
+
+  const catEntries = useMemo(() => {
+    if (!expandedCat) return []
+    return monthEntries.filter(e => e.type === 'expense' && e.category === expandedCat)
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [monthEntries, expandedCat])
 
   useEffect(() => {
     if (!catChartRef.current || byCategory.length === 0) return
@@ -148,22 +150,20 @@ export default function Overview({ entries, month, onNavigate }: Props) {
         ))}
       </div>
 
-      {/* Monthly comparison banner */}
+      {/* Monthly comparison */}
       {lastMonthExpenses > 0 && (
         <div className="mb-5 bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5 flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="text-zinc-500">vs last month full</span>
             <span className={expenses <= lastMonthExpenses ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
-              {expenses <= lastMonthExpenses ? '▼' : '▲'} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)}
-              {' '}{expenses <= lastMonthExpenses ? 'less' : 'more'}
+              {expenses <= lastMonthExpenses ? '▼' : '▲'} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)} {expenses <= lastMonthExpenses ? 'less' : 'more'}
             </span>
           </div>
           {isCurrentMonth && sameDayLastMonth > 0 && (
             <div className="flex items-center justify-between text-xs">
               <span className="text-zinc-500">vs same day last month</span>
               <span className={expenses <= sameDayLastMonth ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
-                {expenses <= sameDayLastMonth ? '▼' : '▲'} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)}
-                {' '}{expenses <= sameDayLastMonth ? 'less' : 'more'}
+                {expenses <= sameDayLastMonth ? '▼' : '▲'} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)} {expenses <= sameDayLastMonth ? 'less' : 'more'}
               </span>
             </div>
           )}
@@ -172,7 +172,7 @@ export default function Overview({ entries, month, onNavigate }: Props) {
 
       {/* By category */}
       <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">By category</div>
-      <div className="grid grid-cols-2 gap-2 mb-5">
+      <div className="flex flex-col gap-2 mb-5">
         {byCategory.map(([cat, amt]) => {
           const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
           const col = CAT_COLORS[cat] || '#888'
@@ -180,27 +180,61 @@ export default function Overview({ entries, month, onNavigate }: Props) {
           const budgetPct = budget ? (amt / budget) * 100 : null
           const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
           const isDanger = budgetPct !== null && budgetPct >= 100
+          const isExpanded = expandedCat === cat
+          const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => a.date.localeCompare(b.date))
+
           return (
-            <div key={cat} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
-              <div className="flex justify-between items-start mb-1">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col }} />
-                    <span className="text-sm text-zinc-800 dark:text-zinc-200">{cat}</span>
-                    {isDanger && <span className="text-xs text-red-500">Over!</span>}
-                    {isWarning && <span className="text-xs text-amber-500">80%</span>}
+            <div key={cat}>
+              <div
+                onClick={() => setExpandedCat(isExpanded ? null : cat)}
+                className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2 cursor-pointer hover:ring-1 hover:ring-amber-300 transition-all">
+                <div className="flex justify-between items-start mb-1">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col }} />
+                      <span className="text-sm text-zinc-800 dark:text-zinc-200">{cat}</span>
+                      {isDanger && <span className="text-xs text-red-500">Over!</span>}
+                      {isWarning && <span className="text-xs text-amber-500">80%</span>}
+                    </div>
+                    <div className="text-xs text-zinc-400 mt-0.5 pl-3.5">{pct}% of spend</div>
                   </div>
-                  <div className="text-xs text-zinc-400 mt-0.5 pl-3.5">{pct}% of spend</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-medium text-zinc-800 dark:text-zinc-100 text-right">
+                      {formatAmount(amt, cur)}
+                      {budget && <div className="text-xs text-zinc-400">/ {formatAmount(budget, cur)}</div>}
+                    </div>
+                    <span className="text-zinc-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                  </div>
                 </div>
-                <div className="text-xs font-medium text-zinc-800 dark:text-zinc-100 text-right">
-                  {formatAmount(amt, cur)}
-                  {budget && <div className="text-xs text-zinc-400">/ {formatAmount(budget, cur)}</div>}
-                </div>
+                {budget && (
+                  <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden mt-1">
+                    <div className="h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#E24B4A' : isWarning ? '#BA7517' : col }} />
+                  </div>
+                )}
               </div>
-              {budget && (
-                <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden mt-1">
-                  <div className="h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#E24B4A' : isWarning ? '#BA7517' : col }} />
+
+              {/* Expanded entries */}
+              {isExpanded && (
+                <div className="mt-1 ml-2 flex flex-col gap-1">
+                  {catEntriesForCat.length === 0 ? (
+                    <div className="text-xs text-zinc-400 px-3 py-2">No entries</div>
+                  ) : catEntriesForCat.map(e => (
+                    <div key={e.id} className="flex items-center gap-3 rounded-xl px-3 py-2"
+                      style={{ background: col + '12', borderLeft: `2px solid ${col}` }}>
+                      <div className="text-xs text-zinc-400 w-10 flex-shrink-0">{e.date.slice(5)}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-zinc-800 dark:text-zinc-100 truncate">{e.summary}</div>
+                        {e.venue && <div className="text-xs text-zinc-400 truncate">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                      </div>
+                      <div className="text-sm font-medium flex-shrink-0" style={{ color: col }}>
+                        -{formatAmount(e.amount, e.currency || cur)}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="text-xs text-zinc-400 px-3 pb-1">
+                    {catEntriesForCat.length} {catEntriesForCat.length === 1 ? 'entry' : 'entries'} · total {formatAmount(amt, cur)}
+                  </div>
                 </div>
               )}
             </div>
