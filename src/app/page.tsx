@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useEntries } from './useEntries'
 import { useSettings } from './useSettings'
+import { useSwipe } from './useSwipe'
 import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
@@ -33,6 +34,18 @@ export default function Home() {
     setTab(newTab as Tab)
     if (filter) setEntriesFilter(filter)
   }
+
+  const goNextMonth = () => {
+    if (selMonth === 11) { setSelMonth(0); setSelYear(y => y + 1) }
+    else setSelMonth(m => m + 1)
+  }
+
+  const goPrevMonth = () => {
+    if (selMonth === 0) { setSelMonth(11); setSelYear(y => y - 1) }
+    else setSelMonth(m => m - 1)
+  }
+
+  const { onTouchStart, onTouchEnd } = useSwipe({ onSwipeLeft: goNextMonth, onSwipeRight: goPrevMonth })
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
@@ -197,7 +210,7 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <TabContent />
         </div>
       </div>
