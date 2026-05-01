@@ -44,10 +44,9 @@ export default function Home() {
     setSelMonth(m => { if (m === 0) { setSelYear(y => y - 1); return 11 } return m - 1 })
   }, [])
 
-  // Desktop scroll/wheel support
   const onWheel = useCallback((e: React.WheelEvent) => {
-    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return // vertical scroll, ignore
-    if (wheelTimeout.current) return // debounce
+    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return
+    if (wheelTimeout.current) return
     if (e.deltaX > 30) {
       goNextMonth()
       wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 600)
@@ -152,8 +151,12 @@ export default function Home() {
     </>
   )
 
+  // Next/prev month labels for swipe hint
+  const prevMonthLabel = MONTH_NAMES[selMonth === 0 ? 11 : selMonth - 1]
+  const nextMonthLabel = MONTH_NAMES[selMonth === 11 ? 0 : selMonth + 1]
+
   return (
-    <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d]">
+    <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d] overflow-hidden">
       {/* Desktop */}
       <div className="hidden md:flex h-screen">
         <div className="w-52 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto">
@@ -171,8 +174,19 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Mobile */}
-      <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
+      {/* Mobile — full screen slides */}
+      <div
+        className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col"
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          willChange: 'transform',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Header */}
         <div className="px-4 pt-14 pb-3 flex items-center justify-between">
           <div>
             <button onClick={() => setMobileMenuOpen(true)}
@@ -180,7 +194,14 @@ export default function Home() {
               {activeContext?.name}
               <span className="text-base text-zinc-400">▾</span>
             </button>
-            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
+              {isDragging && (
+                <span className="text-xs text-zinc-400">
+                  {dragX > 20 ? `← ${prevMonthLabel}` : dragX < -20 ? `${nextMonthLabel} →` : ''}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -225,24 +246,7 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Mobile content with drag animation */}
-        <div
-          className="flex-1 overflow-y-auto"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          style={{
-            transform: `translateX(${dragX}px)`,
-            transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-          }}
-        >
-          {/* Month navigation hint */}
-          {isDragging && (
-            <div className="flex justify-between px-6 py-2 pointer-events-none">
-              <span className="text-xs text-amber-500 opacity-70">← {dragX > 20 ? MONTH_NAMES[selMonth === 0 ? 11 : selMonth - 1] : ''}</span>
-              <span className="text-xs text-amber-500 opacity-70">{dragX < -20 ? MONTH_NAMES[selMonth === 11 ? 0 : selMonth + 1] : ''} →</span>
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto">
           <TabContent />
         </div>
       </div>
