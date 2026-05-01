@@ -155,21 +155,21 @@ export default function Home() {
     </div>
   )
 
-  const TabContent = ({ m, y }: { m: number; y: number }) => {
-    const mo = monthStr(m, y)
-    return (
-      <>
-        {tab === 'overview' && <Overview entries={entries} month={mo} onNavigate={navigateTo} />}
-        {tab === 'entries' && <Entries entries={entries} month={mo} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
-        {tab === 'calendar' && <Calendar entries={entries} month={mo} onUpdate={updateEntry} onDelete={deleteEntry} />}
-        {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
-        {tab === 'settings' && <Settings />}
-      </>
-    )
-  }
+  const TabContent = () => (
+    <>
+      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} />}
+      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
+      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} />}
+      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
+      {tab === 'settings' && <Settings />}
+    </>
+  )
 
   const prev = addMonths(selMonth, selYear, -1)
   const next = addMonths(selMonth, selYear, 1)
+
+  // Clamp drag to show adjacent month peeking
+  const clampedDrag = Math.max(-120, Math.min(120, dragX))
 
   return (
     <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d] overflow-hidden">
@@ -185,15 +185,15 @@ export default function Home() {
               <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
               <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
             </div>
-            <TabContent m={selMonth} y={selYear} />
+            <TabContent />
           </div>
         </div>
       </div>
 
-      {/* Mobile — carousel with prev/current/next panels */}
-      <div className="md:hidden min-h-dvh flex flex-col overflow-hidden">
+      {/* Mobile */}
+      <div className="md:hidden min-h-dvh flex flex-col">
         {/* Fixed header */}
-        <div className="px-4 pt-14 pb-3 flex items-center justify-between flex-shrink-0 bg-[#fafaf8] dark:bg-[#0f0f0d] z-10">
+        <div className="px-4 pt-14 pb-3 flex items-center justify-between flex-shrink-0">
           <div>
             <button onClick={() => setMobileMenuOpen(true)}
               className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1.5">
@@ -213,7 +213,7 @@ export default function Home() {
         </div>
 
         {/* Fixed tabs */}
-        <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 mb-0 flex-shrink-0 bg-[#fafaf8] dark:bg-[#0f0f0d] z-10">
+        <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 flex-shrink-0">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`mr-4 pb-2 text-sm border-b-2 transition-colors ${tab === t.id
@@ -224,41 +224,36 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Carousel — 3 panels side by side */}
-        <div className="flex-1 overflow-hidden relative"
+        {/* Swipeable content area */}
+        <div
+          className="flex-1 overflow-hidden relative"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
+          {/* Prev month peek label */}
+          {isDragging && clampedDrag > 20 && (
+            <div className="absolute left-3 top-4 z-20 text-xs font-medium text-amber-500 pointer-events-none">
+              ← {MONTH_NAMES[prev.month]} {prev.year}
+            </div>
+          )}
+          {/* Next month peek label */}
+          {isDragging && clampedDrag < -20 && (
+            <div className="absolute right-3 top-4 z-20 text-xs font-medium text-amber-500 pointer-events-none">
+              {MONTH_NAMES[next.month]} {next.year} →
+            </div>
+          )}
+
+          {/* Content slides */}
           <div
-            className="flex h-full"
+            className="h-full overflow-y-auto"
             style={{
-              width: '300vw',
-              transform: `translateX(calc(-100vw + ${dragX}px))`,
+              transform: `translateX(${clampedDrag}px)`,
               transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               willChange: 'transform',
             }}
           >
-            {/* Previous month */}
-            <div className="w-screen h-full overflow-y-auto flex-shrink-0 opacity-60">
-              <div className="px-4 py-3">
-                <p className="text-sm font-medium text-zinc-400 mb-3">{MONTH_NAMES[prev.month]} {prev.year}</p>
-              </div>
-              <TabContent m={prev.month} y={prev.year} />
-            </div>
-
-            {/* Current month */}
-            <div className="w-screen h-full overflow-y-auto flex-shrink-0">
-              <TabContent m={selMonth} y={selYear} />
-            </div>
-
-            {/* Next month */}
-            <div className="w-screen h-full overflow-y-auto flex-shrink-0 opacity-60">
-              <div className="px-4 py-3">
-                <p className="text-sm font-medium text-zinc-400 mb-3">{MONTH_NAMES[next.month]} {next.year}</p>
-              </div>
-              <TabContent m={next.month} y={next.year} />
-            </div>
+            <TabContent />
           </div>
         </div>
 

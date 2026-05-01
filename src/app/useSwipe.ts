@@ -18,6 +18,7 @@ export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
     touchStartY.current = e.touches[0].clientY
     isHorizontal.current = null
     setDragX(0)
+    setIsDragging(false)
   }, [])
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
@@ -25,7 +26,7 @@ export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
     const deltaX = e.touches[0].clientX - touchStartX.current
     const deltaY = e.touches[0].clientY - touchStartY.current
 
-    if (isHorizontal.current === null && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
+    if (isHorizontal.current === null && (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8)) {
       isHorizontal.current = Math.abs(deltaX) > Math.abs(deltaY)
     }
 
