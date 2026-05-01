@@ -17,7 +17,6 @@ export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
     isHorizontal.current = null
-    setIsDragging(false)
     setDragX(0)
   }, [])
 
@@ -26,13 +25,12 @@ export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
     const deltaX = e.touches[0].clientX - touchStartX.current
     const deltaY = e.touches[0].clientY - touchStartY.current
 
-    // Determine direction on first significant move
-    if (isHorizontal.current === null && (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8)) {
+    if (isHorizontal.current === null && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
       isHorizontal.current = Math.abs(deltaX) > Math.abs(deltaY)
     }
 
     if (isHorizontal.current) {
-      e.preventDefault() // prevent page scroll while swiping horizontally
+      e.preventDefault()
       setIsDragging(true)
       setDragX(deltaX)
     }
@@ -42,21 +40,13 @@ export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
     if (touchStartX.current === null) return
     const deltaX = e.changedTouches[0].clientX - touchStartX.current
 
-    if (isHorizontal.current && Math.abs(deltaX) > 80) {
-      // Animate out then switch
-      if (deltaX < 0) {
-        setDragX(-window.innerWidth)
-        setTimeout(() => { setDragX(0); setIsDragging(false); onSwipeLeft?.() }, 200)
-      } else {
-        setDragX(window.innerWidth)
-        setTimeout(() => { setDragX(0); setIsDragging(false); onSwipeRight?.() }, 200)
-      }
-    } else {
-      // Snap back
-      setDragX(0)
-      setIsDragging(false)
+    if (isHorizontal.current && Math.abs(deltaX) > 50) {
+      if (deltaX < 0) onSwipeLeft?.()
+      else onSwipeRight?.()
     }
 
+    setDragX(0)
+    setIsDragging(false)
     touchStartX.current = null
     touchStartY.current = null
     isHorizontal.current = null

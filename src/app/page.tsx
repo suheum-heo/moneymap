@@ -15,6 +15,18 @@ const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
 
 type Tab = 'overview' | 'entries' | 'calendar' | 'add' | 'settings'
 
+function addMonths(month: number, year: number, delta: number) {
+  let m = month + delta
+  let y = year
+  while (m > 11) { m -= 12; y++ }
+  while (m < 0) { m += 12; y-- }
+  return { month: m, year: y }
+}
+
+function monthStr(month: number, year: number) {
+  return `${year}-${String(month + 1).padStart(2, '0')}`
+}
+
 export default function Home() {
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
   const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings()
@@ -28,7 +40,7 @@ export default function Home() {
   const [selMonth, setSelMonth] = useState(now.getMonth())
   const [selYear, setSelYear] = useState(now.getFullYear())
 
-  const month = `${selYear}-${String(selMonth + 1).padStart(2, '0')}`
+  const month = monthStr(selMonth, selYear)
   const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`
 
   const navigateTo = (newTab: string, filter?: string) => {
@@ -37,12 +49,14 @@ export default function Home() {
   }
 
   const goNextMonth = useCallback(() => {
-    setSelMonth(m => { if (m === 11) { setSelYear(y => y + 1); return 0 } return m + 1 })
-  }, [])
+    const next = addMonths(selMonth, selYear, 1)
+    setSelMonth(next.month); setSelYear(next.year)
+  }, [selMonth, selYear])
 
   const goPrevMonth = useCallback(() => {
-    setSelMonth(m => { if (m === 0) { setSelYear(y => y - 1); return 11 } return m - 1 })
-  }, [])
+    const prev = addMonths(selMonth, selYear, -1)
+    setSelMonth(prev.month); setSelYear(prev.year)
+  }, [selMonth, selYear])
 
   const onWheel = useCallback((e: React.WheelEvent) => {
     if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return
@@ -141,19 +155,21 @@ export default function Home() {
     </div>
   )
 
-  const TabContent = () => (
-    <>
-      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} />}
-      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
-      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} />}
-      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
-      {tab === 'settings' && <Settings />}
-    </>
-  )
+  const TabContent = ({ m, y }: { m: number; y: number }) => {
+    const mo = monthStr(m, y)
+    return (
+      <>
+        {tab === 'overview' && <Overview entries={entries} month={mo} onNavigate={navigateTo} />}
+        {tab === 'entries' && <Entries entries={entries} month={mo} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
+        {tab === 'calendar' && <Calendar entries={entries} month={mo} onUpdate={updateEntry} onDelete={deleteEntry} />}
+        {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
+        {tab === 'settings' && <Settings />}
+      </>
+    )
+  }
 
-  // Next/prev month labels for swipe hint
-  const prevMonthLabel = MONTH_NAMES[selMonth === 0 ? 11 : selMonth - 1]
-  const nextMonthLabel = MONTH_NAMES[selMonth === 11 ? 0 : selMonth + 1]
+  const prev = addMonths(selMonth, selYear, -1)
+  const next = addMonths(selMonth, selYear, 1)
 
   return (
     <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d] overflow-hidden">
@@ -169,39 +185,22 @@ export default function Home() {
               <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
               <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
             </div>
-            <TabContent />
+            <TabContent m={selMonth} y={selYear} />
           </div>
         </div>
       </div>
 
-      {/* Mobile — full screen slides */}
-      <div
-        className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col"
-        style={{
-          transform: `translateX(${dragX}px)`,
-          transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          willChange: 'transform',
-        }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
-        {/* Header */}
-        <div className="px-4 pt-14 pb-3 flex items-center justify-between">
+      {/* Mobile — carousel with prev/current/next panels */}
+      <div className="md:hidden min-h-dvh flex flex-col overflow-hidden">
+        {/* Fixed header */}
+        <div className="px-4 pt-14 pb-3 flex items-center justify-between flex-shrink-0 bg-[#fafaf8] dark:bg-[#0f0f0d] z-10">
           <div>
             <button onClick={() => setMobileMenuOpen(true)}
               className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1.5">
               {activeContext?.name}
               <span className="text-base text-zinc-400">▾</span>
             </button>
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
-              {isDragging && (
-                <span className="text-xs text-zinc-400">
-                  {dragX > 20 ? `← ${prevMonthLabel}` : dragX < -20 ? `${nextMonthLabel} →` : ''}
-                </span>
-              )}
-            </div>
+            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
             <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -210,6 +209,56 @@ export default function Home() {
               {dark ? '☀️' : '🌙'}
             </button>
             <MonthYearPicker />
+          </div>
+        </div>
+
+        {/* Fixed tabs */}
+        <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 mb-0 flex-shrink-0 bg-[#fafaf8] dark:bg-[#0f0f0d] z-10">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`mr-4 pb-2 text-sm border-b-2 transition-colors ${tab === t.id
+                ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-medium'
+                : 'border-transparent text-zinc-400'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Carousel — 3 panels side by side */}
+        <div className="flex-1 overflow-hidden relative"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          <div
+            className="flex h-full"
+            style={{
+              width: '300vw',
+              transform: `translateX(calc(-100vw + ${dragX}px))`,
+              transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              willChange: 'transform',
+            }}
+          >
+            {/* Previous month */}
+            <div className="w-screen h-full overflow-y-auto flex-shrink-0 opacity-60">
+              <div className="px-4 py-3">
+                <p className="text-sm font-medium text-zinc-400 mb-3">{MONTH_NAMES[prev.month]} {prev.year}</p>
+              </div>
+              <TabContent m={prev.month} y={prev.year} />
+            </div>
+
+            {/* Current month */}
+            <div className="w-screen h-full overflow-y-auto flex-shrink-0">
+              <TabContent m={selMonth} y={selYear} />
+            </div>
+
+            {/* Next month */}
+            <div className="w-screen h-full overflow-y-auto flex-shrink-0 opacity-60">
+              <div className="px-4 py-3">
+                <p className="text-sm font-medium text-zinc-400 mb-3">{MONTH_NAMES[next.month]} {next.year}</p>
+              </div>
+              <TabContent m={next.month} y={next.year} />
+            </div>
           </div>
         </div>
 
@@ -234,21 +283,6 @@ export default function Home() {
             </div>
           </div>
         )}
-
-        <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 mb-4">
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`mr-4 pb-2 text-sm border-b-2 transition-colors ${tab === t.id
-                ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-medium'
-                : 'border-transparent text-zinc-400'}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <TabContent />
-        </div>
       </div>
     </div>
   )
