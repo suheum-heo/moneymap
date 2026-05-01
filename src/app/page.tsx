@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useEntries } from './useEntries'
 import { useSettings } from './useSettings'
 import { useSwipe } from './useSwipe'
@@ -22,6 +22,7 @@ export default function Home() {
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [dark, setDark] = useState<boolean | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const wheelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const now = new Date()
   const [selMonth, setSelMonth] = useState(now.getMonth())
@@ -35,17 +36,31 @@ export default function Home() {
     if (filter) setEntriesFilter(filter)
   }
 
-  const goNextMonth = () => {
-    if (selMonth === 11) { setSelMonth(0); setSelYear(y => y + 1) }
-    else setSelMonth(m => m + 1)
-  }
+  const goNextMonth = useCallback(() => {
+    setSelMonth(m => { if (m === 11) { setSelYear(y => y + 1); return 0 } return m + 1 })
+  }, [])
 
-  const goPrevMonth = () => {
-    if (selMonth === 0) { setSelMonth(11); setSelYear(y => y - 1) }
-    else setSelMonth(m => m - 1)
-  }
+  const goPrevMonth = useCallback(() => {
+    setSelMonth(m => { if (m === 0) { setSelYear(y => y - 1); return 11 } return m - 1 })
+  }, [])
 
-  const { onTouchStart, onTouchEnd } = useSwipe({ onSwipeLeft: goNextMonth, onSwipeRight: goPrevMonth })
+  // Desktop scroll/wheel support
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return // vertical scroll, ignore
+    if (wheelTimeout.current) return // debounce
+    if (e.deltaX > 30) {
+      goNextMonth()
+      wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 600)
+    } else if (e.deltaX < -30) {
+      goPrevMonth()
+      wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 600)
+    }
+  }, [goNextMonth, goPrevMonth])
+
+  const { onTouchStart, onTouchMove, onTouchEnd, dragX, isDragging } = useSwipe({
+    onSwipeLeft: goNextMonth,
+    onSwipeRight: goPrevMonth,
+  })
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
@@ -144,7 +159,7 @@ export default function Home() {
         <div className="w-52 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto">
           <Sidebar />
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" onWheel={onWheel}>
           <div className={`${tab === 'calendar' ? 'max-w-4xl' : 'max-w-2xl'} mx-auto py-8`}>
             <div className="px-4 mb-6">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{activeContext?.name}</h2>
@@ -210,7 +225,24 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* Mobile content with drag animation */}
+        <div
+          className="flex-1 overflow-y-auto"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          style={{
+            transform: `translateX(${dragX}px)`,
+            transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+          }}
+        >
+          {/* Month navigation hint */}
+          {isDragging && (
+            <div className="flex justify-between px-6 py-2 pointer-events-none">
+              <span className="text-xs text-amber-500 opacity-70">← {dragX > 20 ? MONTH_NAMES[selMonth === 0 ? 11 : selMonth - 1] : ''}</span>
+              <span className="text-xs text-amber-500 opacity-70">{dragX < -20 ? MONTH_NAMES[selMonth === 11 ? 0 : selMonth + 1] : ''} →</span>
+            </div>
+          )}
           <TabContent />
         </div>
       </div>
