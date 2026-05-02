@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useEntries } from './useEntries'
 import { useSettings } from './useSettings'
-import { useSwipe } from './useSwipe'
 import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
@@ -70,11 +69,6 @@ export default function Home() {
     }
   }, [goNextMonth, goPrevMonth])
 
-  const { onTouchStart, onTouchMove, onTouchEnd, dragX, isDragging } = useSwipe({
-    onSwipeLeft: goNextMonth,
-    onSwipeRight: goPrevMonth,
-  })
-
   useEffect(() => {
     const saved = localStorage.getItem('theme')
     if (saved) setDark(saved === 'dark')
@@ -112,6 +106,19 @@ export default function Home() {
     </div>
   )
 
+  const MonthNav = () => (
+    <div className="flex items-center gap-1">
+      <button onClick={goPrevMonth}
+        className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm hover:border-amber-400 hover:text-amber-500 transition-colors">
+        ‹
+      </button>
+      <button onClick={goNextMonth}
+        className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm hover:border-amber-400 hover:text-amber-500 transition-colors">
+        ›
+      </button>
+    </div>
+  )
+
   const Sidebar = () => (
     <div className="flex flex-col h-full px-3 py-6">
       <div className="px-2 mb-6">
@@ -145,7 +152,10 @@ export default function Home() {
         ))}
       </nav>
       <div className="flex flex-col gap-2 mt-4">
-        <div className="text-xs text-zinc-400 px-1">{monthLabel}</div>
+        <div className="flex items-center justify-between px-1">
+          <div className="text-xs text-zinc-400">{monthLabel}</div>
+          <MonthNav />
+        </div>
         <MonthYearPicker col />
         <button onClick={() => setDark(d => !d)}
           className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -165,14 +175,8 @@ export default function Home() {
     </>
   )
 
-  const prev = addMonths(selMonth, selYear, -1)
-  const next = addMonths(selMonth, selYear, 1)
-
-  // Clamp drag to show adjacent month peeking
-  const clampedDrag = Math.max(-120, Math.min(120, dragX))
-
   return (
-    <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d] overflow-hidden">
+    <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d]">
       {/* Desktop */}
       <div className="hidden md:flex h-screen">
         <div className="w-52 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto">
@@ -191,16 +195,18 @@ export default function Home() {
       </div>
 
       {/* Mobile */}
-      <div className="md:hidden min-h-dvh flex flex-col">
-        {/* Fixed header */}
-        <div className="px-4 pt-14 pb-3 flex items-center justify-between flex-shrink-0">
+      <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
+        <div className="px-4 pt-14 pb-3 flex items-center justify-between">
           <div>
             <button onClick={() => setMobileMenuOpen(true)}
               className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1.5">
               {activeContext?.name}
               <span className="text-base text-zinc-400">▾</span>
             </button>
-            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
+              <MonthNav />
+            </div>
             <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -209,51 +215,6 @@ export default function Home() {
               {dark ? '☀️' : '🌙'}
             </button>
             <MonthYearPicker />
-          </div>
-        </div>
-
-        {/* Fixed tabs */}
-        <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 flex-shrink-0">
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`mr-4 pb-2 text-sm border-b-2 transition-colors ${tab === t.id
-                ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-medium'
-                : 'border-transparent text-zinc-400'}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Swipeable content area */}
-        <div
-          className="flex-1 overflow-hidden relative"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
-          {/* Prev month peek label */}
-          {isDragging && clampedDrag > 20 && (
-            <div className="absolute left-3 top-4 z-20 text-xs font-medium text-amber-500 pointer-events-none">
-              ← {MONTH_NAMES[prev.month]} {prev.year}
-            </div>
-          )}
-          {/* Next month peek label */}
-          {isDragging && clampedDrag < -20 && (
-            <div className="absolute right-3 top-4 z-20 text-xs font-medium text-amber-500 pointer-events-none">
-              {MONTH_NAMES[next.month]} {next.year} →
-            </div>
-          )}
-
-          {/* Content slides */}
-          <div
-            className="h-full overflow-y-auto"
-            style={{
-              transform: `translateX(${clampedDrag}px)`,
-              transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              willChange: 'transform',
-            }}
-          >
-            <TabContent />
           </div>
         </div>
 
@@ -278,6 +239,21 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        <div className="flex border-b border-zinc-100 dark:border-zinc-800 px-4 mb-4">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`mr-4 pb-2 text-sm border-b-2 transition-colors ${tab === t.id
+                ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-medium'
+                : 'border-transparent text-zinc-400'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <TabContent />
+        </div>
       </div>
     </div>
   )
