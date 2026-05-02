@@ -186,32 +186,29 @@ export default function Home() {
 
       {/* Mobile */}
       <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
-        {/* Header — arrow | center info | arrow, all on same line */}
-        <div className="flex items-center gap-2 pt-14 pb-3 px-3">
-          <button onClick={goPrevMonth} className={arrowCls}>‹</button>
 
-          {/* Center */}
-          <div className="flex-1 flex flex-col items-center min-w-0">
-            <button onClick={() => setMobileMenuOpen(true)}
-              className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1">
-              <span className="truncate">{activeContext?.name}</span>
-              <span className="text-sm text-zinc-400 flex-shrink-0">▾</span>
-            </button>
+        {/* Row 1: context name + dark mode + month picker */}
+        <div className="flex items-center gap-2 pt-14 px-3">
+          <button onClick={() => setMobileMenuOpen(true)}
+            className="flex-1 text-left text-lg font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1">
+            <span className="truncate">{activeContext?.name}</span>
+            <span className="text-sm text-zinc-400 flex-shrink-0">▾</span>
+          </button>
+          <button onClick={() => setDark(d => !d)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm flex-shrink-0">
+            {dark ? '☀️' : '🌙'}
+          </button>
+          <MonthYearPicker />
+        </div>
+
+        {/* Row 2: left arrow | month label + date | right arrow — all same height */}
+        <div className="flex items-center gap-2 px-3 pt-2 pb-3">
+          <button onClick={goPrevMonth} className={arrowCls}>‹</button>
+          <div className="flex-1 flex flex-col items-center">
             <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
             <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
-
-          {/* Right side: next arrow + controls stacked */}
-          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-            <button onClick={goNextMonth} className={arrowCls}>›</button>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setDark(d => !d)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm flex-shrink-0">
-                {dark ? '☀️' : '🌙'}
-              </button>
-              <MonthYearPicker />
-            </div>
-          </div>
+          <button onClick={goNextMonth} className={arrowCls}>›</button>
         </div>
 
         {mobileMenuOpen && (
