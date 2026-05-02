@@ -1,5 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Entry, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol } from '../types'
 import { useSettings } from '../useSettings'
 
@@ -10,12 +11,13 @@ interface Props {
   onDelete: (id: string) => void
 }
 
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const DAYS_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
 export default function Calendar({ entries, month, onUpdate, onDelete }: Props) {
+  const { t } = useTranslation()
   const { activeContext } = useSettings()
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
@@ -56,8 +58,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
 
   const cells: (string | null)[] = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
-  for (let d = 1; d <= totalDays; d++) {
-    cells.push(`${month}-${String(d).padStart(2, '0')}`)
+  for (let day = 1; day <= totalDays; day++) {
+    cells.push(`${month}-${String(day).padStart(2, '0')}`)
   }
 
   const selectedEntries = useMemo(() =>
@@ -69,18 +71,12 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
   const maxExpense = Math.max(...Object.values(dayTotals).map(d => d.expense), 1)
 
   const openEdit = (e: Entry) => {
-    const [y, mo, d] = e.date.split('-').map(Number)
-    setEditMonth(mo - 1)
-    setEditDay(d)
-    setEditYear(y)
-    setEditAmount(e.amount.toString())
-    setEditSummary(e.summary)
-    setEditVenue(e.venue || '')
-    setEditLocation(e.location || '')
-    setEditCategory(e.category)
-    setEditRemarks(e.remarks || '')
-    setEditType(e.type)
-    setEditEntry(e)
+    const [y, mo, day] = e.date.split('-').map(Number)
+    setEditMonth(mo - 1); setEditDay(day); setEditYear(y)
+    setEditAmount(e.amount.toString()); setEditSummary(e.summary)
+    setEditVenue(e.venue || ''); setEditLocation(e.location || '')
+    setEditCategory(e.category); setEditRemarks(e.remarks || '')
+    setEditType(e.type); setEditEntry(e)
   }
 
   const handleSave = () => {
@@ -102,26 +98,22 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
   return (
     <div className="px-4 pb-8">
       {editEntry && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4"
-          onClick={() => setEditEntry(null)}>
-          <div className="bg-[#fafaf8] dark:bg-[#1a1a18] rounded-2xl p-4 w-full max-w-md flex flex-col gap-3"
-            onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4" onClick={() => setEditEntry(null)}>
+          <div className="bg-[#fafaf8] dark:bg-[#1a1a18] rounded-2xl p-4 w-full max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Edit entry</span>
+              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{t('editEntry')}</span>
               <button onClick={() => setEditEntry(null)} className="text-zinc-400 text-lg">✕</button>
             </div>
             <div className="flex gap-2">
-              {(['expense', 'income'] as const).map(t => (
-                <button key={t} onClick={() => { setEditType(t); setEditCategory(t === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0]) }}
-                  className={`flex-1 py-1.5 rounded-xl text-sm font-medium border transition-colors ${editType === t
-                    ? 'bg-amber-500 text-white border-amber-500'
-                    : 'bg-transparent border-zinc-200 dark:border-zinc-700 text-zinc-500'}`}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+              {(['expense', 'income'] as const).map(tp => (
+                <button key={tp} onClick={() => { setEditType(tp); setEditCategory(tp === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0]) }}
+                  className={`flex-1 py-1.5 rounded-xl text-sm font-medium border transition-colors ${editType === tp ? 'bg-amber-500 text-white border-amber-500' : 'bg-transparent border-zinc-200 dark:border-zinc-700 text-zinc-500'}`}>
+                  {tp === 'expense' ? t('expense') : t('income2')}
                 </button>
               ))}
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Date</label>
+              <label className="text-xs text-zinc-400 mb-1 block">{t('date')}</label>
               <div className="grid grid-cols-3 gap-2">
                 <select value={editMonth} onChange={e => setEditMonth(Number(e.target.value))} className={miniSelCls} style={{fontSize:'16px'}}>
                   {MONTHS.map((mo, i) => <option key={mo} value={i}>{mo}</option>)}
@@ -135,51 +127,43 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
               </div>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Amount ({cur} {getCurrencySymbol(cur)})</label>
-              <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)}
-                className={inputCls} step="0.01" inputMode="decimal" style={{fontSize:'16px'}} />
+              <label className="text-xs text-zinc-400 mb-1 block">{t('amount')} ({cur} {getCurrencySymbol(cur)})</label>
+              <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className={inputCls} step="0.01" inputMode="decimal" style={{fontSize:'16px'}} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Summary</label>
-              <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)}
-                className={inputCls} style={{fontSize:'16px'}} />
+              <label className="text-xs text-zinc-400 mb-1 block">{t('summary')}</label>
+              <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Venue</label>
-                <input type="text" value={editVenue} onChange={e => setEditVenue(e.target.value)}
-                  className={inputCls} style={{fontSize:'16px'}} />
+                <label className="text-xs text-zinc-400 mb-1 block">{t('venue')}</label>
+                <input type="text" value={editVenue} onChange={e => setEditVenue(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
               </div>
               <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Location</label>
-                <input type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)}
-                  className={inputCls} style={{fontSize:'16px'}} />
+                <label className="text-xs text-zinc-400 mb-1 block">{t('location')}</label>
+                <input type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Category</label>
+                <label className="text-xs text-zinc-400 mb-1 block">{t('category')}</label>
                 <select value={editCategory} onChange={e => setEditCategory(e.target.value)} className={miniSelCls} style={{fontSize:'16px'}}>
                   {editCats.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Remarks</label>
-                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)}
-                  className={inputCls} style={{fontSize:'16px'}} />
+                <label className="text-xs text-zinc-400 mb-1 block">{t('remarks')}</label>
+                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
               </div>
             </div>
-            <button onClick={handleSave}
-              className="w-full py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium mt-1">
-              Save changes
-            </button>
+            <button onClick={handleSave} className="w-full py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium mt-1">{t('saveChanges')}</button>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-7 mb-1">
-        {DAYS.map(d => (
-          <div key={d} className="text-center text-xs text-zinc-400 py-1">{d}</div>
+        {DAYS_EN.map(day => (
+          <div key={day} className="text-center text-xs text-zinc-400 py-1">{day}</div>
         ))}
       </div>
 
@@ -189,7 +173,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
           const totals = dayTotals[date]
           const isToday = date === today
           const isSelected = date === selectedDay
-          const day = parseInt(date.slice(-2))
+          const dayNum = parseInt(date.slice(-2))
           const hasData = !!totals
           const intensity = totals ? Math.min(totals.expense / maxExpense, 1) : 0
           return (
@@ -200,9 +184,9 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
                 border: isToday ? '1.5px solid #BA7517' : '1px solid transparent',
               }}>
               <span className={`text-xs md:text-base ${isToday ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-600 dark:text-zinc-400'}`}>
-                {day}
+                {dayNum}
               </span>
-              {isToday && <span className="text-[8px] md:text-[10px] bg-amber-500 text-white rounded px-1 leading-tight">Today</span>}
+              {isToday && <span className="text-[8px] md:text-[10px] bg-amber-500 text-white rounded px-1 leading-tight">{t('today')}</span>}
               {totals?.expense > 0 && (
                 <span className="text-red-500 dark:text-red-400 text-[10px] md:text-sm">
                   -{formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
@@ -227,19 +211,19 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
             <button onClick={() => setSelectedDay(null)} className="text-zinc-400 text-sm">✕</button>
           </div>
           {selectedEntries.length === 0 ? (
-            <div className="text-center text-zinc-400 py-6 text-sm">No entries</div>
+            <div className="text-center text-zinc-400 py-6 text-sm">{t('noEntriesFound')}</div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {selectedExpense > 0 && (
                   <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
-                    <div className="text-xs text-zinc-500 mb-1">Spent</div>
+                    <div className="text-xs text-zinc-500 mb-1">{t('spent')}</div>
                     <div className="text-sm font-medium text-red-600 dark:text-red-400">{formatAmount(selectedExpense, cur)}</div>
                   </div>
                 )}
                 {selectedIncome > 0 && (
                   <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
-                    <div className="text-xs text-zinc-500 mb-1">Earned</div>
+                    <div className="text-xs text-zinc-500 mb-1">{t('earned')}</div>
                     <div className="text-sm font-medium text-green-700 dark:text-green-400">{formatAmount(selectedIncome, cur)}</div>
                   </div>
                 )}
@@ -254,8 +238,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-zinc-800 dark:text-zinc-100 truncate font-medium">{e.summary}</div>
                         {e.venue && <div className="text-xs text-zinc-400 truncate">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
-                        <span className="inline-block text-xs px-2 py-0.5 rounded-full mt-0.5"
-                          style={{ background: col + '25', color: col }}>{e.category}</span>
+                        <span className="inline-block text-xs px-2 py-0.5 rounded-full mt-0.5" style={{ background: col + '25', color: col }}>{e.category}</span>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <div className="text-sm font-medium" style={{ color: col }}>
@@ -263,14 +246,11 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
                         </div>
                         {confirmId === e.id ? (
                           <div className="flex gap-1" onClick={ev => ev.stopPropagation()}>
-                            <button onClick={() => { onDelete(e.id); setConfirmId(null) }}
-                              className="text-xs text-red-500 border border-red-300 rounded px-1.5 py-0.5">Delete</button>
-                            <button onClick={() => setConfirmId(null)}
-                              className="text-xs text-zinc-400 border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5">Cancel</button>
+                            <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="text-xs text-red-500 border border-red-300 rounded px-1.5 py-0.5">{t('deleteEntry')}</button>
+                            <button onClick={() => setConfirmId(null)} className="text-xs text-zinc-400 border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5">{t('cancel')}</button>
                           </div>
                         ) : (
-                          <button onClick={ev => { ev.stopPropagation(); setConfirmId(e.id) }}
-                            className="text-xs text-zinc-300 dark:text-zinc-600 hover:text-red-400">✕</button>
+                          <button onClick={ev => { ev.stopPropagation(); setConfirmId(e.id) }} className="text-xs text-zinc-300 dark:text-zinc-600 hover:text-red-400">✕</button>
                         )}
                       </div>
                     </div>
@@ -281,8 +261,9 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
           )}
         </div>
       )}
+
       {monthEntries.length === 0 && (
-        <div className="text-center text-zinc-400 py-12 text-sm">No entries for this month</div>
+        <div className="text-center text-zinc-400 py-12 text-sm">{t('noEntries')}</div>
       )}
     </div>
   )
