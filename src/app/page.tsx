@@ -106,18 +106,7 @@ export default function Home() {
     </div>
   )
 
-  const MonthNav = () => (
-    <div className="flex items-center gap-1">
-      <button onClick={goPrevMonth}
-        className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm hover:border-amber-400 hover:text-amber-500 transition-colors">
-        ‹
-      </button>
-      <button onClick={goNextMonth}
-        className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm hover:border-amber-400 hover:text-amber-500 transition-colors">
-        ›
-      </button>
-    </div>
-  )
+  const arrowCls = "w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-lg hover:border-amber-400 hover:text-amber-500 transition-colors flex-shrink-0"
 
   const Sidebar = () => (
     <div className="flex flex-col h-full px-3 py-6">
@@ -152,9 +141,11 @@ export default function Home() {
         ))}
       </nav>
       <div className="flex flex-col gap-2 mt-4">
-        <div className="flex items-center justify-between px-1">
-          <div className="text-xs text-zinc-400">{monthLabel}</div>
-          <MonthNav />
+        {/* Desktop month nav with arrows on each side */}
+        <div className="flex items-center gap-1">
+          <button onClick={goPrevMonth} className={arrowCls}>‹</button>
+          <div className="flex-1 text-center text-xs text-zinc-500">{monthLabel}</div>
+          <button onClick={goNextMonth} className={arrowCls}>›</button>
         </div>
         <MonthYearPicker col />
         <button onClick={() => setDark(d => !d)}
@@ -194,27 +185,29 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Mobile */}
+      {/* Mobile — arrow buttons spanning full width */}
       <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
-        <div className="px-4 pt-14 pb-3 flex items-center justify-between">
-          <div>
+        {/* Month nav bar — full width with arrows on each edge */}
+        <div className="flex items-center pt-14 pb-2 px-2">
+          <button onClick={goPrevMonth} className={arrowCls}>‹</button>
+          <div className="flex-1 flex flex-col items-center">
             <button onClick={() => setMobileMenuOpen(true)}
-              className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1.5">
+              className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1">
               {activeContext?.name}
-              <span className="text-base text-zinc-400">▾</span>
+              <span className="text-sm text-zinc-400">▾</span>
             </button>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
-              <MonthNav />
-            </div>
+            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
             <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setDark(d => !d)}
-              className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-base">
-              {dark ? '☀️' : '🌙'}
-            </button>
-            <MonthYearPicker />
+          <div className="flex flex-col items-end gap-1.5">
+            <button onClick={goNextMonth} className={arrowCls}>›</button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setDark(d => !d)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                {dark ? '☀️' : '🌙'}
+              </button>
+              <MonthYearPicker />
+            </div>
           </div>
         </div>
 
