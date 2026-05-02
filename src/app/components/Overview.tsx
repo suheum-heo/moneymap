@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount } from '../types'
 import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function Overview({ entries, month, onNavigate }: Props) {
+  const { t } = useTranslation()
   const catChartRef = useRef<HTMLCanvasElement>(null)
   const locChartRef = useRef<HTMLCanvasElement>(null)
   const catChartInstance = useRef<Chart | null>(null)
@@ -126,23 +128,19 @@ export default function Overview({ entries, month, onNavigate }: Props) {
   const fmtConverted = (n: number) =>
     showConversion ? ` (≈${formatAmount(convert(Math.abs(n), cur, homeCur), homeCur)})` : ''
 
-  // Pair categories into rows of 2
   const catRows = useMemo(() => {
     const rows = []
-    for (let i = 0; i < byCategory.length; i += 2) {
-      rows.push(byCategory.slice(i, i + 2))
-    }
+    for (let i = 0; i < byCategory.length; i += 2) rows.push(byCategory.slice(i, i + 2))
     return rows
   }, [byCategory])
 
   return (
     <div className="px-4 pb-8">
-      {/* Metric cards */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
-          { label: 'Expenses', value: fmt(expenses), sub: fmtConverted(expenses), color: 'text-red-600 dark:text-red-400', filter: 'expense' },
-          { label: 'Income', value: fmt(income), sub: fmtConverted(income), color: 'text-green-700 dark:text-green-400', filter: 'income' },
-          { label: 'Net', value: (net < 0 ? '-' : '') + fmt(net), sub: fmtConverted(net), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400', filter: 'all' },
+          { label: t('expenses'), value: fmt(expenses), sub: fmtConverted(expenses), color: 'text-red-600 dark:text-red-400', filter: 'expense' },
+          { label: t('income'), value: fmt(income), sub: fmtConverted(income), color: 'text-green-700 dark:text-green-400', filter: 'income' },
+          { label: t('net'), value: (net < 0 ? '-' : '') + fmt(net), sub: fmtConverted(net), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400', filter: 'all' },
         ].map(m => (
           <div key={m.label} onClick={() => onNavigate('entries', m.filter)}
             className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-amber-400 transition-all">
@@ -153,34 +151,31 @@ export default function Overview({ entries, month, onNavigate }: Props) {
         ))}
       </div>
 
-      {/* Monthly comparison */}
       {lastMonthExpenses > 0 && (
         <div className="mb-5 bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5 flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500">vs last month full</span>
+            <span className="text-zinc-500">{t('vsLastMonth')}</span>
             <span className={expenses <= lastMonthExpenses ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
-              {expenses <= lastMonthExpenses ? '▼' : '▲'} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)} {expenses <= lastMonthExpenses ? 'less' : 'more'}
+              {expenses <= lastMonthExpenses ? '▼' : '▲'} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)} {expenses <= lastMonthExpenses ? t('less') : t('more')}
             </span>
           </div>
           {isCurrentMonth && sameDayLastMonth > 0 && (
             <div className="flex items-center justify-between text-xs">
-              <span className="text-zinc-500">vs same day last month</span>
+              <span className="text-zinc-500">{t('vsSameDay')}</span>
               <span className={expenses <= sameDayLastMonth ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
-                {expenses <= sameDayLastMonth ? '▼' : '▲'} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)} {expenses <= sameDayLastMonth ? 'less' : 'more'}
+                {expenses <= sameDayLastMonth ? '▼' : '▲'} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)} {expenses <= sameDayLastMonth ? t('less') : t('more')}
               </span>
             </div>
           )}
         </div>
       )}
 
-      {/* By category — 2-column grid with expandable dropdown */}
-      <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">By category</div>
+      <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('byCategory')}</div>
       <div className="mb-5">
         {catRows.map((row, rowIdx) => {
           const expandedInRow = row.find(([cat]) => cat === expandedCat)
           return (
             <div key={rowIdx} className="mb-2">
-              {/* 2-column row */}
               <div className="grid grid-cols-2 gap-2">
                 {row.map(([cat, amt]) => {
                   const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
@@ -191,8 +186,7 @@ export default function Overview({ entries, month, onNavigate }: Props) {
                   const isDanger = budgetPct !== null && budgetPct >= 100
                   const isExpanded = expandedCat === cat
                   return (
-                    <div key={cat}
-                      onClick={() => setExpandedCat(isExpanded ? null : cat)}
+                    <div key={cat} onClick={() => setExpandedCat(isExpanded ? null : cat)}
                       className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2 cursor-pointer hover:ring-1 hover:ring-amber-300 transition-all">
                       <div className="flex justify-between items-start">
                         <div>
@@ -220,8 +214,6 @@ export default function Overview({ entries, month, onNavigate }: Props) {
                   )
                 })}
               </div>
-
-              {/* Expanded entries — full width below the row */}
               {expandedInRow && (() => {
                 const [cat, amt] = expandedInRow
                 const col = CAT_COLORS[cat] || '#888'
@@ -252,20 +244,16 @@ export default function Overview({ entries, month, onNavigate }: Props) {
         })}
       </div>
 
-      {/* Category chart */}
       {byCategory.length > 0 && (
         <>
-          <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Spending chart</div>
-          <div className="relative w-full mb-6" style={{ height: 220 }}>
-            <canvas ref={catChartRef} />
-          </div>
+          <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('spendingChart')}</div>
+          <div className="relative w-full mb-6" style={{ height: 220 }}><canvas ref={catChartRef} /></div>
         </>
       )}
 
-      {/* By location */}
       {byLocation.length > 0 && (
         <>
-          <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">By location</div>
+          <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('byLocation')}</div>
           <div className="flex flex-col gap-1.5 mb-4">
             {byLocation.map(([loc, amt]) => {
               const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
@@ -280,21 +268,17 @@ export default function Overview({ entries, month, onNavigate }: Props) {
                       <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
-                  <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100 flex-shrink-0 w-24 text-right">
-                    {formatAmount(amt, cur)}
-                  </div>
+                  <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100 flex-shrink-0 w-24 text-right">{formatAmount(amt, cur)}</div>
                 </div>
               )
             })}
           </div>
-          <div className="relative w-full mb-6" style={{ height: Math.max(120, byLocation.length * 36) }}>
-            <canvas ref={locChartRef} />
-          </div>
+          <div className="relative w-full mb-6" style={{ height: Math.max(120, byLocation.length * 36) }}><canvas ref={locChartRef} /></div>
         </>
       )}
 
       {monthEntries.length === 0 && (
-        <div className="text-center text-zinc-400 py-12 text-sm">No entries for this month</div>
+        <div className="text-center text-zinc-400 py-12 text-sm">{t('noEntries')}</div>
       )}
     </div>
   )

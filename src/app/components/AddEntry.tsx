@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Entry, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, CURRENCIES } from '../types'
 import { useSettings } from '../useSettings'
 import { useRecurring } from '../useRecurring'
@@ -22,6 +23,7 @@ function daysInMonth(m: number, y: number) {
 }
 
 export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
+  const { t } = useTranslation()
   const { activeContext } = useSettings()
   const { items } = useRecurring()
   const contextCur = activeContext?.currency || 'USD'
@@ -53,9 +55,9 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
   const pastVenues = [...new Set(entries.map(e => e.venue).filter(Boolean))].sort()
   const pastLocations = [...new Set(entries.map(e => e.location).filter(Boolean))].sort()
 
-  const handleTypeChange = (t: 'expense' | 'income') => {
-    setEntryType(t)
-    setCategory(t === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0])
+  const handleTypeChange = (tp: 'expense' | 'income') => {
+    setEntryType(tp)
+    setCategory(tp === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0])
     setShowRecurring(false)
   }
 
@@ -66,15 +68,14 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
     setRemarks(r.remarks || '')
     setCurrency(r.currency)
     setShowCurrencyOverride(r.currency !== contextCur)
-    setVenue('')
-    setLocation('')
+    setVenue(''); setLocation('')
     setShowRecurring(false)
   }
 
   const handleSubmit = () => {
-    if (!amount || !summary.trim()) { setError('Please fill in amount and summary.'); return }
+    if (!amount || !summary.trim()) { setError(t('amount') + ' & ' + t('summary') + ' required'); return }
     const parsed = parseFloat(amount)
-    if (isNaN(parsed) || parsed <= 0) { setError('Enter a valid amount.'); return }
+    if (isNaN(parsed) || parsed <= 0) { setError('Invalid amount'); return }
     setError('')
     onAdd({
       id: Date.now().toString(),
@@ -100,12 +101,12 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
   return (
     <div className="px-4 pb-8">
       <div className="flex gap-2 mb-4">
-        {(['expense', 'income'] as const).map(t => (
-          <button key={t} onClick={() => handleTypeChange(t)}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${entryType === t
+        {(['expense', 'income'] as const).map(tp => (
+          <button key={tp} onClick={() => handleTypeChange(tp)}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${entryType === tp
               ? 'bg-amber-500 text-white border-amber-500'
               : 'bg-transparent border-zinc-200 dark:border-zinc-700 text-zinc-500'}`}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            {tp === 'expense' ? t('expense') : t('income2')}
           </button>
         ))}
       </div>
@@ -114,7 +115,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
         <div className="mb-4">
           <button onClick={() => setShowRecurring(v => !v)}
             className="text-xs text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-1.5 w-full text-left flex justify-between items-center bg-amber-50 dark:bg-amber-950/30">
-            <span>⟳ Recurring payments</span>
+            <span>{t('recurringPayments')}</span>
             <span>{showRecurring ? '▲' : '▼'}</span>
           </button>
           {showRecurring && (
@@ -138,7 +139,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
 
       <div className="flex flex-col gap-3">
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Date</label>
+          <label className="text-xs text-zinc-400 mb-1 block">{t('date')}</label>
           <div className="grid grid-cols-3 gap-2">
             <select value={month} onChange={e => setMonth(Number(e.target.value))} className={selCls} style={{ fontSize: '16px' }}>
               {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
@@ -154,10 +155,10 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-zinc-400">Amount ({showCurrencyOverride ? currency : contextCur} {showCurrencyOverride ? getCurrencySymbol(currency) : sym})</label>
+            <label className="text-xs text-zinc-400">{t('amount')} ({showCurrencyOverride ? currency : contextCur} {showCurrencyOverride ? getCurrencySymbol(currency) : sym})</label>
             <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur) }}
               className="text-xs text-amber-500">
-              {showCurrencyOverride ? 'Use default currency' : 'Different currency?'}
+              {showCurrencyOverride ? t('useDefaultCurrency') : t('differentCurrency')}
             </button>
           </div>
           <div className="flex gap-2">
@@ -174,7 +175,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
         </div>
 
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Summary</label>
+          <label className="text-xs text-zinc-400 mb-1 block">{t('summary')}</label>
           <input type="text" value={summary} onChange={e => setSummary(e.target.value)}
             placeholder="e.g. Chipotle before class" className={inputCls} style={{ fontSize: '16px' }} />
         </div>
@@ -182,12 +183,12 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
         {entryType === 'expense' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Venue</label>
+              <label className="text-xs text-zinc-400 mb-1 block">{t('venue')}</label>
               <input type="text" value={venue} onChange={e => setVenue(e.target.value)}
                 placeholder="e.g. Chipotle" className={inputCls} style={{ fontSize: '16px' }} list="venue-list" />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Location</label>
+              <label className="text-xs text-zinc-400 mb-1 block">{t('location')}</label>
               <input type="text" value={location} onChange={e => setLocation(e.target.value)}
                 placeholder="e.g. Madison, WI" className={inputCls} style={{ fontSize: '16px' }} list="location-list" />
             </div>
@@ -196,13 +197,13 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Category</label>
+            <label className="text-xs text-zinc-400 mb-1 block">{t('category')}</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
               {cats.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Remarks</label>
+            <label className="text-xs text-zinc-400 mb-1 block">{t('remarks')}</label>
             <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
               placeholder="e.g. Amazon, Uber…" className={inputCls} style={{ fontSize: '16px' }} />
           </div>
@@ -212,7 +213,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
 
         <button onClick={handleSubmit}
           className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium mt-1 transition-colors">
-          Add entry
+          {t('addEntry')}
         </button>
 
         <datalist id="venue-list">{pastVenues.map(v => <option key={v} value={v} />)}</datalist>
