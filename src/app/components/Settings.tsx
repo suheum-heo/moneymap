@@ -4,6 +4,7 @@ import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol } from '../t
 import { useSettings, ExchangeRate } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { useRecurring, RecurringItem } from '../useRecurring'
+import LanguageSelector from './LanguageSelector'
 
 export default function Settings() {
   const { contexts, addContext, removeContext, renameContext, rates, updateRate, activeContext } = useSettings()
@@ -75,7 +76,7 @@ export default function Settings() {
 
   return (
     <div className="px-4 pb-8 flex flex-col gap-6">
-
+      <LanguageSelector />
       {/* Contexts */}
       <div>
         <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Contexts</div>
