@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import I18nProvider from './components/I18nProvider'
 
 export const metadata: Metadata = {
   title: '가계부',
@@ -22,11 +23,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="en">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body>{children}</body>
+      <body>
+        <I18nProvider>
+          {children}
+        </I18nProvider>
+      </body>
     </html>
   )
 }

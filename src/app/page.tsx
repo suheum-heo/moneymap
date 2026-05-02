@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useEntries } from './useEntries'
 import { useSettings } from './useSettings'
 import Overview from './components/Overview'
@@ -9,7 +10,7 @@ import Settings from './components/Settings'
 import Calendar from './components/Calendar'
 import { getCurrencySymbol } from './types'
 
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MONTH_NAMES_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
 
 type Tab = 'overview' | 'entries' | 'calendar' | 'add' | 'settings'
@@ -27,6 +28,7 @@ function monthStr(month: number, year: number) {
 }
 
 export default function Home() {
+  const { t } = useTranslation()
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
   const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings()
   const [tab, setTab] = useState<Tab>('overview')
@@ -40,7 +42,7 @@ export default function Home() {
   const [selYear, setSelYear] = useState(now.getFullYear())
 
   const month = monthStr(selMonth, selYear)
-  const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`
+  const monthLabel = `${MONTH_NAMES_EN[selMonth]} ${selYear}`
 
   const navigateTo = (newTab: string, filter?: string) => {
     setTab(newTab as Tab)
@@ -82,22 +84,22 @@ export default function Home() {
   }, [dark])
 
   if (!entriesLoaded || !settingsLoaded || dark === null) return (
-    <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">Loading…</div>
+    <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">{t('loading')}</div>
   )
 
   const tabs = [
-    { id: 'overview' as Tab, label: 'Overview' },
-    { id: 'entries' as Tab, label: 'Entries' },
-    { id: 'calendar' as Tab, label: 'Calendar' },
-    { id: 'add' as Tab, label: '+ Add' },
-    { id: 'settings' as Tab, label: 'Settings' },
+    { id: 'overview' as Tab, label: t('overview') },
+    { id: 'entries' as Tab, label: t('entries') },
+    { id: 'calendar' as Tab, label: t('calendar') },
+    { id: 'add' as Tab, label: t('add') },
+    { id: 'settings' as Tab, label: t('settings') },
   ]
 
   const MonthYearPicker = ({ col = false }: { col?: boolean }) => (
     <div className={`flex gap-1.5 ${col ? 'flex-col' : ''}`}>
       <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
         className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
-        {MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}
+        {MONTH_NAMES_EN.map((m, i) => <option key={m} value={i}>{m}</option>)}
       </select>
       <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
         className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
@@ -111,10 +113,10 @@ export default function Home() {
   const Sidebar = () => (
     <div className="flex flex-col h-full px-3 py-6">
       <div className="px-2 mb-6">
-        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">가계부</h1>
+        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t('appName')}</h1>
       </div>
       <div className="mb-4">
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest px-2 mb-2">Contexts</div>
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest px-2 mb-2">{t('contexts')}</div>
         {contexts.map(c => {
           const sym = getCurrencySymbol(c.currency)
           const isActive = c.id === activeContextId
@@ -149,7 +151,7 @@ export default function Home() {
         <MonthYearPicker col />
         <button onClick={() => setDark(d => !d)}
           className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-          {dark ? '☀️ Light' : '🌙 Dark'}
+          {dark ? `☀️ ${t('light')}` : `🌙 ${t('dark')}`}
         </button>
       </div>
     </div>
@@ -186,8 +188,6 @@ export default function Home() {
 
       {/* Mobile */}
       <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
-
-        {/* Row 1: context name + dark mode + month picker */}
         <div className="flex items-center gap-2 pt-14 px-3">
           <button onClick={() => setMobileMenuOpen(true)}
             className="flex-1 text-left text-lg font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-1">
@@ -201,7 +201,6 @@ export default function Home() {
           <MonthYearPicker />
         </div>
 
-        {/* Row 2: left arrow | month label + date | right arrow — all same height */}
         <div className="flex items-center gap-2 px-3 pt-2 pb-3">
           <button onClick={goPrevMonth} className={arrowCls}>‹</button>
           <div className="flex-1 flex flex-col items-center">
@@ -215,7 +214,7 @@ export default function Home() {
           <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setMobileMenuOpen(false)}>
             <div className="absolute bottom-0 left-0 right-0 bg-[#fafaf8] dark:bg-[#1a1a18] rounded-t-2xl p-4 pb-8"
               onClick={e => e.stopPropagation()}>
-              <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">Switch context</div>
+              <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('switchContext')}</div>
               {contexts.map(c => {
                 const sym = getCurrencySymbol(c.currency)
                 const isActive = c.id === activeContextId
