@@ -1,41 +1,35 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { supabase } from './lib/supabase'
 
-export interface Budget {
-  context: string
-  category: string
-  amount: number
-}
+export interface Budget { context: string; category: string; amount: number }
 
-export function useBudgets() {
+export function useBudgets(userId?: string) {
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    fetch('/api/budgets')
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) setBudgets(data)
+    if (!userId) { setLoaded(true); return }
+    supabase.from('budgets').select('*').eq('user_id', userId)
+      .then(({ data }) => {
+        setBudgets((data || []).map(r => ({ context: r.context, category: r.category, amount: r.amount })))
         setLoaded(true)
       })
-      .catch(() => setLoaded(true))
-  }, [])
+  }, [userId])
 
   const setBudget = useCallback(async (context: string, category: string, amount: number) => {
-    // Optimistic update
+    if (!userId) return
     setBudgets(prev => {
       const next = prev.filter(b => !(b.context === context && b.category === category))
       if (amount > 0) next.push({ context, category, amount })
       return next
     })
     if (amount > 0) {
-      await fetch('/api/budgets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context, category, amount }),
-      })
+      await supabase.from('budgets').upsert({ user_id: userId, context, category, amount })
+    } else {
+      await supabase.from('budgets').delete().eq('user_id', userId).eq('context', context).eq('category', category)
     }
-  }, [])
+  }, [userId])
 
   const getBudget = useCallback((context: string, category: string): number | null => {
     const b = budgets.find(b => b.context === context && b.category === category)

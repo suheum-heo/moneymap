@@ -1,12 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Context } from './types'
+import { Context, DEFAULT_CONTEXTS } from './types'
+import { supabase } from './lib/supabase'
 
-export interface ExchangeRate {
-  from: string
-  to: string
-  rate: number
-}
+export interface ExchangeRate { from: string; to: string; rate: number }
 
 const DEFAULT_RATES: ExchangeRate[] = [
   { from: 'KRW', to: 'USD', rate: 0.00073 },
@@ -19,76 +16,62 @@ const DEFAULT_RATES: ExchangeRate[] = [
   { from: 'JPY', to: 'KRW', rate: 9.2 },
 ]
 
-export function useSettings() {
+export function useSettings(userId?: string) {
   const [contexts, setContexts] = useState<Context[]>([])
   const [activeContextId, setActiveContextId] = useState<string>('madison')
   const [rates, setRates] = useState<ExchangeRate[]>(DEFAULT_RATES)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    // Load contexts from Google Sheets
-    fetch('/api/contexts')
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) setContexts(data)
+    if (!userId) { setLoaded(true); return }
+    supabase.from('contexts').select('*').eq('user_id', userId)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setContexts(data.map(r => ({
+            id: r.id, name: r.name, currency: r.currency,
+            homeCurrency: r.home_currency, startDate: r.start_date,
+          })))
+        } else {
+          // First time — seed defaults
+          const defaults = DEFAULT_CONTEXTS
+          setContexts(defaults)
+          defaults.forEach(c => {
+            supabase.from('contexts').insert({
+              id: c.id, user_id: userId, name: c.name, currency: c.currency,
+              home_currency: c.homeCurrency, start_date: c.startDate,
+            })
+          })
+        }
+        setLoaded(true)
       })
-      .catch(() => {})
-
-    // Load active context and rates from localStorage only
     try {
       const a = localStorage.getItem('gagyebu-active-context')
       const r = localStorage.getItem('gagyebu-rates')
       if (a) setActiveContextId(a)
       if (r) setRates(JSON.parse(r))
     } catch {}
-
-    setLoaded(true)
-  }, [])
+  }, [userId])
 
   const addContext = useCallback(async (ctx: Context) => {
+    if (!userId) return
     setContexts(prev => [...prev, ctx])
-    try {
-      await fetch('/api/contexts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ctx),
-      })
-    } catch {
-      setContexts(prev => prev.filter(c => c.id !== ctx.id))
-    }
-  }, [])
+    await supabase.from('contexts').insert({
+      id: ctx.id, user_id: userId, name: ctx.name, currency: ctx.currency,
+      home_currency: ctx.homeCurrency, start_date: ctx.startDate,
+    })
+  }, [userId])
 
   const removeContext = useCallback(async (id: string) => {
+    if (!userId) return
     setContexts(prev => prev.filter(c => c.id !== id))
-    if (activeContextId === id) {
-      const remaining = contexts.filter(c => c.id !== id)
-      if (remaining.length > 0) {
-        setActiveContextId(remaining[0].id)
-        localStorage.setItem('gagyebu-active-context', remaining[0].id)
-      }
-    }
-    try {
-      await fetch(`/api/contexts/${id}`, { method: 'DELETE' })
-    } catch {
-      fetch('/api/contexts').then(r => r.json()).then(data => setContexts(data))
-    }
-  }, [contexts, activeContextId])
+    await supabase.from('contexts').delete().eq('id', id).eq('user_id', userId)
+  }, [userId])
 
   const renameContext = useCallback(async (id: string, name: string) => {
-    const updated = contexts.map(c => c.id === id ? { ...c, name: name.trim() } : c)
-    setContexts(updated)
-    const ctx = updated.find(c => c.id === id)
-    if (!ctx) return
-    try {
-      await fetch(`/api/contexts/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ctx),
-      })
-    } catch {
-      fetch('/api/contexts').then(r => r.json()).then(data => setContexts(data))
-    }
-  }, [contexts])
+    if (!userId) return
+    setContexts(prev => prev.map(c => c.id === id ? { ...c, name: name.trim() } : c))
+    await supabase.from('contexts').update({ name: name.trim() }).eq('id', id).eq('user_id', userId)
+  }, [userId])
 
   const switchContext = useCallback((id: string) => {
     setActiveContextId(id)
@@ -101,8 +84,7 @@ export function useSettings() {
   }, [])
 
   const updateRate = useCallback((from: string, to: string, rate: number) => {
-    const next = rates.filter(r => !(r.from === from && r.to === to))
-    saveRates([...next, { from, to, rate }])
+    saveRates([...rates.filter(r => !(r.from === from && r.to === to)), { from, to, rate }])
   }, [rates, saveRates])
 
   const convert = useCallback((amount: number, from: string, to: string): number => {
@@ -119,11 +101,5 @@ export function useSettings() {
 
   const activeContext = contexts.find(c => c.id === activeContextId) || contexts[0]
 
-  return {
-    contexts, addContext, removeContext, renameContext,
-    activeContext, activeContextId, switchContext,
-    rates, updateRate,
-    convert,
-    loaded,
-  }
+  return { contexts, addContext, removeContext, renameContext, activeContext, activeContextId, switchContext, rates, updateRate, convert, loaded }
 }

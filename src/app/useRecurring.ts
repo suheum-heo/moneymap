@@ -1,64 +1,52 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { supabase } from './lib/supabase'
 
 export interface RecurringItem {
-  id: string
-  context: string
-  category: string
-  amount: number
-  currency: string
-  summary: string
-  remarks: string
+  id: string; context: string; category: string
+  amount: number; currency: string; summary: string; remarks: string
 }
 
-export function useRecurring() {
+export function useRecurring(userId?: string) {
   const [items, setItems] = useState<RecurringItem[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    fetch('/api/recurring')
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) setItems(data)
+    if (!userId) { setLoaded(true); return }
+    supabase.from('recurring').select('*').eq('user_id', userId)
+      .then(({ data }) => {
+        setItems((data || []).map(r => ({
+          id: r.id, context: r.context, category: r.category,
+          amount: r.amount, currency: r.currency || 'USD',
+          summary: r.summary, remarks: r.remarks || '',
+        })))
         setLoaded(true)
       })
-      .catch(() => setLoaded(true))
-  }, [])
+  }, [userId])
 
   const addItem = useCallback(async (item: RecurringItem) => {
+    if (!userId) return
     setItems(prev => [...prev, item])
-    try {
-      await fetch('/api/recurring', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item),
-      })
-    } catch {
-      setItems(prev => prev.filter(i => i.id !== item.id))
-    }
-  }, [])
+    await supabase.from('recurring').insert({
+      id: item.id, user_id: userId, context: item.context, category: item.category,
+      amount: item.amount, currency: item.currency, summary: item.summary, remarks: item.remarks,
+    })
+  }, [userId])
 
   const updateItem = useCallback(async (updated: RecurringItem) => {
+    if (!userId) return
     setItems(prev => prev.map(i => i.id === updated.id ? updated : i))
-    try {
-      await fetch(`/api/recurring/${updated.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-      })
-    } catch {
-      fetch('/api/recurring').then(r => r.json()).then(data => setItems(data))
-    }
-  }, [])
+    await supabase.from('recurring').update({
+      summary: updated.summary, category: updated.category,
+      amount: updated.amount, currency: updated.currency, remarks: updated.remarks,
+    }).eq('id', updated.id).eq('user_id', userId)
+  }, [userId])
 
   const deleteItem = useCallback(async (id: string) => {
+    if (!userId) return
     setItems(prev => prev.filter(i => i.id !== id))
-    try {
-      await fetch(`/api/recurring/${id}`, { method: 'DELETE' })
-    } catch {
-      fetch('/api/recurring').then(r => r.json()).then(data => setItems(data))
-    }
-  }, [])
+    await supabase.from('recurring').delete().eq('id', id).eq('user_id', userId)
+  }, [userId])
 
   return { items, loaded, addItem, updateItem, deleteItem }
 }

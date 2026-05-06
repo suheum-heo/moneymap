@@ -8,7 +8,9 @@ import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
 import Settings from './components/Settings'
 import Calendar from './components/Calendar'
+import AuthGate from './components/AuthGate'
 import { getCurrencySymbol } from './types'
+import type { User } from '@supabase/supabase-js'
 
 const MONTH_NAMES_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
@@ -16,8 +18,7 @@ const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
 type Tab = 'overview' | 'entries' | 'calendar' | 'add' | 'settings'
 
 function addMonths(month: number, year: number, delta: number) {
-  let m = month + delta
-  let y = year
+  let m = month + delta, y = year
   while (m > 11) { m -= 12; y++ }
   while (m < 0) { m += 12; y-- }
   return { month: m, year: y }
@@ -27,10 +28,10 @@ function monthStr(month: number, year: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}`
 }
 
-export default function Home() {
+function AppContent({ user }: { user: User }) {
   const { t } = useTranslation()
-  const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
-  const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings()
+  const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries(user.id)
+  const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings(user.id)
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [dark, setDark] = useState<boolean | null>(null)
@@ -62,13 +63,8 @@ export default function Home() {
   const onWheel = useCallback((e: React.WheelEvent) => {
     if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return
     if (wheelTimeout.current) return
-    if (e.deltaX > 30) {
-      goNextMonth()
-      wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 600)
-    } else if (e.deltaX < -30) {
-      goPrevMonth()
-      wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 600)
-    }
+    if (e.deltaX > 30) { goNextMonth(); wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 600) }
+    else if (e.deltaX < -30) { goPrevMonth(); wheelTimeout.current = setTimeout(() => { wheelTimeout.current = null }, 600) }
   }, [goNextMonth, goPrevMonth])
 
   useEffect(() => {
@@ -95,6 +91,8 @@ export default function Home() {
     { id: 'settings' as Tab, label: t('settings') },
   ]
 
+  const arrowCls = "w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-lg hover:border-amber-400 hover:text-amber-500 transition-colors flex-shrink-0"
+
   const MonthYearPicker = ({ col = false }: { col?: boolean }) => (
     <div className={`flex gap-1.5 ${col ? 'flex-col' : ''}`}>
       <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
@@ -108,12 +106,11 @@ export default function Home() {
     </div>
   )
 
-  const arrowCls = "w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-lg hover:border-amber-400 hover:text-amber-500 transition-colors flex-shrink-0"
-
   const Sidebar = () => (
     <div className="flex flex-col h-full px-3 py-6">
       <div className="px-2 mb-6">
         <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t('appName')}</h1>
+        <div className="text-xs text-zinc-400 mt-0.5 truncate">{user.email}</div>
       </div>
       <div className="mb-4">
         <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest px-2 mb-2">{t('contexts')}</div>
@@ -153,6 +150,10 @@ export default function Home() {
           className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm mt-1">
           {dark ? `☀️ ${t('light')}` : `🌙 ${t('dark')}`}
         </button>
+        <button onClick={() => document.getElementById('sign-out-btn')?.click()}
+          className="w-full text-xs text-zinc-400 hover:text-red-400 text-center py-1 transition-colors">
+          Sign out
+        </button>
       </div>
     </div>
   )
@@ -163,13 +164,12 @@ export default function Home() {
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
-      {tab === 'settings' && <Settings />}
+      {tab === 'settings' && <Settings userId={user.id} />}
     </>
   )
 
   return (
     <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d]">
-      {/* Desktop */}
       <div className="hidden md:flex h-screen">
         <div className="w-52 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto">
           <Sidebar />
@@ -186,7 +186,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Mobile */}
       <div className="md:hidden max-w-md mx-auto min-h-dvh flex flex-col">
         <div className="flex items-center gap-2 pt-14 px-3">
           <button onClick={() => setMobileMenuOpen(true)}
@@ -214,6 +213,7 @@ export default function Home() {
           <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setMobileMenuOpen(false)}>
             <div className="absolute bottom-0 left-0 right-0 bg-[#fafaf8] dark:bg-[#1a1a18] rounded-t-2xl p-4 pb-8"
               onClick={e => e.stopPropagation()}>
+              <div className="text-xs text-zinc-400 mb-3 truncate">{user.email}</div>
               <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('switchContext')}</div>
               {contexts.map(c => {
                 const sym = getCurrencySymbol(c.currency)
@@ -228,6 +228,10 @@ export default function Home() {
                   </button>
                 )
               })}
+              <button onClick={() => document.getElementById('sign-out-btn')?.click()}
+                className="w-full mt-3 py-2 text-sm text-red-400 border border-red-200 dark:border-red-900 rounded-xl">
+                Sign out
+              </button>
             </div>
           </div>
         )}
@@ -249,4 +253,8 @@ export default function Home() {
       </div>
     </div>
   )
+}
+
+export default function Home() {
+  return <AuthGate>{(user) => <AppContent user={user} />}</AuthGate>
 }
