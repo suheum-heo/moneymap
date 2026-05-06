@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Context } from './types'
 import { supabase } from './lib/supabase'
+import { useUserId } from './UserContext'
 
 export interface ExchangeRate { from: string; to: string; rate: number }
 
@@ -16,7 +17,8 @@ const DEFAULT_RATES: ExchangeRate[] = [
   { from: 'JPY', to: 'KRW', rate: 9.2 },
 ]
 
-export function useSettings(userId?: string) {
+export function useSettings() {
+  const userId = useUserId()
   const [contexts, setContexts] = useState<Context[]>([])
   const [activeContextId, setActiveContextId] = useState<string>('')
   const [rates, setRates] = useState<ExchangeRate[]>(DEFAULT_RATES)
@@ -40,7 +42,6 @@ export function useSettings(userId?: string) {
             homeCurrency: r.home_currency, startDate: r.start_date,
           }))
           setContexts(ctxs)
-          // Set active to first if not set
           setActiveContextId(prev => prev || ctxs[0]?.id || '')
         }
         setLoaded(true)
@@ -50,13 +51,11 @@ export function useSettings(userId?: string) {
   const addContext = useCallback(async (ctx: Context) => {
     if (!userId) return
     setContexts(prev => {
-      const next = [...prev, ctx]
-      // If this is the first context, make it active
       if (prev.length === 0) {
         setActiveContextId(ctx.id)
         localStorage.setItem('gagyebu-active-context', ctx.id)
       }
-      return next
+      return [...prev, ctx]
     })
     await supabase.from('contexts').insert({
       id: ctx.id, user_id: userId, name: ctx.name, currency: ctx.currency,

@@ -6,7 +6,7 @@ import { useSettings } from '../useSettings'
 import { useRecurring } from '../useRecurring'
 import { useCategories } from '../useCategories'
 
-interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[]; userId?: string }
+interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[] }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -23,11 +23,11 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone, entries = [], userId }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
   const { t } = useTranslation()
-  const { activeContext } = useSettings(userId)
-  const { items } = useRecurring(userId)
-  const { expenseCategories, incomeCategories } = useCategories(userId)
+  const { activeContext } = useSettings()
+  const { items } = useRecurring()
+  const { expenseCategories, incomeCategories } = useCategories()
   const contextCur = activeContext?.currency || 'USD'
   const sym = getCurrencySymbol(contextCur)
 
@@ -159,8 +159,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], userId }: Props)
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs text-zinc-400">{t('amount')} ({showCurrencyOverride ? currency : contextCur} {showCurrencyOverride ? getCurrencySymbol(currency) : sym})</label>
-            <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur) }}
-              className="text-xs text-amber-500">
+            <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur) }} className="text-xs text-amber-500">
               {showCurrencyOverride ? t('useDefaultCurrency') : t('differentCurrency')}
             </button>
           </div>

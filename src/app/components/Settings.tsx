@@ -8,11 +8,11 @@ import { useRecurring, RecurringItem } from '../useRecurring'
 import LanguageSelector from './LanguageSelector'
 import CategorySettings from './CategorySettings'
 
-export default function Settings({ userId }: { userId?: string }) {
+export default function Settings() {
   const { t } = useTranslation()
-  const { contexts, addContext, removeContext, renameContext, rates, updateRate, activeContext } = useSettings(userId)
-  const { setBudget, getBudget } = useBudgets(userId)
-  const { items, addItem, updateItem, deleteItem } = useRecurring(userId)
+  const { contexts, addContext, removeContext, renameContext, rates, updateRate, activeContext } = useSettings()
+  const { setBudget, getBudget } = useBudgets()
+  const { items, addItem, updateItem, deleteItem } = useRecurring()
 
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -79,7 +79,7 @@ export default function Settings({ userId }: { userId?: string }) {
       {/* Language */}
       <LanguageSelector />
 
-      <CategorySettings userId={userId} />
+      <CategorySettings />
 
       {/* Contexts */}
       <div>

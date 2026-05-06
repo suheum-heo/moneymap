@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './types'
+import { useUserId } from './UserContext'
 
 export interface Category {
   id: string
@@ -9,7 +10,8 @@ export interface Category {
   type: 'expense' | 'income'
 }
 
-export function useCategories(userId?: string) {
+export function useCategories() {
+  const userId = useUserId()
   const [categories, setCategories] = useState<Category[]>([])
   const [loaded, setLoaded] = useState(false)
 
@@ -21,10 +23,9 @@ export function useCategories(userId?: string) {
         if (data && data.length > 0) {
           setCategories(data.map(r => ({ id: r.id, name: r.name, type: r.type })))
         } else {
-          // Seed defaults
           const defaults: Category[] = [
-            ...EXPENSE_CATEGORIES.map(name => ({ id: `exp_${name.toLowerCase().replace(/\s+/g, '_')}`, name, type: 'expense' as const })),
-            ...INCOME_CATEGORIES.map(name => ({ id: `inc_${name.toLowerCase().replace(/\s+/g, '_')}`, name, type: 'income' as const })),
+            ...EXPENSE_CATEGORIES.map(name => ({ id: `exp_${name.toLowerCase().replace(/[\s\/]+/g, '_')}`, name, type: 'expense' as const })),
+            ...INCOME_CATEGORIES.map(name => ({ id: `inc_${name.toLowerCase().replace(/[\s\/]+/g, '_')}`, name, type: 'income' as const })),
           ]
           for (const c of defaults) {
             await supabase.from('categories').upsert({ id: c.id, user_id: userId, name: c.name, type: c.type }, { onConflict: 'id,user_id' })

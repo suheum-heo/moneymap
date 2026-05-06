@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCategories } from '../useCategories'
 
-export default function CategorySettings({ userId }: { userId?: string }) {
+export default function CategorySettings() {
   const { t } = useTranslation()
-  const { categories, addCategory, removeCategory } = useCategories(userId)
+  const { categories, addCategory, removeCategory } = useCategories()
   const [newName, setNewName] = useState('')
   const [newType, setNewType] = useState<'expense' | 'income'>('expense')
   const [confirmId, setConfirmId] = useState<string | null>(null)

@@ -1,13 +1,15 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
+import { useUserId } from './UserContext'
 
 export interface RecurringItem {
   id: string; context: string; category: string
   amount: number; currency: string; summary: string; remarks: string
 }
 
-export function useRecurring(userId?: string) {
+export function useRecurring() {
+  const userId = useUserId()
   const [items, setItems] = useState<RecurringItem[]>([])
   const [loaded, setLoaded] = useState(false)
 

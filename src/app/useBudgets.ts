@@ -1,10 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
+import { useUserId } from './UserContext'
 
 export interface Budget { context: string; category: string; amount: number }
 
-export function useBudgets(userId?: string) {
+export function useBudgets() {
+  const userId = useUserId()
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [loaded, setLoaded] = useState(false)
 

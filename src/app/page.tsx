@@ -10,6 +10,7 @@ import Settings from './components/Settings'
 import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
+import { UserContext } from './UserContext'
 import { getCurrencySymbol, Context } from './types'
 import type { User } from '@supabase/supabase-js'
 
@@ -31,8 +32,8 @@ function monthStr(month: number, year: number) {
 
 function AppContent({ user }: { user: User }) {
   const { t, i18n } = useTranslation()
-  const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries(user.id)
-  const { contexts, activeContext, activeContextId, switchContext, addContext, loaded: settingsLoaded } = useSettings(user.id)
+  const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
+  const { contexts, activeContext, activeContextId, switchContext, addContext, loaded: settingsLoaded } = useSettings()
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [dark, setDark] = useState<boolean | null>(null)
@@ -84,13 +85,9 @@ function AppContent({ user }: { user: User }) {
     <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">{t('loading')}</div>
   )
 
-  // New user — show onboarding
   if (contexts.length === 0) return (
     <Onboarding onDone={({ name, currency, homeCurrency, startDate }) => {
-      const ctx: Context = {
-        id: Date.now().toString(),
-        name, currency, homeCurrency, startDate,
-      }
+      const ctx: Context = { id: Date.now().toString(), name, currency, homeCurrency, startDate }
       addContext(ctx)
     }} />
   )
@@ -110,9 +107,7 @@ function AppContent({ user }: { user: User }) {
       <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
         className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
         {Array.from({ length: 12 }, (_, i) => (
-          <option key={i} value={i}>
-            {new Date(2000, i, 1).toLocaleDateString(i18n.language, { month: 'long' })}
-          </option>
+          <option key={i} value={i}>{new Date(2000, i, 1).toLocaleDateString(i18n.language, { month: 'long' })}</option>
         ))}
       </select>
       <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
@@ -179,7 +174,8 @@ function AppContent({ user }: { user: User }) {
       {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} />}
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} />}
-      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} userId={user.id} />}      {tab === 'settings' && <Settings userId={user.id} />}
+      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
+      {tab === 'settings' && <Settings />}
     </>
   )
 
@@ -270,6 +266,14 @@ function AppContent({ user }: { user: User }) {
   )
 }
 
+function AppWithContext({ user }: { user: User }) {
+  return (
+    <UserContext.Provider value={user.id}>
+      <AppContent user={user} />
+    </UserContext.Provider>
+  )
+}
+
 export default function Home() {
-  return <AuthGate>{(user) => <AppContent user={user} />}</AuthGate>
+  return <AuthGate>{(user) => <AppWithContext user={user} />}</AuthGate>
 }

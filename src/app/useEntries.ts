@@ -2,8 +2,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 import { Entry } from './types'
+import { useUserId } from './UserContext'
 
-export function useEntries(userId?: string) {
+export function useEntries() {
+  const userId = useUserId()
   const [entries, setEntries] = useState<Entry[]>([])
   const [loaded, setLoaded] = useState(false)
 
