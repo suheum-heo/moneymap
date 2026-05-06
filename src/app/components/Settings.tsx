@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol } from '../types'
-import { useSettings, ExchangeRate } from '../useSettings'
+import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { useRecurring, RecurringItem } from '../useRecurring'
 import LanguageSelector from './LanguageSelector'
@@ -10,7 +10,7 @@ import CategorySettings from './CategorySettings'
 
 export default function Settings() {
   const { t } = useTranslation()
-  const { contexts, addContext, removeContext, renameContext, rates, updateRate, convert, activeContext, ratesUpdated } = useSettings()
+  const { contexts, addContext, removeContext, renameContext, convert, activeContext, ratesUpdated } = useSettings()
   const { setBudget, getBudget } = useBudgets()
   const { items, addItem, updateItem, deleteItem } = useRecurring()
 
@@ -75,10 +75,7 @@ export default function Settings() {
   return (
     <div className="px-4 pb-8 flex flex-col gap-6">
 
-      {/* Language */}
       <LanguageSelector />
-
-      {/* Categories */}
       <CategorySettings />
 
       {/* Contexts */}
