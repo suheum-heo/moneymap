@@ -10,7 +10,7 @@ import CategorySettings from './CategorySettings'
 
 export default function Settings() {
   const { t } = useTranslation()
-  const { contexts, addContext, removeContext, renameContext, rates, updateRate, activeContext } = useSettings()
+  const { contexts, addContext, removeContext, renameContext, rates, updateRate, activeContext, ratesUpdated } = useSettings()
   const { setBudget, getBudget } = useBudgets()
   const { items, addItem, updateItem, deleteItem } = useRecurring()
 
@@ -267,7 +267,10 @@ export default function Settings() {
 
       {/* Exchange rates */}
       <div>
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('exchangeRates')}</div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest">{t('exchangeRates')}</div>
+          {ratesUpdated && <div className="text-xs text-zinc-400">Updated {ratesUpdated.toLocaleTimeString()}</div>}
+      </div>
         <div className="flex flex-col gap-2 mb-3">
           {rates.map((r: ExchangeRate) => (
             <div key={`${r.from}-${r.to}`} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
