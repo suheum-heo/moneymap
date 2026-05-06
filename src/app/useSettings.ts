@@ -21,7 +21,7 @@ const CURRENCIES_TO_FETCH = ['USD', 'KRW', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'A
 
 async function fetchLiveRates(): Promise<ExchangeRate[]> {
   try {
-    const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=KRW,EUR,GBP,JPY,CNY,CAD,AUD,SGD,HKD,THB,VND,MXN,BRL,INR')
+    const res = await fetch('/api/rates')
     if (!res.ok) throw new Error('Failed')
     const data = await res.json()
     const rates: ExchangeRate[] = []
