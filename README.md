@@ -1,56 +1,60 @@
 # 가계부
 
-A personal budget tracker PWA built with Next.js. Multi-context, multi-currency, Google Sheets-backed, installable on iPhone.
+A personal budget tracker PWA built with Next.js and Supabase. Multi-user, multi-context, multi-currency, installable on iPhone.
 
 ## Features
 
-- **Multiple contexts** — separate trackers for different life situations (e.g. Madison, Korea, Europe Trip)
-- **Multi-currency** — each context has its own currency; travel contexts show converted amounts in your home currency
-- **Google Sheets sync** — all data lives in Google Sheets, syncs across all devices and browsers in real time
-- **Calendar view** — see spending by day, tap to view and edit entries
-- **Budget goals** — set monthly limits per category with progress bars and warnings at 80% and 100%
-- **Recurring payments** — save recurring items per context, tap to pre-fill the add form
-- **Monthly comparison** — see how you're tracking vs last month
-- **Location breakdown** — visualize spending by city
+- **Auth** — magic link login (no password), each user's data fully isolated
+- **Multiple contexts** — separate budgets for different life situations (school, home country, travel)
+- **Multi-currency** — each context has its own currency with live exchange rates
+- **Live exchange rates** — auto-fetched from Frankfurter API, cached for 1 hour
+- **Calendar view** — see spending by day, tap to view and edit entries inline
+- **Budget goals** — set monthly limits per category with progress bars, warns at 80% and 100%
+- **Recurring payments** — save recurring items, tap to pre-fill the add form
+- **Monthly comparison** — track spending vs last month full and vs same day last month
+- **Location breakdown** — visualize spending by city with charts
+- **Custom categories** — add and remove expense/income categories per user
 - **Search, filter, edit, delete** — full entry management with week filter and CSV export
+- **Click to drill down** — tap Expenses/Income cards to filter entries, tap category to expand entries
 - **Dark/light mode** — manual toggle, remembers your preference
+- **i18n** — 7 languages: English, 한국어, 日本語, 简体中文, Español, Français, Deutsch
 - **PWA** — installable on iPhone via Safari, works like a native app
+- **Responsive** — desktop sidebar layout, mobile stacked layout with arrow month navigation
 
 ## Stack
 
-- **Frontend** — Next.js 14, TypeScript, Tailwind CSS, Chart.js
-- **Backend** — Next.js API routes, Google Sheets API (via service account)
+- **Frontend** — Next.js 14, TypeScript, Tailwind CSS, Chart.js, i18next
+- **Backend** — Supabase (auth + PostgreSQL with RLS)
 - **Deployment** — Vercel
+- **Exchange rates** — Frankfurter API (proxied via Next.js API route)
 
-## Google Sheets setup
+## Database setup
 
-Create a Google Sheet with these tabs and headers:
+Create a Supabase project and run the SQL in `supabase/schema.sql` to set up tables and RLS policies:
 
-| Tab | Headers |
-|-----|---------|
-| `Entries` | id · type · date · summary · venue · location · category · amount · remarks · currency · context |
-| `Contexts` | id · name · currency · homeCurrency · startDate |
-| `Budgets` | context · category · amount |
-| `Recurring` | context · summary · category · amount · currency · remarks |
-
-Share the sheet with your service account email (Editor access).
+- `profiles` — auto-created on signup via trigger
+- `contexts` — budget contexts per user
+- `entries` — expense/income entries
+- `budgets` — monthly budget limits per category
+- `recurring` — recurring payment templates
+- `categories` — custom expense/income categories
 
 ## Environment variables
 
 Set these in Vercel → Settings → Environment Variables:
 
 ```
-GOOGLE_SHEET_ID=your_sheet_id
-GOOGLE_CLIENT_EMAIL=your_service_account@project.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_legacy_anon_key
 ```
 
 ## Deploy
 
 1. Fork or clone this repo
-2. Set up Google Sheets and environment variables (see above)
-3. Push to GitHub
-4. Import to [vercel.com](https://vercel.com) — Next.js is auto-detected, hit Deploy
+2. Create a Supabase project and run the schema SQL
+3. Add environment variables to Vercel
+4. Import repo to [vercel.com](https://vercel.com) — Next.js is auto-detected, hit Deploy
+5. Set your Vercel URL in Supabase → Authentication → URL Configuration
 
 ## Install on iPhone
 
@@ -66,4 +70,8 @@ npm run dev
 # Open http://localhost:3000
 ```
 
-Copy `.env.local.example` to `.env.local` and fill in your Google credentials.
+Create `.env.local` with your Supabase credentials:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_legacy_anon_key
+```
