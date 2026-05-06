@@ -81,7 +81,7 @@ export default function CategorySettings({ userId }: { userId?: string }) {
         </div>
         <button onClick={() => { if (newName.trim()) { addCategory(newName, newType); setNewName('') } }}
           className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">
-          Add
+          {t('save')}
         </button>
       </div>
     </div>

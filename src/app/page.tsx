@@ -109,7 +109,11 @@ function AppContent({ user }: { user: User }) {
     <div className={`flex gap-1.5 ${col ? 'flex-col' : ''}`}>
       <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
         className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
-        {MONTH_NAMES_EN.map((m, i) => <option key={m} value={i}>{m}</option>)}
+        {Array.from({ length: 12 }, (_, i) => (
+          <option key={i} value={i}>
+            {new Date(2000, i, 1).toLocaleDateString(i18n.language, { month: 'long' })}
+          </option>
+        ))}
       </select>
       <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
         className="text-sm px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
