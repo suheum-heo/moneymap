@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next'
 const resources = {
   en: {
     translation: {
-      appName: '가계부',
+      appName: 'MoneyMap',
       overview: 'Overview',
       entries: 'Entries',
       calendar: 'Calendar',

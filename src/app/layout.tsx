@@ -3,13 +3,13 @@ import './globals.css'
 import I18nProvider from './components/I18nProvider'
 
 export const metadata: Metadata = {
-  title: '가계부',
+  title: 'MoneyMap',
   description: 'Personal budget tracker',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '가계부',
+    title: 'MoneyMap',
   },
 }
 

@@ -45,7 +45,7 @@ export default function AuthGate({ children }: Props) {
     <div className="min-h-screen bg-[#fafaf8] dark:bg-[#0f0f0d] flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-1">가계부</h1>
+          <h1 className="text-3xl font-bold ...">MoneyMap</h1>
           <p className="text-zinc-400 text-sm">Personal budget tracker</p>
         </div>
         {sent ? (
