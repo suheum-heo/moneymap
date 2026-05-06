@@ -6,6 +6,7 @@ import { useSettings, ExchangeRate } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { useRecurring, RecurringItem } from '../useRecurring'
 import LanguageSelector from './LanguageSelector'
+import CategorySettings from './CategorySettings'
 
 export default function Settings({ userId }: { userId?: string }) {
   const { t } = useTranslation()
@@ -77,6 +78,8 @@ export default function Settings({ userId }: { userId?: string }) {
 
       {/* Language */}
       <LanguageSelector />
+
+      <CategorySettings userId={userId} />
 
       {/* Contexts */}
       <div>

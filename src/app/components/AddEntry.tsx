@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, CURRENCIES } from '../types'
+import { Entry, getCurrencySymbol, CURRENCIES } from '../types'
 import { useSettings } from '../useSettings'
 import { useRecurring } from '../useRecurring'
+import { useCategories } from '../useCategories'
 
-interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[] }
+interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[]; userId?: string }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -22,10 +23,11 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [], userId }: Props) {
   const { t } = useTranslation()
-  const { activeContext } = useSettings()
-  const { items } = useRecurring()
+  const { activeContext } = useSettings(userId)
+  const { items } = useRecurring(userId)
+  const { expenseCategories, incomeCategories } = useCategories(userId)
   const contextCur = activeContext?.currency || 'USD'
   const sym = getCurrencySymbol(contextCur)
 
@@ -41,13 +43,13 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
   const [summary, setSummary] = useState('')
   const [venue, setVenue] = useState('')
   const [location, setLocation] = useState('')
-  const [category, setCategory] = useState(EXPENSE_CATEGORIES[3])
+  const [category, setCategory] = useState('')
   const [remarks, setRemarks] = useState('')
   const [error, setError] = useState('')
   const [showRecurring, setShowRecurring] = useState(false)
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)
 
-  const cats = entryType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const cats = entryType === 'expense' ? expenseCategories : incomeCategories
   const maxDay = daysInMonth(month, year)
   const days = Array.from({ length: maxDay }, (_, i) => i + 1)
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
@@ -57,7 +59,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
 
   const handleTypeChange = (tp: 'expense' | 'income') => {
     setEntryType(tp)
-    setCategory(tp === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0])
+    setCategory('')
     setShowRecurring(false)
   }
 
@@ -76,6 +78,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
     if (!amount || !summary.trim()) { setError(t('amount') + ' & ' + t('summary') + ' required'); return }
     const parsed = parseFloat(amount)
     if (isNaN(parsed) || parsed <= 0) { setError('Invalid amount'); return }
+    if (!category) { setError('Please select a category'); return }
     setError('')
     onAdd({
       id: Date.now().toString(),
@@ -88,7 +91,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
       amount: parsed,
       remarks: remarks.trim(),
       currency,
-      context: activeContext?.id || 'madison',
+      context: activeContext?.id || '',
     })
     setSummary(''); setAmount(''); setVenue(''); setLocation(''); setRemarks('')
     setCurrency(contextCur); setShowCurrencyOverride(false)
@@ -199,13 +202,14 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
           <div>
             <label className="text-xs text-zinc-400 mb-1 block">{t('category')}</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
+              <option value="">Select...</option>
               {cats.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-zinc-400 mb-1 block">{t('remarks')}</label>
             <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
-              placeholder="e.g. Amazon, Uber…" className={inputCls} style={{ fontSize: '16px' }} />
+              placeholder="e.g. Uber, Amazon…" className={inputCls} style={{ fontSize: '16px' }} />
           </div>
         </div>
 

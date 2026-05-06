@@ -175,8 +175,7 @@ function AppContent({ user }: { user: User }) {
       {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} />}
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} />}
-      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
-      {tab === 'settings' && <Settings userId={user.id} />}
+      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} userId={user.id} />}      {tab === 'settings' && <Settings userId={user.id} />}
     </>
   )
 
