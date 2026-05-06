@@ -30,7 +30,7 @@ function monthStr(month: number, year: number) {
 }
 
 function AppContent({ user }: { user: User }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries(user.id)
   const { contexts, activeContext, activeContextId, switchContext, addContext, loaded: settingsLoaded } = useSettings(user.id)
   const [tab, setTab] = useState<Tab>('overview')
@@ -190,7 +190,7 @@ function AppContent({ user }: { user: User }) {
             <div className="px-4 mb-6">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{activeContext?.name}</h2>
               <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
-              <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+              <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
             </div>
             <TabContent />
           </div>
@@ -215,7 +215,7 @@ function AppContent({ user }: { user: User }) {
           <button onClick={goPrevMonth} className={arrowCls}>‹</button>
           <div className="flex-1 flex flex-col items-center">
             <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">{monthLabel}</p>
-            <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+            <p className="text-xs text-zinc-400">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
           <button onClick={goNextMonth} className={arrowCls}>›</button>
         </div>
