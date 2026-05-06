@@ -21,9 +21,8 @@ export default function Settings() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
-  const [rateFrom, setRateFrom] = useState('KRW')
-  const [rateTo, setRateTo] = useState('USD')
-  const [rateVal, setRateVal] = useState('')
+  const [rateFrom, setRateFrom] = useState('USD')
+  const [rateTo, setRateTo] = useState('KRW')
 
   const [budgetCat, setBudgetCat] = useState(EXPENSE_CATEGORIES[0])
   const [budgetAmt, setBudgetAmt] = useState('')
@@ -79,6 +78,7 @@ export default function Settings() {
       {/* Language */}
       <LanguageSelector />
 
+      {/* Categories */}
       <CategorySettings />
 
       {/* Contexts */}
@@ -104,9 +104,7 @@ export default function Settings() {
                   </div>
                   <div className="flex gap-3 ml-3">
                     <button onClick={() => { setEditingId(c.id); setEditName(c.name) }} className="text-xs text-amber-500">{t('rename')}</button>
-                    {c.id !== 'madison' && c.id !== 'korea' && (
-                      <button onClick={() => removeContext(c.id)} className="text-xs text-red-400">{t('remove')}</button>
-                    )}
+                    <button onClick={() => removeContext(c.id)} className="text-xs text-red-400">{t('remove')}</button>
                   </div>
                 </div>
               )}
@@ -142,7 +140,7 @@ export default function Settings() {
       {/* Recurring payments */}
       <div>
         <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('recurringPayments').replace('⟳ ', '')}</div>
-        <p className="text-xs text-zinc-400 mb-3">{t('for', { name: activeContext?.name })}{activeContext?.name}</p>
+        <p className="text-xs text-zinc-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {contextRecurring.map(item => (
             <div key={item.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5">
@@ -201,7 +199,7 @@ export default function Settings() {
           {contextRecurring.length === 0 && <div className="text-xs text-zinc-400 text-center py-3">—</div>}
         </div>
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
-          <div className="text-xs text-zinc-400 mb-1">{t('addEntry')}</div>
+          <div className="text-xs text-zinc-400 mb-1">Add recurring</div>
           <div>
             <label className="text-xs text-zinc-400 block mb-1">{t('summary')}</label>
             <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder="e.g. Monthly Rent" className={inputCls} style={{ fontSize: '16px' }} />
@@ -270,52 +268,22 @@ export default function Settings() {
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest">{t('exchangeRates')}</div>
           {ratesUpdated && <div className="text-xs text-zinc-400">Updated {ratesUpdated.toLocaleTimeString()}</div>}
-      </div>
-        <div className="flex flex-col gap-2 mb-3">
-          {rates.map((r: ExchangeRate) => (
-            <div key={`${r.from}-${r.to}`} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
-              <span className="text-sm text-zinc-800 dark:text-zinc-100">1 {r.from} = {r.rate} {r.to}</span>
-              <button onClick={() => { setRateFrom(r.from); setRateTo(r.to); setRateVal(r.rate.toString()) }} className="text-xs text-amber-500">{t('edit')}</button>
+        </div>
+        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-3">
+            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} flex-1`} style={{ fontSize: '16px' }}>
+              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+            </select>
+            <span className="text-zinc-400 text-sm flex-shrink-0">→</span>
+            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={`${selCls} flex-1`} style={{ fontSize: '16px' }}>
+              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+            </select>
+          </div>
+          {rateFrom !== rateTo && (
+            <div className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+              1 {rateFrom} = {convert(1, rateFrom, rateTo).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {rateTo}
             </div>
-          ))}
-        </div>
-
-      {/* Live rate lookup */}
-      <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 mb-3">
-        <div className="text-xs text-zinc-400 mb-2">Live rate</div>
-        <div className="flex items-center gap-2">
-          <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
-            {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-          </select>
-          <span className="text-xs text-zinc-400">→</span>
-          <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
-            {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-          </select>
-        </div>
-        {rateFrom !== rateTo && (
-          <div className="mt-2 text-sm font-medium text-zinc-800 dark:text-zinc-100">
-            1 {rateFrom} = {convert(1, rateFrom, rateTo).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})} {rateTo}
-          </div>
-        )}
-        {ratesUpdated && <div className="text-xs text-zinc-400 mt-1">Updated {ratesUpdated.toLocaleTimeString()}</div>}
-      </div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
-          <div className="text-xs text-zinc-400 mb-1">{t('addUpdateRate')}</div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-zinc-500">1</span>
-            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
-              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-            </select>
-            <span className="text-xs text-zinc-500">=</span>
-            <input type="number" value={rateVal} onChange={e => setRateVal(e.target.value)} placeholder="0.00" step="any" className={`${inputCls} w-28`} style={{ fontSize: '16px' }} />
-            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
-              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-            </select>
-          </div>
-          <button onClick={() => {
-            const r = parseFloat(rateVal)
-            if (!isNaN(r) && r > 0) { updateRate(rateFrom, rateTo, r); setRateVal('') }
-          }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">{t('saveRate')}</button>
+          )}
         </div>
       </div>
 
@@ -323,11 +291,12 @@ export default function Settings() {
       <div>
         <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('reset')}</div>
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
-          <p className="text-xs text-zinc-400 mb-3">Clear local settings (exchange rates, theme). Contexts and entries in Google Sheets are not affected.</p>
+          <p className="text-xs text-zinc-400 mb-3">Clear local settings (exchange rates, theme). Your data in Supabase is not affected.</p>
           <button onClick={() => {
             if (confirm(t('reset') + '?')) {
               localStorage.removeItem('gagyebu-active-context')
               localStorage.removeItem('gagyebu-rates')
+              localStorage.removeItem('gagyebu-rates-timestamp')
               localStorage.removeItem('theme')
               localStorage.removeItem('gagyebu-lang')
               window.location.reload()
@@ -335,6 +304,7 @@ export default function Settings() {
           }} className="w-full py-2 rounded-xl bg-red-500 text-white text-sm font-medium">{t('resetLocalSettings')}</button>
         </div>
       </div>
+
     </div>
   )
 }
