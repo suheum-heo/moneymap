@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Context, DEFAULT_CONTEXTS } from './types'
+import { Context } from './types'
 import { supabase } from './lib/supabase'
 
 export interface ExchangeRate { from: string; to: string; rate: number }
@@ -18,43 +18,46 @@ const DEFAULT_RATES: ExchangeRate[] = [
 
 export function useSettings(userId?: string) {
   const [contexts, setContexts] = useState<Context[]>([])
-  const [activeContextId, setActiveContextId] = useState<string>('madison')
+  const [activeContextId, setActiveContextId] = useState<string>('')
   const [rates, setRates] = useState<ExchangeRate[]>(DEFAULT_RATES)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     if (!userId) { setLoaded(true); return }
-    supabase.from('contexts').select('*').eq('user_id', userId)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          setContexts(data.map(r => ({
-            id: r.id, name: r.name, currency: r.currency,
-            homeCurrency: r.home_currency, startDate: r.start_date,
-          })))
-        } else {
-          // First time — seed defaults
-          const defaults = DEFAULT_CONTEXTS
-          setContexts(defaults)
-          defaults.forEach(c => {
-            supabase.from('contexts').insert({
-              id: c.id, user_id: userId, name: c.name, currency: c.currency,
-              home_currency: c.homeCurrency, start_date: c.startDate,
-            })
-          })
-        }
-        setLoaded(true)
-      })
+
     try {
       const a = localStorage.getItem('gagyebu-active-context')
       const r = localStorage.getItem('gagyebu-rates')
       if (a) setActiveContextId(a)
       if (r) setRates(JSON.parse(r))
     } catch {}
+
+    supabase.from('contexts').select('*').eq('user_id', userId)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const ctxs = data.map(r => ({
+            id: r.id, name: r.name, currency: r.currency,
+            homeCurrency: r.home_currency, startDate: r.start_date,
+          }))
+          setContexts(ctxs)
+          // Set active to first if not set
+          setActiveContextId(prev => prev || ctxs[0]?.id || '')
+        }
+        setLoaded(true)
+      })
   }, [userId])
 
   const addContext = useCallback(async (ctx: Context) => {
     if (!userId) return
-    setContexts(prev => [...prev, ctx])
+    setContexts(prev => {
+      const next = [...prev, ctx]
+      // If this is the first context, make it active
+      if (prev.length === 0) {
+        setActiveContextId(ctx.id)
+        localStorage.setItem('gagyebu-active-context', ctx.id)
+      }
+      return next
+    })
     await supabase.from('contexts').insert({
       id: ctx.id, user_id: userId, name: ctx.name, currency: ctx.currency,
       home_currency: ctx.homeCurrency, start_date: ctx.startDate,

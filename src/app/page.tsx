@@ -9,7 +9,8 @@ import AddEntry from './components/AddEntry'
 import Settings from './components/Settings'
 import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
-import { getCurrencySymbol } from './types'
+import Onboarding from './components/Onboarding'
+import { getCurrencySymbol, Context } from './types'
 import type { User } from '@supabase/supabase-js'
 
 const MONTH_NAMES_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -31,7 +32,7 @@ function monthStr(month: number, year: number) {
 function AppContent({ user }: { user: User }) {
   const { t } = useTranslation()
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries(user.id)
-  const { contexts, activeContext, activeContextId, switchContext, loaded: settingsLoaded } = useSettings(user.id)
+  const { contexts, activeContext, activeContextId, switchContext, addContext, loaded: settingsLoaded } = useSettings(user.id)
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [dark, setDark] = useState<boolean | null>(null)
@@ -81,6 +82,17 @@ function AppContent({ user }: { user: User }) {
 
   if (!entriesLoaded || !settingsLoaded || dark === null) return (
     <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">{t('loading')}</div>
+  )
+
+  // New user — show onboarding
+  if (contexts.length === 0) return (
+    <Onboarding onDone={({ name, currency, homeCurrency, startDate }) => {
+      const ctx: Context = {
+        id: Date.now().toString(),
+        name, currency, homeCurrency, startDate,
+      }
+      addContext(ctx)
+    }} />
   )
 
   const tabs = [
