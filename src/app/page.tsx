@@ -44,7 +44,7 @@ function AppContent({ user }: { user: User }) {
   const [selYear, setSelYear] = useState(now.getFullYear())
 
   const month = monthStr(selMonth, selYear)
-  const monthLabel = `${MONTH_NAMES_EN[selMonth]} ${selYear}`
+  const monthLabel = new Date(selYear, selMonth, 1).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' })
 
   const navigateTo = (newTab: string, filter?: string) => {
     setTab(newTab as Tab)
