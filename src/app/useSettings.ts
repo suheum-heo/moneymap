@@ -6,7 +6,7 @@ import { useUserId } from './UserContext'
 
 export interface ExchangeRate { from: string; to: string; rate: number }
 
-const DEFAULT_RATES: ExchangeRate[] = [
+const FALLBACK_RATES: ExchangeRate[] = [
   { from: 'KRW', to: 'USD', rate: 0.00073 },
   { from: 'USD', to: 'KRW', rate: 1370 },
   { from: 'EUR', to: 'USD', rate: 1.08 },
@@ -17,12 +17,47 @@ const DEFAULT_RATES: ExchangeRate[] = [
   { from: 'JPY', to: 'KRW', rate: 9.2 },
 ]
 
+const CURRENCIES_TO_FETCH = ['USD', 'KRW', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'SGD', 'HKD', 'THB', 'VND', 'MXN', 'BRL', 'INR']
+
+async function fetchLiveRates(): Promise<ExchangeRate[]> {
+  try {
+    const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=KRW,EUR,GBP,JPY,CNY,CAD,AUD,SGD,HKD,THB,VND,MXN,BRL,INR')
+    if (!res.ok) throw new Error('Failed')
+    const data = await res.json()
+    const rates: ExchangeRate[] = []
+    const usdRates: Record<string, number> = data.rates
+
+    // USD -> X
+    for (const [to, rate] of Object.entries(usdRates)) {
+      rates.push({ from: 'USD', to, rate: rate as number })
+      // X -> USD
+      rates.push({ from: to, to: 'USD', rate: 1 / (rate as number) })
+    }
+
+    // Cross rates (X -> Y via USD)
+    const currencies = Object.keys(usdRates)
+    for (const from of currencies) {
+      for (const to of currencies) {
+        if (from === to) continue
+        const fromUSD = 1 / (usdRates[from] as number)
+        const toRate = usdRates[to] as number
+        rates.push({ from, to, rate: fromUSD * toRate })
+      }
+    }
+
+    return rates
+  } catch {
+    return []
+  }
+}
+
 export function useSettings() {
   const userId = useUserId()
   const [contexts, setContexts] = useState<Context[]>([])
   const [activeContextId, setActiveContextId] = useState<string>('')
-  const [rates, setRates] = useState<ExchangeRate[]>(DEFAULT_RATES)
+  const [rates, setRates] = useState<ExchangeRate[]>(FALLBACK_RATES)
   const [loaded, setLoaded] = useState(false)
+  const [ratesUpdated, setRatesUpdated] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!userId) { setLoaded(true); return }
@@ -30,8 +65,10 @@ export function useSettings() {
     try {
       const a = localStorage.getItem('gagyebu-active-context')
       const r = localStorage.getItem('gagyebu-rates')
+      const rts = localStorage.getItem('gagyebu-rates-timestamp')
       if (a) setActiveContextId(a)
       if (r) setRates(JSON.parse(r))
+      if (rts) setRatesUpdated(new Date(rts))
     } catch {}
 
     supabase.from('contexts').select('*').eq('user_id', userId)
@@ -46,6 +83,22 @@ export function useSettings() {
         }
         setLoaded(true)
       })
+
+    // Fetch live rates — only if last fetch was > 1 hour ago
+    const lastFetch = localStorage.getItem('gagyebu-rates-timestamp')
+    const shouldFetch = !lastFetch || Date.now() - new Date(lastFetch).getTime() > 60 * 60 * 1000
+
+    if (shouldFetch) {
+      fetchLiveRates().then(liveRates => {
+        if (liveRates.length > 0) {
+          setRates(liveRates)
+          const now = new Date()
+          localStorage.setItem('gagyebu-rates', JSON.stringify(liveRates))
+          localStorage.setItem('gagyebu-rates-timestamp', now.toISOString())
+          setRatesUpdated(now)
+        }
+      })
+    }
   }, [userId])
 
   const addContext = useCallback(async (ctx: Context) => {
@@ -80,14 +133,13 @@ export function useSettings() {
     localStorage.setItem('gagyebu-active-context', id)
   }, [])
 
-  const saveRates = useCallback((next: ExchangeRate[]) => {
-    setRates(next)
-    localStorage.setItem('gagyebu-rates', JSON.stringify(next))
-  }, [])
-
   const updateRate = useCallback((from: string, to: string, rate: number) => {
-    saveRates([...rates.filter(r => !(r.from === from && r.to === to)), { from, to, rate }])
-  }, [rates, saveRates])
+    setRates(prev => {
+      const next = [...prev.filter(r => !(r.from === from && r.to === to)), { from, to, rate }]
+      localStorage.setItem('gagyebu-rates', JSON.stringify(next))
+      return next
+    })
+  }, [])
 
   const convert = useCallback((amount: number, from: string, to: string): number => {
     if (from === to) return amount
@@ -103,5 +155,5 @@ export function useSettings() {
 
   const activeContext = contexts.find(c => c.id === activeContextId) || contexts[0]
 
-  return { contexts, addContext, removeContext, renameContext, activeContext, activeContextId, switchContext, rates, updateRate, convert, loaded }
+  return { contexts, addContext, removeContext, renameContext, activeContext, activeContextId, switchContext, rates, updateRate, convert, loaded, ratesUpdated }
 }
