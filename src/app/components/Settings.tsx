@@ -280,25 +280,25 @@ export default function Settings() {
           ))}
         </div>
 
-        {/* 1 KRW reference table */}
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 mb-3">
-          <div className="text-xs text-zinc-400 mb-2">1 KRW =</div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            {['USD','EUR','GBP','JPY','CNY','CAD','AUD','SGD','CHF','HKD'].map(to => {
-              const converted = convert(1, 'KRW', to)
-              if (!converted) return null
-              return (
-                <div key={to} className="flex justify-between text-xs">
-                  <span className="text-zinc-500">{to}</span>
-                  <span className="text-zinc-800 dark:text-zinc-100 font-medium">
-                    {converted < 0.01 ? converted.toFixed(6) : converted.toFixed(4)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-          {ratesUpdated && <div className="text-xs text-zinc-400 mt-2">Updated {ratesUpdated.toLocaleTimeString()}</div>}
+      {/* Live rate lookup */}
+      <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 mb-3">
+        <div className="text-xs text-zinc-400 mb-2">Live rate</div>
+        <div className="flex items-center gap-2">
+          <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
+            {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+          </select>
+          <span className="text-xs text-zinc-400">→</span>
+          <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={selCls} style={{fontSize:'16px'}}>
+            {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+          </select>
         </div>
+        {rateFrom !== rateTo && (
+          <div className="mt-2 text-sm font-medium text-zinc-800 dark:text-zinc-100">
+            1 {rateFrom} = {convert(1, rateFrom, rateTo).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})} {rateTo}
+          </div>
+        )}
+        {ratesUpdated && <div className="text-xs text-zinc-400 mt-1">Updated {ratesUpdated.toLocaleTimeString()}</div>}
+      </div>
         <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
           <div className="text-xs text-zinc-400 mb-1">{t('addUpdateRate')}</div>
           <div className="flex items-center gap-2 flex-wrap">
