@@ -27,7 +27,7 @@ export default function AuthGate({ children }: Props) {
     setError('')
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin }
+      options: { emailRedirectTo: 'https://gagyebu-xi.vercel.app/auth/callback' }
     })
     if (error) setError(error.message)
     else setSent(true)
