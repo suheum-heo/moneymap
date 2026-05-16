@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Entry, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol } from '../types'
 import { useSettings } from '../useSettings'
+import { useCategories } from '../useCategories'
 
 interface Props {
   entries: Entry[]
@@ -22,6 +23,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const { expenseCategories, incomeCategories } = useCategories()
 
   const [editMonth, setEditMonth] = useState(0)
   const [editDay, setEditDay] = useState(1)
@@ -88,7 +90,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
     setEditEntry(null)
   }
 
-  const editCats = editType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const editCats = editType === 'expense' ? expenseCategories : incomeCategories
   const editDays = Array.from({ length: daysInMonth(editMonth, editYear) }, (_, i) => i + 1)
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
 

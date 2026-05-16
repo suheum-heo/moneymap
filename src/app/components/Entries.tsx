@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../types'
 import { useSettings } from '../useSettings'
+import { useCategories } from '../useCategories'
 
 interface Props {
   entries: Entry[]
@@ -37,6 +38,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
   const { activeContext, convert } = useSettings()
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const { expenseCategories, incomeCategories } = useCategories()
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -121,8 +123,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
   const miniSelCls = "w-full px-2 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
   const editDays = Array.from({ length: daysInMonth(editMonth, editYear) }, (_, i) => i + 1)
-  const editCats = editType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
-
+  const editCats = editType === 'expense' ? expenseCategories : incomeCategories
   return (
     <div className="px-4 pb-8">
       {editEntry && (

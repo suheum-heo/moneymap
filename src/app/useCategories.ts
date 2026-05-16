@@ -50,8 +50,13 @@ export function useCategories() {
     await supabase.from('categories').delete().eq('id', id).eq('user_id', userId)
   }, [userId])
 
-  const expenseCategories = categories.filter(c => c.type === 'expense').map(c => c.name)
-  const incomeCategories = categories.filter(c => c.type === 'income').map(c => c.name)
+  const sortWithOtherLast = (arr: string[]) => {
+    const others = arr.filter(c => c.toLowerCase() === 'other')
+    const rest = arr.filter(c => c.toLowerCase() !== 'other').sort()
+    return [...rest, ...others]
+  }
+  const expenseCategories = sortWithOtherLast(categories.filter(c => c.type === 'expense').map(c => c.name))
+  const incomeCategories = sortWithOtherLast(categories.filter(c => c.type === 'income').map(c => c.name))
 
   return { categories, expenseCategories, incomeCategories, addCategory, removeCategory, loaded }
 }

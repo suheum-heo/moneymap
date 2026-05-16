@@ -6,7 +6,7 @@ import { useSettings } from '../useSettings'
 import { useRecurring } from '../useRecurring'
 import { useCategories } from '../useCategories'
 
-interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[] }
+interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[]; defaultDate?: string | null }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -33,18 +33,20 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
 
+  const saved = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('addentry-draft') || '{}') : {}
+
   const init = todayParts()
   const [month, setMonth] = useState(init.m)
   const [day, setDay] = useState(init.day)
   const [year, setYear] = useState(init.y)
-  const [entryType, setEntryType] = useState<'expense' | 'income'>('expense')
-  const [amount, setAmount] = useState('')
+  const [entryType, setEntryType] = useState<'expense' | 'income'>(saved.entryType || 'expense')
+  const [amount, setAmount] = useState(saved.amount || '')
   const [currency, setCurrency] = useState(contextCur)
-  const [summary, setSummary] = useState('')
-  const [venue, setVenue] = useState('')
-  const [location, setLocation] = useState('')
-  const [category, setCategory] = useState('')
-  const [remarks, setRemarks] = useState('')
+  const [summary, setSummary] = useState(saved.summary || '')
+  const [venue, setVenue] = useState(saved.venue || '')
+  const [location, setLocation] = useState(saved.location || '')
+  const [category, setCategory] = useState(saved.category || '')
+  const [remarks, setRemarks] = useState(saved.remarks || '')
   const [error, setError] = useState('')
   const [showRecurring, setShowRecurring] = useState(false)
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)

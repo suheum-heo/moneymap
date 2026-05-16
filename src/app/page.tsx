@@ -39,6 +39,7 @@ function AppContent({ user }: { user: User }) {
   const [dark, setDark] = useState<boolean | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const wheelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [calendarAddDate, setCalendarAddDate] = useState<string | null>(null)
 
   const now = new Date()
   const [selMonth, setSelMonth] = useState(now.getMonth())
@@ -173,8 +174,8 @@ function AppContent({ user }: { user: User }) {
     <>
       {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} />}
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
-      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} />}
-      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} />}
+      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} />}
+      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} />}
       {tab === 'settings' && <Settings />}
     </>
   )
