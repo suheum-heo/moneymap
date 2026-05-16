@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Entry, getCurrencySymbol, CURRENCIES } from '../types'
 import { useSettings } from '../useSettings'
@@ -10,11 +10,6 @@ interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-function todayParts() {
-  const d = new Date()
-  return { m: d.getMonth(), day: d.getDate(), y: d.getFullYear() }
-}
-
 function toDateStr(m: number, day: number, y: number) {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
@@ -23,7 +18,7 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: Props) {
   const { t } = useTranslation()
   const { activeContext } = useSettings()
   const { items } = useRecurring()
@@ -35,10 +30,10 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
 
   const saved = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('addentry-draft') || '{}') : {}
 
-  const init = todayParts()
-  const [month, setMonth] = useState(init.m)
-  const [day, setDay] = useState(init.day)
-  const [year, setYear] = useState(init.y)
+  const initDate = defaultDate ? new Date(defaultDate + 'T12:00:00') : new Date()
+  const [month, setMonth] = useState(initDate.getMonth())
+  const [day, setDay] = useState(initDate.getDate())
+  const [year, setYear] = useState(initDate.getFullYear())
   const [entryType, setEntryType] = useState<'expense' | 'income'>(saved.entryType || 'expense')
   const [amount, setAmount] = useState(saved.amount || '')
   const [currency, setCurrency] = useState(contextCur)
@@ -50,6 +45,10 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
   const [error, setError] = useState('')
   const [showRecurring, setShowRecurring] = useState(false)
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)
+
+  useEffect(() => {
+    sessionStorage.setItem('addentry-draft', JSON.stringify({ entryType, amount, summary, venue, location, category, remarks }))
+  }, [entryType, amount, summary, venue, location, category, remarks])
 
   const cats = entryType === 'expense' ? expenseCategories : incomeCategories
   const maxDay = daysInMonth(month, year)
@@ -98,6 +97,7 @@ export default function AddEntry({ onAdd, onDone, entries = [] }: Props) {
     setSummary(''); setAmount(''); setVenue(''); setLocation(''); setRemarks('')
     setCurrency(contextCur); setShowCurrencyOverride(false)
     onDone()
+    sessionStorage.removeItem('addentry-draft')
   }
 
   const selCls = "w-full px-2 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"

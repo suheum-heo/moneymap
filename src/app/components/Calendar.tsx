@@ -10,6 +10,7 @@ interface Props {
   month: string
   onUpdate: (entry: Entry) => void
   onDelete: (id: string) => void
+  onAddForDate: (date: string) => void
 }
 
 const DAYS_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
@@ -17,7 +18,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
-export default function Calendar({ entries, month, onUpdate, onDelete }: Props) {
+export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate }: Props) {
   const { t } = useTranslation()
   const { activeContext } = useSettings()
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
@@ -210,7 +211,13 @@ export default function Calendar({ entries, month, onUpdate, onDelete }: Props) 
             <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
               {new Date(selectedDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </div>
-            <button onClick={() => setSelectedDay(null)} className="text-zinc-400 text-sm">✕</button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => onAddForDate(selectedDay)}
+                className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white font-medium">
+                + Add entry
+              </button>
+              <button onClick={() => setSelectedDay(null)} className="text-zinc-400 text-sm">✕</button>
+            </div>
           </div>
           {selectedEntries.length === 0 ? (
             <div className="text-center text-zinc-400 py-6 text-sm">{t('noEntriesFound')}</div>
