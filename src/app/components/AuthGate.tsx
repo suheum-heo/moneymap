@@ -29,7 +29,7 @@ export default function AuthGate({ children }: Props) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://gagyebu-xi.vercel.app/auth/callback',
+        redirectTo: 'https://moneymap-io.vercel.app/auth/callback',
       }
     })
     if (error) setError(error.message)
@@ -39,7 +39,7 @@ export default function AuthGate({ children }: Props) {
     setError('')
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: 'https://gagyebu-xi.vercel.app/auth/callback' }
+      options: { emailRedirectTo: 'https://moneymap-io.vercel.app/auth/callback' }
     })
     if (error) setError(error.message)
     else setSent(true)

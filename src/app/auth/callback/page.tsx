@@ -13,7 +13,7 @@ export default function AuthCallback() {
   }, [])
 
   const openApp = () => {
-    window.location.href = 'https://gagyebu-xi.vercel.app'
+    window.location.href = 'https://moneymap-io.vercel.app'
   }
 
   return (
