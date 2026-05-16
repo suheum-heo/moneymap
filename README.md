@@ -1,77 +1,90 @@
-# 가계부
+# MoneyMap
 
-A personal budget tracker PWA built with Next.js and Supabase. Multi-user, multi-context, multi-currency, installable on iPhone.
+A personal budget tracker PWA — multi-user, multi-currency, installable on iPhone.
 
-## Features
+**Live**: [moneymap-io.vercel.app](https://moneymap-io.vercel.app)
 
-- **Auth** — magic link login (no password), each user's data fully isolated
-- **Multiple contexts** — separate budgets for different life situations (school, home country, travel)
-- **Multi-currency** — each context has its own currency with live exchange rates
-- **Live exchange rates** — auto-fetched from Frankfurter API, cached for 1 hour
-- **Calendar view** — see spending by day, tap to view and edit entries inline
-- **Budget goals** — set monthly limits per category with progress bars, warns at 80% and 100%
-- **Recurring payments** — save recurring items, tap to pre-fill the add form
-- **Monthly comparison** — track spending vs last month full and vs same day last month
-- **Location breakdown** — visualize spending by city with charts
-- **Custom categories** — add and remove expense/income categories per user
-- **Search, filter, edit, delete** — full entry management with week filter and CSV export
-- **Click to drill down** — tap Expenses/Income cards to filter entries, tap category to expand entries
-- **Dark/light mode** — manual toggle, remembers your preference
-- **i18n** — 7 languages: English, 한국어, 日本語, 简体中文, Español, Français, Deutsch
-- **PWA** — installable on iPhone via Safari, works like a native app
-- **Responsive** — desktop sidebar layout, mobile stacked layout with arrow month navigation
+## What it does
+
+MoneyMap lets you track expenses and income across multiple life contexts — school, home country, travel, wherever. Each user gets their own isolated data, and everything syncs across devices in real time.
+
+- **Google OAuth** — one-tap sign in, no passwords
+- **Multiple budgets** — separate contexts for different situations (e.g. Madison 25-26, Korea Summer, Europe Trip)
+- **Multi-currency** — each context has its own currency, with live exchange rates auto-fetched hourly
+- **Calendar view** — see spending by day, tap to edit entries inline
+- **Budget goals** — set monthly limits per category, with progress bars and warnings at 80% / 100%
+- **Recurring payments** — save templates, tap to pre-fill the add form
+- **Custom categories** — add and remove your own expense/income categories
+- **Monthly comparison** — track vs last month full and vs same day last month
+- **Location breakdown** — visualize spending by city
+- **Search, filter, export** — filter by type, category, or week; export to CSV
+- **7 languages** — English, 한국어, 日本語, 简体中文, Español, Français, Deutsch
+- **Dark mode** — manual toggle, remembers your preference
+- **PWA** — installable on iPhone via Safari, feels like a native app
 
 ## Stack
 
 - **Frontend** — Next.js 14, TypeScript, Tailwind CSS, Chart.js, i18next
-- **Backend** — Supabase (auth + PostgreSQL with RLS)
+- **Backend** — Supabase (PostgreSQL + Auth with RLS)
 - **Deployment** — Vercel
-- **Exchange rates** — Frankfurter API (proxied via Next.js API route)
+- **Exchange rates** — Frankfurter API, proxied via Next.js API route, cached 1hr
 
-## Database setup
+## Getting started
 
-Create a Supabase project and run the SQL in `supabase/schema.sql` to set up tables and RLS policies:
+### 1. Clone the repo
 
-- `profiles` — auto-created on signup via trigger
-- `contexts` — budget contexts per user
-- `entries` — expense/income entries
-- `budgets` — monthly budget limits per category
-- `recurring` — recurring payment templates
-- `categories` — custom expense/income categories
+```bash
+git clone https://github.com/suheum-heo/moneymap.git
+cd moneymap
+npm install
+```
 
-## Environment variables
+### 2. Set up Supabase
 
-Set these in Vercel → Settings → Environment Variables:
+Create a project at [supabase.com](https://supabase.com) and run the schema SQL to create the following tables — all with Row Level Security so users only access their own data:
+
+`profiles` · `contexts` · `entries` · `budgets` · `recurring` · `categories`
+
+### 3. Set up Google OAuth
+
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com)
+2. Go to **APIs & Services → Credentials → Create OAuth client ID** (Web application)
+3. Add your Supabase callback URL as an authorized redirect URI:
+   ```
+   https://YOUR_PROJECT_ID.supabase.co/auth/v1/callback
+   ```
+4. Enable Google in Supabase → **Authentication → Sign In / Providers**
+
+### 4. Environment variables
+
+Create `.env.local`:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_legacy_anon_key
 ```
 
-## Deploy
-
-1. Fork or clone this repo
-2. Create a Supabase project and run the schema SQL
-3. Add environment variables to Vercel
-4. Import repo to [vercel.com](https://vercel.com) — Next.js is auto-detected, hit Deploy
-5. Set your Vercel URL in Supabase → Authentication → URL Configuration
-
-## Install on iPhone
-
-1. Open your Vercel URL in **Safari**
-2. Tap the Share button → **Add to Home Screen**
-3. Tap **Add** — opens full screen like a native app
-
-## Local dev
+### 5. Run locally
 
 ```bash
-npm install
 npm run dev
 # Open http://localhost:3000
 ```
 
-Create `.env.local` with your Supabase credentials:
-```
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_legacy_anon_key
-```
+## Deploy
+
+1. Push to GitHub
+2. Import to [vercel.com](https://vercel.com) — Next.js is auto-detected
+3. Add environment variables in Vercel → Settings → Environment Variables
+4. Set your Vercel URL in Supabase → Authentication → URL Configuration
+5. Add `https://your-app.vercel.app/auth/callback` to Supabase redirect URLs
+
+## Install on iPhone
+
+1. Open your app URL in **Safari**
+2. Tap Share → **Add to Home Screen**
+3. Tap **Add** — launches full screen like a native app
+
+## First time setup
+
+New users see an onboarding screen to create their first budget context — name, local currency, home currency, and start date. More contexts can be added anytime in Settings.
