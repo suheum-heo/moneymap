@@ -86,9 +86,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
     if (!category) { setError('Please select a category'); return }
     setError('')
 
-    const finalRemarks = actualCharged.trim()
-      ? `${remarks.trim()}${remarks.trim() ? ' · ' : ''}Charged: ${homeCur} ${actualCharged.trim()}`
-      : remarks.trim()
+    const parsedActual = actualCharged.trim() ? parseFloat(actualCharged.trim()) : undefined
 
     onAdd({
       id: Date.now().toString(),
@@ -99,9 +97,10 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
       location: location.trim(),
       category,
       amount: parsed,
-      remarks: finalRemarks,
+      remarks: remarks.trim(),
       currency,
       context: activeContext?.id || '',
+      homeAmount: parsedActual,
     })
     setSummary(''); setAmount(''); setVenue(''); setLocation(''); setRemarks('')
     setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')

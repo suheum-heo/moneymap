@@ -230,7 +230,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
           {filtered.map(e => {
             const col = e.type === 'income' ? '#3B6D11' : (CAT_COLORS[e.category] || '#888')
             const isIncome = e.type === 'income'
-            const converted = showConversion ? convert(e.amount, cur, homeCur) : null
+            const converted = showConversion ? (e.homeAmount ?? convert(e.amount, cur, homeCur)) : null
             return (
               <div key={e.id} className="flex items-start gap-3 rounded-xl px-3 py-2.5" style={{ background: col + '14', borderLeft: `3px solid ${col}` }}>
                 <div className="text-xs text-zinc-400 pt-0.5 w-12 flex-shrink-0">{e.date.slice(5)}</div>

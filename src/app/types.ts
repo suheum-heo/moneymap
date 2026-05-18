@@ -1,3 +1,4 @@
+'use client'
 export type EntryType = 'expense' | 'income'
 
 export interface Entry {
@@ -12,6 +13,7 @@ export interface Entry {
   remarks: string
   currency: string
   context: string
+  homeAmount?: number
 }
 
 export interface Context {

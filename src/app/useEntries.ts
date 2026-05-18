@@ -16,7 +16,8 @@ export function useEntries() {
         setEntries((data || []).map(r => ({
           id: r.id, type: r.type, date: r.date, summary: r.summary,
           venue: r.venue || '', location: r.location || '', category: r.category,
-          amount: r.amount, remarks: r.remarks || '', currency: r.currency || 'USD', context: r.context,
+          amount: r.amount, remarks: r.remarks || '', currency: r.currency || 'USD',
+          context: r.context, homeAmount: r.home_amount ?? undefined,
         })))
         setLoaded(true)
       })
@@ -30,6 +31,7 @@ export function useEntries() {
       summary: entry.summary, venue: entry.venue, location: entry.location,
       category: entry.category, amount: entry.amount, remarks: entry.remarks,
       currency: entry.currency, context: entry.context,
+      home_amount: entry.homeAmount ?? null,
     })
     if (error) setEntries(prev => prev.filter(e => e.id !== entry.id))
   }, [userId])
@@ -41,6 +43,7 @@ export function useEntries() {
       type: updated.type, date: updated.date, summary: updated.summary,
       venue: updated.venue, location: updated.location, category: updated.category,
       amount: updated.amount, remarks: updated.remarks, currency: updated.currency,
+      home_amount: updated.homeAmount ?? null,
     }).eq('id', updated.id).eq('user_id', userId)
   }, [userId])
 
