@@ -32,21 +32,29 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
     [entries, month, activeContext])
 
-  // For conversion: use homeAmount if available, otherwise convert via live rate
-  const toHome = (e: Entry) =>
-    showConversion
-      ? (e.homeAmount ?? convert(e.amount, cur, homeCur))
-      : e.amount
-
+  // Sum in local currency (cur) for display
   const expenses = useMemo(() =>
+    monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
+    [monthEntries])
+
+  const income = useMemo(() =>
+    monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0),
+    [monthEntries])
+
+  const net = income - expenses
+
+  // Sum in home currency: use homeAmount if set, otherwise convert via live rate
+  const toHome = (e: Entry) => e.homeAmount ?? convert(e.amount, cur, homeCur)
+
+  const expensesHome = useMemo(() =>
     monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
     [monthEntries, showConversion])
 
-  const income = useMemo(() =>
+  const incomeHome = useMemo(() =>
     monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + toHome(e), 0),
     [monthEntries, showConversion])
 
-  const net = income - expenses
+  const netHome = incomeHome - expensesHome
 
   const lastMonth = useMemo(() => {
     const [y, m] = month.split('-').map(Number)
@@ -58,14 +66,14 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     [entries, lastMonth, activeContext])
 
   const lastMonthExpenses = useMemo(() =>
-    lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
-    [lastMonthEntries, showConversion])
+    lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
+    [lastMonthEntries])
 
   const sameDayLastMonth = useMemo(() => {
     const today = new Date()
     const cutoff = `${lastMonth}-${String(today.getDate()).padStart(2, '0')}`
-    return lastMonthEntries.filter(e => e.type === 'expense' && e.date <= cutoff).reduce((s, e) => s + toHome(e), 0)
-  }, [lastMonthEntries, lastMonth, showConversion])
+    return lastMonthEntries.filter(e => e.type === 'expense' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0)
+  }, [lastMonthEntries, lastMonth])
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date()
@@ -130,8 +138,9 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     return () => { locChartInstance.current?.destroy() }
   }, [byLocation, sym])
 
-  const fmt = (n: number) => showConversion ? formatAmount(Math.abs(n), homeCur) : formatAmount(Math.abs(n), cur)
-  const fmtLocal = (n: number) => showConversion ? ` (${formatAmount(Math.abs(n), cur)})` : ''
+  // Big number = local cur, small grey = home cur equivalent
+  const fmt = (n: number) => formatAmount(Math.abs(n), cur)
+  const fmtHome = (n: number) => showConversion ? `(≈${formatAmount(Math.abs(n), homeCur)})` : ''
 
   const catRows = useMemo(() => {
     const rows = []
@@ -143,9 +152,9 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     <div className="px-4 pb-8">
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
-          { label: t('expenses'), value: fmt(expenses), sub: fmtLocal(expenses), color: 'text-red-600 dark:text-red-400', filter: 'expense' },
-          { label: t('income'),   value: fmt(income),   sub: fmtLocal(income),   color: 'text-green-700 dark:text-green-400', filter: 'income' },
-          { label: t('net'),      value: (net < 0 ? '-' : '') + fmt(net), sub: fmtLocal(net), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400', filter: 'all' },
+          { label: t('expenses'), value: fmt(expenses), sub: fmtHome(expensesHome), color: 'text-red-600 dark:text-red-400', filter: 'expense' },
+          { label: t('income'),   value: fmt(income),   sub: fmtHome(incomeHome),   color: 'text-green-700 dark:text-green-400', filter: 'income' },
+          { label: t('net'),      value: (net < 0 ? '-' : '') + fmt(net), sub: fmtHome(netHome), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400', filter: 'all' },
         ].map(m => (
           <div key={m.label} onClick={() => onNavigate('entries', m.filter)}
             className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-amber-400 transition-all">
