@@ -24,7 +24,9 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
   const { items } = useRecurring()
   const { expenseCategories, incomeCategories } = useCategories()
   const contextCur = activeContext?.currency || 'USD'
+  const homeCur = activeContext?.homeCurrency || contextCur
   const sym = getCurrencySymbol(contextCur)
+  const homeSym = getCurrencySymbol(homeCur)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
 
@@ -85,7 +87,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
     setError('')
 
     const finalRemarks = actualCharged.trim()
-      ? `${remarks.trim()}${remarks.trim() ? ' · ' : ''}Charged: ${contextCur} ${actualCharged.trim()}`
+      ? `${remarks.trim()}${remarks.trim() ? ' · ' : ''}Charged: ${homeCur} ${actualCharged.trim()}`
       : remarks.trim()
 
     onAdd({
@@ -189,23 +191,20 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-xs text-zinc-400">
-                Actual charged ({contextCur} {sym})
+                {t('actualCharged')} ({homeCur} {homeSym})
               </label>
-              <span className="text-xs text-zinc-300 dark:text-zinc-600">— optional</span>
+              <span className="text-xs text-zinc-300 dark:text-zinc-600">— {t('optional')}</span>
             </div>
             <input
               type="number"
               value={actualCharged}
               onChange={e => setActualCharged(e.target.value)}
-              placeholder="Leave blank to use live Frankfurter rate"
+              placeholder={t('actualChargedHint')}
               className={inputCls}
               step="0.01"
               inputMode="decimal"
               style={{ fontSize: '16px' }}
             />
-            <p className="text-xs text-zinc-400 mt-1">
-              Fill in if your bank charged a different amount than the live rate.
-            </p>
           </div>
         )}
 
@@ -234,7 +233,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
           <div>
             <label className="text-xs text-zinc-400 mb-1 block">{t('category')}</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
-              <option value="">Select...</option>
+              <option value="">{t('selectCategory')}</option>
               {cats.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>

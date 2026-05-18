@@ -69,6 +69,10 @@ const resources = {
       dark: 'Dark',
       from: 'from',
       edit: 'Edit',
+      actualCharged: 'Actual charged',
+      actualChargedHint: 'Leave blank to use live Frankfurter rate. Fill in if your bank charged differently.',
+      optional: 'optional',
+      selectCategory: 'Select category...',
     }
   },
   ko: {
@@ -138,6 +142,10 @@ const resources = {
       dark: '다크',
       from: '부터',
       edit: '수정',
+      actualCharged: '실제 청구 금액',
+      actualChargedHint: '미입력시 Frankfurter 실시간 환율을 사용합니다. 은행에서 다른 금액이 청구됐다면 입력하세요.',
+      optional: '선택사항',
+      selectCategory: '카테고리 선택...',
     }
   },
   ja: {
@@ -207,6 +215,10 @@ const resources = {
       dark: 'ダーク',
       from: 'から',
       edit: '編集',
+      actualCharged: '実際の請求額',
+      actualChargedHint: '空欄の場合はFrankfurterのレートを使用します。銀行の請求額が異なる場合は入力してください。',
+      optional: '任意',
+      selectCategory: 'カテゴリーを選択...',
     }
   },
   zh: {
@@ -276,6 +288,10 @@ const resources = {
       dark: '深色',
       from: '从',
       edit: '编辑',
+      actualCharged: '实际扣款金额',
+      actualChargedHint: '留空则使用Frankfurter实时汇率。如银行扣款金额不同，请填写。',
+      optional: '可选',
+      selectCategory: '选择类别...',
     }
   },
   es: {
@@ -345,6 +361,10 @@ const resources = {
       dark: 'Oscuro',
       from: 'desde',
       edit: 'Editar',
+      actualCharged: 'Monto cobrado real',
+      actualChargedHint: 'Dejar en blanco para usar la tasa de Frankfurter. Completar si tu banco cobró diferente.',
+      optional: 'opcional',
+      selectCategory: 'Seleccionar categoría...',
     }
   },
   fr: {
@@ -414,6 +434,10 @@ const resources = {
       dark: 'Sombre',
       from: 'depuis',
       edit: 'Modifier',
+      actualCharged: 'Montant réellement débité',
+      actualChargedHint: 'Laisser vide pour utiliser le taux Frankfurter. Remplir si votre banque a débité un montant différent.',
+      optional: 'optionnel',
+      selectCategory: 'Choisir une catégorie...',
     }
   },
   de: {
@@ -483,6 +507,10 @@ const resources = {
       dark: 'Dunkel',
       from: 'ab',
       edit: 'Bearbeiten',
+      actualCharged: 'Tatsächlich belasteter Betrag',
+      actualChargedHint: 'Leer lassen für den Frankfurter-Kurs. Ausfüllen wenn Ihre Bank einen anderen Betrag berechnet hat.',
+      optional: 'optional',
+      selectCategory: 'Kategorie wählen...',
     }
   }
 }
