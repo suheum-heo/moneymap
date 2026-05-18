@@ -37,6 +37,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
   const [entryType, setEntryType] = useState<'expense' | 'income'>(saved.entryType || 'expense')
   const [amount, setAmount] = useState(saved.amount || '')
   const [currency, setCurrency] = useState(contextCur)
+  const [actualCharged, setActualCharged] = useState('')
   const [summary, setSummary] = useState(saved.summary || '')
   const [venue, setVenue] = useState(saved.venue || '')
   const [location, setLocation] = useState(saved.location || '')
@@ -71,6 +72,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
     setRemarks(r.remarks || '')
     setCurrency(r.currency)
     setShowCurrencyOverride(r.currency !== contextCur)
+    setActualCharged('')
     setVenue(''); setLocation('')
     setShowRecurring(false)
   }
@@ -81,6 +83,11 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
     if (isNaN(parsed) || parsed <= 0) { setError('Invalid amount'); return }
     if (!category) { setError('Please select a category'); return }
     setError('')
+
+    const finalRemarks = actualCharged.trim()
+      ? `${remarks.trim()}${remarks.trim() ? ' · ' : ''}Charged: ${contextCur} ${actualCharged.trim()}`
+      : remarks.trim()
+
     onAdd({
       id: Date.now().toString(),
       type: entryType,
@@ -90,12 +97,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
       location: location.trim(),
       category,
       amount: parsed,
-      remarks: remarks.trim(),
+      remarks: finalRemarks,
       currency,
       context: activeContext?.id || '',
     })
     setSummary(''); setAmount(''); setVenue(''); setLocation(''); setRemarks('')
-    setCurrency(contextCur); setShowCurrencyOverride(false)
+    setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')
     onDone()
     sessionStorage.removeItem('addentry-draft')
   }
@@ -161,7 +168,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs text-zinc-400">{t('amount')} ({showCurrencyOverride ? currency : contextCur} {showCurrencyOverride ? getCurrencySymbol(currency) : sym})</label>
-            <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur) }} className="text-xs text-amber-500">
+            <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur); setActualCharged('') }} className="text-xs text-amber-500">
               {showCurrencyOverride ? t('useDefaultCurrency') : t('differentCurrency')}
             </button>
           </div>
@@ -177,6 +184,30 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
             )}
           </div>
         </div>
+
+        {showCurrencyOverride && (
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-xs text-zinc-400">
+                Actual charged ({contextCur} {sym})
+              </label>
+              <span className="text-xs text-zinc-300 dark:text-zinc-600">— optional</span>
+            </div>
+            <input
+              type="number"
+              value={actualCharged}
+              onChange={e => setActualCharged(e.target.value)}
+              placeholder="Leave blank to use live Frankfurter rate"
+              className={inputCls}
+              step="0.01"
+              inputMode="decimal"
+              style={{ fontSize: '16px' }}
+            />
+            <p className="text-xs text-zinc-400 mt-1">
+              Fill in if your bank charged a different amount than the live rate.
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">{t('summary')}</label>
