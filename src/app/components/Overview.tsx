@@ -32,13 +32,19 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
     [entries, month, activeContext])
 
+  // For conversion: use homeAmount if available, otherwise convert via live rate
+  const toHome = (e: Entry) =>
+    showConversion
+      ? (e.homeAmount ?? convert(e.amount, cur, homeCur))
+      : e.amount
+
   const expenses = useMemo(() =>
-    monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
-    [monthEntries])
+    monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
+    [monthEntries, showConversion])
 
   const income = useMemo(() =>
-    monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0),
-    [monthEntries])
+    monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + toHome(e), 0),
+    [monthEntries, showConversion])
 
   const net = income - expenses
 
@@ -52,14 +58,14 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     [entries, lastMonth, activeContext])
 
   const lastMonthExpenses = useMemo(() =>
-    lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
-    [lastMonthEntries])
+    lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
+    [lastMonthEntries, showConversion])
 
   const sameDayLastMonth = useMemo(() => {
     const today = new Date()
     const cutoff = `${lastMonth}-${String(today.getDate()).padStart(2, '0')}`
-    return lastMonthEntries.filter(e => e.type === 'expense' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0)
-  }, [lastMonthEntries, lastMonth])
+    return lastMonthEntries.filter(e => e.type === 'expense' && e.date <= cutoff).reduce((s, e) => s + toHome(e), 0)
+  }, [lastMonthEntries, lastMonth, showConversion])
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date()
@@ -124,9 +130,8 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     return () => { locChartInstance.current?.destroy() }
   }, [byLocation, sym])
 
-  const fmt = (n: number) => formatAmount(Math.abs(n), cur)
-  const fmtConverted = (n: number) =>
-    showConversion ? ` (≈${formatAmount(convert(Math.abs(n), cur, homeCur), homeCur)})` : ''
+  const fmt = (n: number) => showConversion ? formatAmount(Math.abs(n), homeCur) : formatAmount(Math.abs(n), cur)
+  const fmtLocal = (n: number) => showConversion ? ` (${formatAmount(Math.abs(n), cur)})` : ''
 
   const catRows = useMemo(() => {
     const rows = []
@@ -138,9 +143,9 @@ export default function Overview({ entries, month, onNavigate }: Props) {
     <div className="px-4 pb-8">
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
-          { label: t('expenses'), value: fmt(expenses), sub: fmtConverted(expenses), color: 'text-red-600 dark:text-red-400', filter: 'expense' },
-          { label: t('income'), value: fmt(income), sub: fmtConverted(income), color: 'text-green-700 dark:text-green-400', filter: 'income' },
-          { label: t('net'), value: (net < 0 ? '-' : '') + fmt(net), sub: fmtConverted(net), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400', filter: 'all' },
+          { label: t('expenses'), value: fmt(expenses), sub: fmtLocal(expenses), color: 'text-red-600 dark:text-red-400', filter: 'expense' },
+          { label: t('income'),   value: fmt(income),   sub: fmtLocal(income),   color: 'text-green-700 dark:text-green-400', filter: 'income' },
+          { label: t('net'),      value: (net < 0 ? '-' : '') + fmt(net), sub: fmtLocal(net), color: net < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400', filter: 'all' },
         ].map(m => (
           <div key={m.label} onClick={() => onNavigate('entries', m.filter)}
             className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-amber-400 transition-all">
@@ -156,14 +161,14 @@ export default function Overview({ entries, month, onNavigate }: Props) {
           <div className="flex items-center justify-between text-xs">
             <span className="text-zinc-500">{t('vsLastMonth')}</span>
             <span className={expenses <= lastMonthExpenses ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
-              {expenses <= lastMonthExpenses ? '▼' : '▲'} {formatAmount(Math.abs(expenses - lastMonthExpenses), cur)} {expenses <= lastMonthExpenses ? t('less') : t('more')}
+              {expenses <= lastMonthExpenses ? '▼' : '▲'} {fmt(Math.abs(expenses - lastMonthExpenses))} {expenses <= lastMonthExpenses ? t('less') : t('more')}
             </span>
           </div>
           {isCurrentMonth && sameDayLastMonth > 0 && (
             <div className="flex items-center justify-between text-xs">
               <span className="text-zinc-500">{t('vsSameDay')}</span>
               <span className={expenses <= sameDayLastMonth ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
-                {expenses <= sameDayLastMonth ? '▼' : '▲'} {formatAmount(Math.abs(expenses - sameDayLastMonth), cur)} {expenses <= sameDayLastMonth ? t('less') : t('more')}
+                {expenses <= sameDayLastMonth ? '▼' : '▲'} {fmt(Math.abs(expenses - sameDayLastMonth))} {expenses <= sameDayLastMonth ? t('less') : t('more')}
               </span>
             </div>
           )}
