@@ -27,14 +27,11 @@ async function fetchLiveRates(): Promise<ExchangeRate[]> {
     const rates: ExchangeRate[] = []
     const usdRates: Record<string, number> = data.rates
 
-    // USD -> X
     for (const [to, rate] of Object.entries(usdRates)) {
       rates.push({ from: 'USD', to, rate: rate as number })
-      // X -> USD
       rates.push({ from: to, to: 'USD', rate: 1 / (rate as number) })
     }
 
-    // Cross rates (X -> Y via USD)
     const currencies = Object.keys(usdRates)
     for (const from of currencies) {
       for (const to of currencies) {
@@ -84,7 +81,6 @@ export function useSettings() {
         setLoaded(true)
       })
 
-    // Fetch live rates — only if last fetch was > 1 hour ago
     const lastFetch = localStorage.getItem('gagyebu-rates-timestamp')
     const shouldFetch = !lastFetch || Date.now() - new Date(lastFetch).getTime() > 60 * 60 * 1000
 
@@ -128,6 +124,15 @@ export function useSettings() {
     await supabase.from('contexts').update({ name: name.trim() }).eq('id', id).eq('user_id', userId)
   }, [userId])
 
+  const updateContext = useCallback(async (ctx: Context) => {
+    if (!userId) return
+    setContexts(prev => prev.map(c => c.id === ctx.id ? ctx : c))
+    await supabase.from('contexts').update({
+      name: ctx.name, currency: ctx.currency,
+      home_currency: ctx.homeCurrency, start_date: ctx.startDate,
+    }).eq('id', ctx.id).eq('user_id', userId)
+  }, [userId])
+
   const switchContext = useCallback((id: string) => {
     setActiveContextId(id)
     localStorage.setItem('gagyebu-active-context', id)
@@ -155,5 +160,5 @@ export function useSettings() {
 
   const activeContext = contexts.find(c => c.id === activeContextId) || contexts[0]
 
-  return { contexts, addContext, removeContext, renameContext, activeContext, activeContextId, switchContext, rates, updateRate, convert, loaded, ratesUpdated }
+  return { contexts, addContext, removeContext, renameContext, updateContext, activeContext, activeContextId, switchContext, rates, updateRate, convert, loaded, ratesUpdated }
 }
