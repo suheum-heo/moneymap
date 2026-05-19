@@ -10,7 +10,7 @@ import CategorySettings from './CategorySettings'
 
 export default function Settings() {
   const { t } = useTranslation()
-  const { contexts, addContext, removeContext, renameContext, convert, activeContext, ratesUpdated } = useSettings()
+  const { contexts, addContext, removeContext, renameContext, updateContext, convert, activeContext, ratesUpdated } = useSettings()
   const { setBudget, getBudget } = useBudgets()
   const { items, addItem, updateItem, deleteItem } = useRecurring()
 
@@ -18,8 +18,27 @@ export default function Settings() {
   const [currency, setCurrency] = useState('USD')
   const [homeCurrency, setHomeCurrency] = useState('USD')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 7))
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
+
+  // Context edit modal state
+  const [editingCtx, setEditingCtx] = useState<Context | null>(null)
+  const [editCtxName, setEditCtxName] = useState('')
+  const [editCtxCurrency, setEditCtxCurrency] = useState('USD')
+  const [editCtxHomeCurrency, setEditCtxHomeCurrency] = useState('USD')
+  const [editCtxStartDate, setEditCtxStartDate] = useState('')
+
+  const openEditCtx = (c: Context) => {
+    setEditingCtx(c)
+    setEditCtxName(c.name)
+    setEditCtxCurrency(c.currency)
+    setEditCtxHomeCurrency(c.homeCurrency)
+    setEditCtxStartDate(c.startDate)
+  }
+
+  const handleSaveCtx = () => {
+    if (!editingCtx || !editCtxName.trim()) return
+    updateContext({ ...editingCtx, name: editCtxName.trim(), currency: editCtxCurrency, homeCurrency: editCtxHomeCurrency, startDate: editCtxStartDate })
+    setEditingCtx(null)
+  }
 
   const [rateFrom, setRateFrom] = useState('USD')
   const [rateTo, setRateTo] = useState('KRW')
@@ -75,6 +94,42 @@ export default function Settings() {
   return (
     <div className="px-4 pb-8 flex flex-col gap-6">
 
+      {/* Context edit modal */}
+      {editingCtx && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4" onClick={() => setEditingCtx(null)}>
+          <div className="bg-[#fafaf8] dark:bg-[#1a1a18] rounded-2xl p-4 w-full max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{t('editContext')}</span>
+              <button onClick={() => setEditingCtx(null)} className="text-zinc-400 text-lg">✕</button>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">{t('newContext')}</label>
+              <input value={editCtxName} onChange={e => setEditCtxName(e.target.value)}
+                className={inputCls} style={{ fontSize: '16px' }} autoFocus />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">{t('localCurrency')}</label>
+                <select value={editCtxCurrency} onChange={e => setEditCtxCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">{t('homeCurrency')}</label>
+                <select value={editCtxHomeCurrency} onChange={e => setEditCtxHomeCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 block mb-1">{t('startDate')}</label>
+              <input type="month" value={editCtxStartDate} onChange={e => setEditCtxStartDate(e.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
+            </div>
+            <button onClick={handleSaveCtx} className="w-full py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium">{t('saveChanges')}</button>
+          </div>
+        </div>
+      )}
+
       <LanguageSelector />
       <CategorySettings />
 
@@ -84,27 +139,16 @@ export default function Settings() {
         <div className="flex flex-col gap-2 mb-4">
           {contexts.map((c: Context) => (
             <div key={c.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5">
-              {editingId === c.id ? (
-                <div className="flex gap-2 items-center">
-                  <input value={editName} onChange={e => setEditName(e.target.value)}
-                    className={inputCls} style={{ fontSize: '16px' }} autoFocus
-                    onKeyDown={e => { if (e.key === 'Enter') { renameContext(c.id, editName); setEditingId(null) } }} />
-                  <button onClick={() => { renameContext(c.id, editName); setEditingId(null) }}
-                    className="text-xs text-amber-500 font-medium whitespace-nowrap">{t('save')}</button>
-                  <button onClick={() => setEditingId(null)} className="text-xs text-zinc-400 whitespace-nowrap">{t('cancel')}</button>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{c.name}</div>
+                  <div className="text-xs text-zinc-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {c.startDate}</div>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{c.name}</div>
-                    <div className="text-xs text-zinc-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {c.startDate}</div>
-                  </div>
-                  <div className="flex gap-3 ml-3">
-                    <button onClick={() => { setEditingId(c.id); setEditName(c.name) }} className="text-xs text-amber-500">{t('rename')}</button>
-                    <button onClick={() => removeContext(c.id)} className="text-xs text-red-400">{t('remove')}</button>
-                  </div>
+                <div className="flex gap-3 ml-3">
+                  <button onClick={() => openEditCtx(c)} className="text-xs text-amber-500">{t('edit')}</button>
+                  <button onClick={() => removeContext(c.id)} className="text-xs text-red-400">{t('remove')}</button>
                 </div>
-              )}
+              </div>
             </div>
           ))}
         </div>

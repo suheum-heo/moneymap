@@ -33,9 +33,9 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
   const saved = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('addentry-draft') || '{}') : {}
 
   const initDate = defaultDate ? new Date(defaultDate + 'T12:00:00') : new Date()
-  const [month, setMonth] = useState(initDate.getMonth())
-  const [day, setDay] = useState(initDate.getDate())
-  const [year, setYear] = useState(initDate.getFullYear())
+  const [month, setMonth] = useState<number>(saved.month ?? initDate.getMonth())
+  const [day, setDay] = useState<number>(saved.day ?? initDate.getDate())
+  const [year, setYear] = useState<number>(saved.year ?? initDate.getFullYear())
   const [entryType, setEntryType] = useState<'expense' | 'income'>(saved.entryType || 'expense')
   const [amount, setAmount] = useState(saved.amount || '')
   const [currency, setCurrency] = useState(contextCur)
@@ -50,8 +50,11 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)
 
   useEffect(() => {
-    sessionStorage.setItem('addentry-draft', JSON.stringify({ entryType, amount, summary, venue, location, category, remarks }))
-  }, [entryType, amount, summary, venue, location, category, remarks])
+    sessionStorage.setItem('addentry-draft', JSON.stringify({
+      entryType, amount, summary, venue, location, category, remarks,
+      month, day, year,
+    }))
+  }, [entryType, amount, summary, venue, location, category, remarks, month, day, year])
 
   const cats = entryType === 'expense' ? expenseCategories : incomeCategories
   const maxDay = daysInMonth(month, year)

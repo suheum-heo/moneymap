@@ -73,6 +73,7 @@ const resources = {
       actualChargedHint: 'Leave blank to use live Frankfurter rate. Fill in if your bank charged differently.',
       optional: 'optional',
       selectCategory: 'Select category...',
+      editContext: 'Edit context',
     }
   },
   ko: {
@@ -146,6 +147,7 @@ const resources = {
       actualChargedHint: '미입력시 Frankfurter 실시간 환율을 사용합니다. 은행에서 다른 금액이 청구됐다면 입력하세요.',
       optional: '선택사항',
       selectCategory: '카테고리 선택...',
+      editContext: '컨텍스트 수정',
     }
   },
   ja: {
@@ -219,6 +221,7 @@ const resources = {
       actualChargedHint: '空欄の場合はFrankfurterのレートを使用します。銀行の請求額が異なる場合は入力してください。',
       optional: '任意',
       selectCategory: 'カテゴリーを選択...',
+      editContext: 'コンテキストを編集',
     }
   },
   zh: {
@@ -292,6 +295,7 @@ const resources = {
       actualChargedHint: '留空则使用Frankfurter实时汇率。如银行扣款金额不同，请填写。',
       optional: '可选',
       selectCategory: '选择类别...',
+      editContext: '编辑账本',
     }
   },
   es: {
@@ -365,6 +369,7 @@ const resources = {
       actualChargedHint: 'Dejar en blanco para usar la tasa de Frankfurter. Completar si tu banco cobró diferente.',
       optional: 'opcional',
       selectCategory: 'Seleccionar categoría...',
+      editContext: 'Editar contexto',
     }
   },
   fr: {
@@ -438,6 +443,7 @@ const resources = {
       actualChargedHint: 'Laisser vide pour utiliser le taux Frankfurter. Remplir si votre banque a débité un montant différent.',
       optional: 'optionnel',
       selectCategory: 'Choisir une catégorie...',
+      editContext: 'Modifier le contexte',
     }
   },
   de: {
@@ -511,6 +517,7 @@ const resources = {
       actualChargedHint: 'Leer lassen für den Frankfurter-Kurs. Ausfüllen wenn Ihre Bank einen anderen Betrag berechnet hat.',
       optional: 'optional',
       selectCategory: 'Kategorie wählen...',
+      editContext: 'Kontext bearbeiten',
     }
   }
 }
