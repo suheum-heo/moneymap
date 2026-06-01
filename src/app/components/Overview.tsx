@@ -236,7 +236,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
             className="app-panel flex flex-col items-start gap-2.5 p-5 text-left transition-transform hover:-translate-y-0.5"
           >
             <span className="app-kicker">{m.label}</span>
-            <span className={`whitespace-nowrap text-[1.72rem] font-semibold tracking-tight sm:text-[1.86rem] xl:text-[1.96rem] ${m.color}`}>{m.value}</span>
+            <span className={`whitespace-nowrap text-[1.58rem] font-semibold tracking-tight sm:text-[1.72rem] xl:text-[1.82rem] ${m.color}`}>{m.value}</span>
             {m.sub && <span className="text-sm text-slate-400">{m.sub}</span>}
           </button>
         ))}

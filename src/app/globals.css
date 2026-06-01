@@ -223,19 +223,19 @@ textarea {
   }
 
   .app-negative {
-    color: #d96a7a;
+    color: #f43f5e;
   }
 
   html.dark .app-negative {
-    color: #f1a3ad;
+    color: #fda4af;
   }
 
   .app-positive {
-    color: #3e9071;
+    color: #059669;
   }
 
   html.dark .app-positive {
-    color: #8fd0b4;
+    color: #6ee7b7;
   }
 
   .app-accent {

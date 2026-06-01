@@ -198,12 +198,12 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                 </span>
                 {isToday && <span className="rounded-full bg-[#3182f6] px-1.5 py-0.5 text-[8px] leading-tight text-white md:text-[10px]">{t('today')}</span>}
                 {totals?.expense > 0 && (
-                  <span className="text-[10px] text-rose-400 dark:text-rose-300 md:text-sm">
+                  <span className="text-[10px] text-rose-500 dark:text-rose-300 md:text-sm">
                     -{formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
                   </span>
                 )}
                 {totals?.income > 0 && (
-                  <span className="text-[10px] text-emerald-500 dark:text-emerald-300 md:text-sm">
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-300 md:text-sm">
                     +{formatAmount(totals.income, cur).replace(/[^0-9.,]/g, '')}
                   </span>
                 )}
