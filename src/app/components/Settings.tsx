@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol } from '../types'
+import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol, formatAmountValue, usesZeroDecimalCurrency } from '../types'
 import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { useRecurring, RecurringItem } from '../useRecurring'
@@ -228,7 +228,7 @@ export default function Settings() {
                   <div>
                     <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{item.summary}</div>
                     <div className="text-xs text-slate-400 mt-0.5">
-                      {getCurrencySymbol(item.currency)}{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {item.currency} · {item.category}
+                      {getCurrencySymbol(item.currency)}{formatAmountValue(item.amount, item.currency)} {item.currency} · {item.category}
                       {item.remarks ? ` · ${item.remarks}` : ''}
                     </div>
                   </div>
@@ -287,7 +287,7 @@ export default function Settings() {
               <div key={cat} className="app-list-row flex items-center justify-between !py-3">
                 <span className="text-sm text-slate-800 dark:text-zinc-100">{cat}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-[#3182f6] dark:text-sky-300">{activeContext?.currency} {b.toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-[#3182f6] dark:text-sky-300">{activeContext?.currency} {formatAmountValue(b, activeContext?.currency || 'USD')}</span>
                   <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
@@ -325,7 +325,10 @@ export default function Settings() {
           </div>
           {rateFrom !== rateTo && (
             <div className="text-lg font-semibold text-slate-800 dark:text-zinc-100">
-              1 {rateFrom} = {convert(1, rateFrom, rateTo).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {rateTo}
+              1 {rateFrom} = {convert(1, rateFrom, rateTo).toLocaleString(undefined, {
+                minimumFractionDigits: usesZeroDecimalCurrency(rateTo) ? 0 : 2,
+                maximumFractionDigits: usesZeroDecimalCurrency(rateTo) ? 0 : 4,
+              })} {rateTo}
             </div>
           )}
         </div>

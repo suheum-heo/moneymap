@@ -61,14 +61,21 @@ export function getCurrencySymbol(code: string): string {
 
 const NO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY', 'VND', 'IDR', 'HUF', 'ISK', 'CLP', 'PYG'])
 
-export function formatAmount(amount: number, currency: string): string {
-  const sym = getCurrencySymbol(currency)
-  const noDecimal = NO_DECIMAL_CURRENCIES.has(currency)
-  const formatted = amount.toLocaleString(undefined, {
+export function usesZeroDecimalCurrency(currency: string): boolean {
+  return NO_DECIMAL_CURRENCIES.has(currency.toUpperCase())
+}
+
+export function formatAmountValue(amount: number, currency: string): string {
+  const noDecimal = usesZeroDecimalCurrency(currency)
+  return amount.toLocaleString(undefined, {
     minimumFractionDigits: noDecimal ? 0 : 2,
     maximumFractionDigits: noDecimal ? 0 : 2,
   })
-  return `${sym}${formatted}`
+}
+
+export function formatAmount(amount: number, currency: string): string {
+  const sym = getCurrencySymbol(currency)
+  return `${sym}${formatAmountValue(amount, currency)}`
 }
 
 export const CAT_COLORS: Record<string, string> = {

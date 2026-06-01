@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, getCurrencySymbol, CURRENCIES } from '../types'
+import { Entry, getCurrencySymbol, CURRENCIES, formatAmountValue } from '../types'
 import { useSettings } from '../useSettings'
 import { useRecurring } from '../useRecurring'
 import { useCategories } from '../useCategories'
@@ -145,7 +145,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
                     {r.remarks && <span className="mt-1 block text-xs text-slate-400">{r.remarks}</span>}
                   </div>
                   <span className="ml-3 text-sm font-semibold text-[#3182f6] dark:text-sky-300">
-                    {getCurrencySymbol(r.currency)}{r.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.currency !== contextCur ? r.currency : ''}
+                    {getCurrencySymbol(r.currency)}{formatAmountValue(r.amount, r.currency)} {r.currency !== contextCur ? r.currency : ''}
                   </span>
                 </button>
               ))}

@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount } from '../types'
+import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, formatAmountValue } from '../types'
 import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { Chart, registerables } from 'chart.js'
@@ -110,15 +110,15 @@ export default function Overview({ entries, month, onNavigate }: Props) {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${(ctx.raw as number).toLocaleString()}` } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` } } },
         scales: {
           x: { grid: { display: false }, ticks: { color: chartTextColor, font: { size: 11 }, maxRotation: 40, autoSkip: false } },
-          y: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, callback: v => sym + Number(v).toLocaleString(), font: { size: 11 } } }
+          y: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11 } } }
         }
       }
     })
     return () => { catChartInstance.current?.destroy() }
-  }, [byCategory, chartGridColor, chartTextColor, sym])
+  }, [byCategory, chartGridColor, chartTextColor, cur, sym])
 
   useEffect(() => {
     if (!locChartRef.current || byLocation.length === 0) return
@@ -131,15 +131,15 @@ export default function Overview({ entries, month, onNavigate }: Props) {
       },
       options: {
         indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${(ctx.raw as number).toLocaleString()}` } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` } } },
         scales: {
-          x: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, callback: v => sym + Number(v).toLocaleString(), font: { size: 11 } } },
+          x: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11 } } },
           y: { grid: { display: false }, ticks: { color: chartTextColor, font: { size: 11 } } }
         }
       }
     })
     return () => { locChartInstance.current?.destroy() }
-  }, [byLocation, chartGridColor, chartTextColor, sym])
+  }, [byLocation, chartGridColor, chartTextColor, cur, sym])
 
   // Big number = local cur, small grey = home cur equivalent
   const fmt = (n: number) => formatAmount(Math.abs(n), cur)
@@ -165,7 +165,7 @@ export default function Overview({ entries, month, onNavigate }: Props) {
             className="app-panel flex flex-col items-start gap-3 p-6 text-left transition-transform hover:-translate-y-0.5"
           >
             <span className="app-kicker">{m.label}</span>
-            <span className={`text-[1.9rem] font-semibold tracking-tight sm:text-[2.1rem] ${m.color}`}>{m.value}</span>
+            <span className={`whitespace-nowrap text-[1.72rem] font-semibold tracking-tight sm:text-[1.9rem] xl:text-[2rem] ${m.color}`}>{m.value}</span>
             {m.sub && <span className="text-sm text-slate-400">{m.sub}</span>}
           </button>
         ))}
