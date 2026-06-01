@@ -1,9 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
-import { useSettings } from '../useSettings'
-import { useCategories } from '../useCategories'
+import { Entry, Context, CAT_COLORS, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
 
 interface Props {
   entries: Entry[]
@@ -11,6 +9,10 @@ interface Props {
   onDelete: (id: string) => void
   onUpdate: (entry: Entry) => void
   initialTypeFilter?: string
+  activeContext?: Context
+  convert: (amount: number, from: string, to: string) => number
+  expenseCategories: string[]
+  incomeCategories: string[]
 }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -29,16 +31,14 @@ function getWeekRange() {
   return { start: mon.toISOString().slice(0,10), end: sun.toISOString().slice(0,10) }
 }
 
-export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all' }: Props) {
+export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all', activeContext, convert, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
   const [catFilter, setCatFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [weekOnly, setWeekOnly] = useState(false)
-  const { activeContext, convert } = useSettings()
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
-  const { expenseCategories, incomeCategories } = useCategories()
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur

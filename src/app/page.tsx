@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useEntries } from './useEntries'
 import { useSettings } from './useSettings'
+import { useRecurring } from './useRecurring'
+import { useBudgets } from './useBudgets'
+import { useCategories } from './useCategories'
 import Overview from './components/Overview'
 import Entries from './components/Entries'
 import AddEntry from './components/AddEntry'
@@ -32,7 +35,10 @@ function monthStr(month: number, year: number) {
 function AppContent({ user }: { user: User }) {
   const { t, i18n } = useTranslation()
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
-  const { contexts, activeContext, activeContextId, switchContext, addContext, loaded: settingsLoaded } = useSettings()
+  const { contexts, activeContext, activeContextId, switchContext, addContext, removeContext, updateContext: saveContext, convert, loaded: settingsLoaded, ratesUpdated } = useSettings()
+  const { items, loaded: recurringLoaded, addItem, updateItem, deleteItem: deleteRecurringItem } = useRecurring()
+  const { setBudget, getBudget, loaded: budgetsLoaded } = useBudgets()
+  const { categories, expenseCategories, incomeCategories, addCategory, removeCategory, loaded: categoriesLoaded } = useCategories()
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [dark, setDark] = useState<boolean | null>(null)
@@ -102,7 +108,7 @@ function AppContent({ user }: { user: User }) {
     })
   }, [contexts, entries, entriesLoaded, settingsLoaded, updateEntry])
 
-  if (!entriesLoaded || !settingsLoaded || dark === null) return (
+  if (!entriesLoaded || !settingsLoaded || !recurringLoaded || !budgetsLoaded || !categoriesLoaded || dark === null) return (
     <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">{t('loading')}</div>
   )
 
@@ -200,11 +206,11 @@ function AppContent({ user }: { user: User }) {
 
   const TabContent = () => (
     <>
-      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} />}
-      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} />}
-      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} />}
-      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} />}
-      {tab === 'settings' && <Settings />}
+      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} activeContext={activeContext} convert={convert} getBudget={getBudget} />}
+      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} activeContext={activeContext} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'settings' && <Settings contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} addCategory={addCategory} removeCategory={removeCategory} />}
     </>
   )
 

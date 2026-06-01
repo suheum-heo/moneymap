@@ -1,12 +1,19 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, getCurrencySymbol, CURRENCIES, formatAmountValue, getAmountInputProps, normalizeAmountInputValue, parseCurrencyInput } from '../types'
-import { useSettings } from '../useSettings'
-import { useRecurring } from '../useRecurring'
-import { useCategories } from '../useCategories'
+import { Entry, Context, getCurrencySymbol, CURRENCIES, formatAmountValue, getAmountInputProps, normalizeAmountInputValue, parseCurrencyInput } from '../types'
+import { RecurringItem } from '../useRecurring'
 
-interface Props { onAdd: (e: Entry) => void; onDone: () => void; entries?: Entry[]; defaultDate?: string | null }
+interface Props {
+  onAdd: (e: Entry) => void
+  onDone: () => void
+  entries?: Entry[]
+  defaultDate?: string | null
+  activeContext?: Context
+  items: RecurringItem[]
+  expenseCategories: string[]
+  incomeCategories: string[]
+}
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -18,11 +25,8 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, items, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
-  const { activeContext } = useSettings()
-  const { items } = useRecurring()
-  const { expenseCategories, incomeCategories } = useCategories()
   const contextCur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || contextCur
   const sym = getCurrencySymbol(contextCur)

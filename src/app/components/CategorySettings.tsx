@@ -1,11 +1,16 @@
 'use client'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useCategories } from '../useCategories'
+import { Category } from '../useCategories'
 
-export default function CategorySettings() {
+interface Props {
+  categories: Category[]
+  addCategory: (name: string, type: 'expense' | 'income') => void
+  removeCategory: (id: string) => void
+}
+
+export default function CategorySettings({ categories, addCategory, removeCategory }: Props) {
   const { t } = useTranslation()
-  const { categories, addCategory, removeCategory } = useCategories()
   const [newName, setNewName] = useState('')
   const [newType, setNewType] = useState<'expense' | 'income'>('expense')
   const [confirmId, setConfirmId] = useState<string | null>(null)

@@ -2,17 +2,32 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol, formatAmountValue, getAmountInputProps, normalizeAmountInputValue, parseCurrencyInput, usesZeroDecimalCurrency } from '../types'
-import { useSettings } from '../useSettings'
-import { useBudgets } from '../useBudgets'
-import { useRecurring, RecurringItem } from '../useRecurring'
+import { RecurringItem } from '../useRecurring'
+import { Category } from '../useCategories'
 import LanguageSelector from './LanguageSelector'
 import CategorySettings from './CategorySettings'
 
-export default function Settings() {
+interface Props {
+  contexts: Context[]
+  addContext: (ctx: Context) => void
+  removeContext: (id: string) => void
+  updateContext: (ctx: Context) => void
+  convert: (amount: number, from: string, to: string) => number
+  activeContext?: Context
+  ratesUpdated: Date | null
+  setBudget: (context: string, category: string, amount: number) => void
+  getBudget: (context: string, category: string) => number | null
+  items: RecurringItem[]
+  addItem: (item: RecurringItem) => void
+  updateItem: (item: RecurringItem) => void
+  deleteItem: (id: string) => void
+  categories: Category[]
+  addCategory: (name: string, type: 'expense' | 'income') => void
+  removeCategory: (id: string) => void
+}
+
+export default function Settings({ contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, addCategory, removeCategory }: Props) {
   const { t } = useTranslation()
-  const { contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated } = useSettings()
-  const { setBudget, getBudget } = useBudgets()
-  const { items, addItem, updateItem, deleteItem } = useRecurring()
 
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -141,7 +156,7 @@ export default function Settings() {
       )}
 
       <LanguageSelector />
-      <CategorySettings />
+      <CategorySettings categories={categories} addCategory={addCategory} removeCategory={removeCategory} />
 
       {/* Contexts */}
       <div className="app-panel p-4 sm:p-5">

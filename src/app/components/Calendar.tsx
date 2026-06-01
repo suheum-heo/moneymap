@@ -1,9 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
-import { useSettings } from '../useSettings'
-import { useCategories } from '../useCategories'
+import { Entry, Context, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
 
 interface Props {
   entries: Entry[]
@@ -11,6 +9,9 @@ interface Props {
   onUpdate: (entry: Entry) => void
   onDelete: (id: string) => void
   onAddForDate: (date: string) => void
+  activeContext?: Context
+  expenseCategories: string[]
+  incomeCategories: string[]
 }
 
 const DAYS_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
@@ -18,13 +19,11 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
-export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate }: Props) {
+export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate, activeContext, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
-  const { activeContext } = useSettings()
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
-  const { expenseCategories, incomeCategories } = useCategories()
 
   const [editMonth, setEditMonth] = useState(0)
   const [editDay, setEditDay] = useState(1)

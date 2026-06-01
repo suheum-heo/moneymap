@@ -1,9 +1,7 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency } from '../types'
-import { useSettings } from '../useSettings'
-import { useBudgets } from '../useBudgets'
+import { Entry, Context, CAT_COLORS, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency } from '../types'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -11,16 +9,17 @@ interface Props {
   entries: Entry[]
   month: string
   onNavigate: (tab: string, filter?: string) => void
+  activeContext?: Context
+  convert: (amount: number, from: string, to: string) => number
+  getBudget: (context: string, category: string) => number | null
 }
 
-export default function Overview({ entries, month, onNavigate }: Props) {
+export default function Overview({ entries, month, onNavigate, activeContext, convert, getBudget }: Props) {
   const { t } = useTranslation()
   const catChartRef = useRef<HTMLCanvasElement>(null)
   const locChartRef = useRef<HTMLCanvasElement>(null)
   const catChartInstance = useRef<Chart | null>(null)
   const locChartInstance = useRef<Chart | null>(null)
-  const { activeContext, convert } = useSettings()
-  const { getBudget } = useBudgets()
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
 
   const cur = activeContext?.currency || 'USD'
