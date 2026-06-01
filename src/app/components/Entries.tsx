@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, CAT_COLORS, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
+import { Entry, Context, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
 
 interface Props {
   entries: Entry[]
@@ -235,7 +235,8 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
         <div className="flex flex-col gap-3">
           {filtered.map(e => {
             const entryCurrency = getEntryCurrency(e, cur, homeCur)
-            const col = e.type === 'income' ? '#3B6D11' : (CAT_COLORS[e.category] || '#888')
+            const col = getCategoryColor(e.category, e.type)
+            const badgeStyle = getCategoryBadgeStyle(e.category, e.type)
             const isIncome = e.type === 'income'
             const converted = showConversion ? (e.homeAmount ?? convert(e.amount, entryCurrency, homeCur)) : null
             return (
@@ -250,7 +251,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
                   </div>
                   {e.venue && <div className="mt-1 truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
                   {e.remarks && <div className="text-xs text-slate-400 truncate">{e.remarks}</div>}
-                  <span className="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: col + '14', color: col }}>{e.category}</span>
+                  <span className="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium" style={badgeStyle}>{e.category}</span>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <div className="text-sm font-semibold" style={{ color: col }}>

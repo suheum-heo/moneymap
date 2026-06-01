@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { getCategoryColor } from '../types'
 import { Category } from '../useCategories'
 
 interface Props {
@@ -30,6 +31,7 @@ export default function CategorySettings({ categories, addCategory, removeCatego
         <div className="flex flex-wrap gap-1.5">
           {expCats.map(c => (
             <div key={c.id} className="flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-900/70">
+              <span className="h-2 w-2 rounded-full" style={{ background: getCategoryColor(c.name, c.type) }} />
               <span className="text-sm text-slate-700 dark:text-zinc-300">{c.name}</span>
               {confirmId === c.id ? (
                 <>
@@ -53,6 +55,7 @@ export default function CategorySettings({ categories, addCategory, removeCatego
         <div className="flex flex-wrap gap-1.5">
           {incCats.map(c => (
             <div key={c.id} className="flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-900/70">
+              <span className="h-2 w-2 rounded-full" style={{ background: getCategoryColor(c.name, c.type) }} />
               <span className="text-sm text-slate-700 dark:text-zinc-300">{c.name}</span>
               {confirmId === c.id ? (
                 <>

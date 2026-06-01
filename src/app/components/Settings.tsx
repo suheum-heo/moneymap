@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol, formatAmountValue, getAmountInputProps, normalizeAmountInputValue, parseCurrencyInput, usesZeroDecimalCurrency } from '../types'
+import { CURRENCIES, Context, EXPENSE_CATEGORIES, formatAmountValue, getAmountInputProps, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, normalizeAmountInputValue, parseCurrencyInput, usesZeroDecimalCurrency } from '../types'
 import { RecurringItem } from '../useRecurring'
 import { Category } from '../useCategories'
 import LanguageSelector from './LanguageSelector'
@@ -249,9 +249,13 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{item.summary}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">
-                      {getCurrencySymbol(item.currency)}{formatAmountValue(item.amount, item.currency)} {item.currency} · {item.category}
-                      {item.remarks ? ` · ${item.remarks}` : ''}
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                      <span>{getCurrencySymbol(item.currency)}{formatAmountValue(item.amount, item.currency)} {item.currency}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="inline-flex rounded-full px-2 py-0.5 font-medium" style={getCategoryBadgeStyle(item.category, 'expense', 0.16)}>
+                        {item.category}
+                      </span>
+                      {item.remarks ? <span>· {item.remarks}</span> : null}
                     </div>
                   </div>
                   <div className="flex gap-3 ml-3">
@@ -307,7 +311,10 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
             const b = activeContext ? getBudget(activeContext.id, cat) : null
             return b ? (
               <div key={cat} className="app-list-row flex items-center justify-between !py-3">
-                <span className="text-sm text-slate-800 dark:text-zinc-100">{cat}</span>
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: getCategoryColor(cat, 'expense') }} />
+                  <span className="text-sm text-slate-800 dark:text-zinc-100">{cat}</span>
+                </div>
                 <div className="flex items-center gap-3">
                   <span className="app-accent text-sm font-semibold">{activeContext?.currency} {formatAmountValue(b, activeContext?.currency || 'USD')}</span>
                   <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>

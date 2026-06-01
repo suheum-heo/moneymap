@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, CAT_COLORS, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency } from '../types'
+import { Entry, Context, getCategoryColor, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency } from '../types'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -121,7 +121,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
         labels: byCategory.map(([c]) => c),
         datasets: [{
           data: byCategory.map(([, v]) => parseFloat(v.toFixed(2))),
-          backgroundColor: byCategory.map(([c]) => softenColor(CAT_COLORS[c] || '#888', isDark ? 0.08 : 0.16, isDark ? 0.78 : 0.9)),
+          backgroundColor: byCategory.map(([c]) => softenColor(getCategoryColor(c, 'expense'), isDark ? 0.08 : 0.16, isDark ? 0.78 : 0.9)),
           borderRadius: 12,
           borderSkipped: false,
           maxBarThickness: 26,
@@ -287,7 +287,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                     <div className="grid gap-3 sm:grid-cols-2">
                       {row.map(([cat, amt]) => {
                         const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
-                        const col = CAT_COLORS[cat] || '#888'
+                        const col = getCategoryColor(cat, 'expense')
                         const budget = activeContext ? getBudget(activeContext.id, cat) : null
                         const budgetPct = budget ? (amt / budget) * 100 : null
                         const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
@@ -330,7 +330,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
 
                     {expandedInRow && (() => {
                       const [cat, amt] = expandedInRow
-                      const col = CAT_COLORS[cat] || '#888'
+                      const col = getCategoryColor(cat, 'expense')
                       const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => a.date.localeCompare(b.date))
                       return (
                         <div className="rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">

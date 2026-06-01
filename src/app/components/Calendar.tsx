@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
+import { Entry, Context, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
 
 interface Props {
   entries: Entry[]
@@ -248,7 +248,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               <div className="flex flex-col gap-3">
                 {selectedEntries.map(e => {
                   const entryCurrency = getEntryCurrency(e, cur, homeCur)
-                  const col = e.type === 'income' ? '#3B6D11' : (CAT_COLORS[e.category] || '#888')
+                  const col = getCategoryColor(e.category, e.type)
+                  const badgeStyle = getCategoryBadgeStyle(e.category, e.type, 0.16)
                   return (
                     <div key={e.id} className="app-list-row flex cursor-pointer items-center gap-3"
                       onClick={() => openEdit(e)}>
@@ -256,7 +257,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                       <div className="flex-1 min-w-0">
                         <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                         {e.venue && <div className="mt-1 truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
-                        <span className="mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: col + '25', color: col }}>{e.category}</span>
+                        <span className="mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium" style={badgeStyle}>{e.category}</span>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <div className="text-sm font-semibold" style={{ color: col }}>

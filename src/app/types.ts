@@ -26,7 +26,7 @@ export interface Context {
 
 export const EXPENSE_CATEGORIES = [
   'Rent','Utilities','Subscription','Food/Drink','Coffee/Snack',
-  'Grocery','Necessities','Gift','Shopping','Self-care',
+  'Grocery','Essentials','Gift','Shopping','Self-care',
   'Education','Transportation','Laundry','Betting','Other'
 ]
 
@@ -150,12 +150,87 @@ export function shouldRepairLegacyEntryCurrency(
   return getEntryCurrency(entry, contextCurrency, homeCurrency) !== normalizeCurrencyCode(entry.currency || contextCurrency)
 }
 
-export const CAT_COLORS: Record<string, string> = {
-  Rent:'#378ADD', Utilities:'#3B6D11', Subscription:'#534AB7',
-  'Food/Drink':'#D85A30', 'Coffee/Snack':'#BA7517', Grocery:'#1D9E75',
-  Necessities:'#888780', Gift:'#D4537E', Shopping:'#7F77DD',
-  'Self-care':'#0F6E56', Education:'#185FA5', Transportation:'#639922',
-  Laundry:'#5F5E5A', Betting:'#E24B4A', Work:'#3B6D11', Dividend:'#1D9E75', Other:'#888780'
+export const CATEGORY_COLOR_PALETTE = [
+  '#5B8EF0', // muted blue
+  '#6F7DE8', // indigo
+  '#8A79E0', // violet
+  '#D472A0', // pink
+  '#DE7B64', // coral
+  '#D5A04A', // amber
+  '#3B9A91', // teal
+  '#66AF8E', // mint
+  '#79A95E', // green
+  '#4FA5C7', // cyan
+  '#D8894F', // orange
+  '#6B86A6', // slate
+  '#7A9EDB', // sky
+  '#9A86D4', // lavender
+  '#5FA392', // seafoam
+  '#B88E63', // sand
+] as const
+
+export const INCOME_CATEGORY_COLOR_PALETTE = [
+  '#3F8FDE',
+  '#4E98CB',
+  '#389A84',
+  '#58AA8B',
+  '#6DA55A',
+  '#4AA2BD',
+  '#6C93CE',
+] as const
+
+export const CATEGORY_NEUTRAL_COLOR = '#7B8794'
+
+export const CATEGORY_COLOR_OVERRIDES: Record<string, string> = {
+  other: CATEGORY_NEUTRAL_COLOR,
+}
+
+export function normalizeCategoryName(categoryName: string): string {
+  return categoryName
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+function resolveCategoryColorKey(categoryName: string): string {
+  const normalized = normalizeCategoryName(categoryName)
+  return normalized === 'necessities' ? 'essentials' : normalized
+}
+
+function hashCategoryName(categoryName: string): number {
+  let hash = 0
+  for (const char of categoryName) {
+    hash = (hash * 31 + (char.codePointAt(0) || 0)) >>> 0
+  }
+  return hash
+}
+
+export function getCategoryColor(categoryName: string, type: EntryType = 'expense'): string {
+  const key = resolveCategoryColorKey(categoryName)
+  if (!key) return CATEGORY_NEUTRAL_COLOR
+
+  const override = CATEGORY_COLOR_OVERRIDES[key]
+  if (override) return override
+
+  const palette = type === 'income' ? INCOME_CATEGORY_COLOR_PALETTE : CATEGORY_COLOR_PALETTE
+  return palette[hashCategoryName(key) % palette.length]
+}
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const raw = hex.replace('#', '')
+  if (raw.length !== 3 && raw.length !== 6) return hex
+  const full = raw.length === 3 ? raw.split('').map(char => char + char).join('') : raw
+  const [r, g, b] = [0, 2, 4].map(index => parseInt(full.slice(index, index + 2), 16))
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+export function getCategoryBadgeStyle(categoryName: string, type: EntryType = 'expense', alpha = 0.14) {
+  const color = getCategoryColor(categoryName, type)
+  return {
+    color,
+    backgroundColor: hexToRgba(color, alpha),
+  } as const
 }
 
 export const DEFAULT_CONTEXTS: Context[] = [
