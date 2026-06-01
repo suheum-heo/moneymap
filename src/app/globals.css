@@ -2,15 +2,243 @@
 @tailwind components;
 @tailwind utilities;
 
-* { -webkit-tap-highlight-color: transparent; }
-
-body {
-  background: #fafaf8;
-  color: #18181b;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  min-height: 100dvh;
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  body { background: #0f0f0d; color: #fafaf8; }
+html {
+  min-height: 100%;
+  background: #f4f4f0;
+  color-scheme: light;
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top, rgba(99, 115, 255, 0.11), transparent 28%),
+    linear-gradient(180deg, #f8f8f5 0%, #eff1ee 100%);
+  color: #111827;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+html.dark {
+  background: #0d1117;
+  color-scheme: dark;
+}
+
+html.dark body {
+  background:
+    radial-gradient(circle at top, rgba(99, 115, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, #121721 0%, #0b0f16 100%);
+  color: #f8fafc;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(99, 115, 255, 0.18);
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .app-panel {
+    @apply rounded-[28px] border backdrop-blur-xl;
+    border-color: rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow:
+      0 20px 45px -30px rgba(15, 23, 42, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  html.dark .app-panel {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.72);
+    box-shadow:
+      0 24px 48px -34px rgba(0, 0, 0, 0.72),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .app-panel-soft {
+    @apply rounded-3xl border backdrop-blur-xl;
+    border-color: rgba(15, 23, 42, 0.06);
+    background: rgba(255, 255, 255, 0.66);
+    box-shadow:
+      0 16px 36px -30px rgba(15, 23, 42, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  }
+
+  html.dark .app-panel-soft {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.55);
+    box-shadow:
+      0 18px 42px -30px rgba(0, 0, 0, 0.64),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .app-input {
+    @apply w-full rounded-2xl px-4 py-3 text-sm outline-none transition;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(255, 255, 255, 0.92);
+    color: #111827;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  }
+
+  .app-input::placeholder {
+    color: #9ca3af;
+  }
+
+  .app-input:focus {
+    border-color: rgba(99, 115, 255, 0.34);
+    box-shadow:
+      0 0 0 4px rgba(99, 115, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  }
+
+  html.dark .app-input {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(2, 6, 23, 0.46);
+    color: #f8fafc;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  html.dark .app-input::placeholder {
+    color: #71717a;
+  }
+
+  html.dark .app-input:focus {
+    border-color: rgba(129, 140, 248, 0.48);
+    box-shadow:
+      0 0 0 4px rgba(79, 70, 229, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .app-select {
+    @apply rounded-2xl px-3 py-3 text-sm outline-none transition;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(255, 255, 255, 0.92);
+    color: #111827;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  }
+
+  .app-select:focus {
+    border-color: rgba(99, 115, 255, 0.34);
+    box-shadow:
+      0 0 0 4px rgba(99, 115, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  }
+
+  html.dark .app-select {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(2, 6, 23, 0.46);
+    color: #f8fafc;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  html.dark .app-select:focus {
+    border-color: rgba(129, 140, 248, 0.48);
+    box-shadow:
+      0 0 0 4px rgba(79, 70, 229, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .app-button-primary {
+    @apply rounded-2xl px-4 py-3 text-sm font-semibold text-white transition;
+    background: linear-gradient(180deg, #6e80ff 0%, #5c6cff 100%);
+    box-shadow: 0 18px 28px -18px rgba(92, 108, 255, 0.9);
+  }
+
+  .app-button-primary:hover {
+    background: linear-gradient(180deg, #6477ff 0%, #4f63f0 100%);
+  }
+
+  .app-button-primary:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 4px rgba(99, 115, 255, 0.14),
+      0 18px 28px -18px rgba(92, 108, 255, 0.9);
+  }
+
+  .app-button-secondary {
+    @apply rounded-2xl px-4 py-3 text-sm font-medium transition;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(255, 255, 255, 0.84);
+    color: #4b5563;
+    box-shadow:
+      0 14px 24px -24px rgba(15, 23, 42, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  .app-button-secondary:hover {
+    border-color: rgba(99, 115, 255, 0.18);
+    color: #111827;
+  }
+
+  html.dark .app-button-secondary {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(2, 6, 23, 0.42);
+    color: #d4d4d8;
+    box-shadow:
+      0 14px 24px -24px rgba(0, 0, 0, 0.56),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  html.dark .app-button-secondary:hover {
+    border-color: rgba(129, 140, 248, 0.22);
+    color: #ffffff;
+  }
+
+  .app-button-danger {
+    @apply rounded-2xl px-4 py-3 text-sm font-semibold text-white transition;
+    background: linear-gradient(180deg, #f16d68 0%, #e15854 100%);
+    box-shadow: 0 18px 28px -18px rgba(225, 88, 84, 0.75);
+  }
+
+  .app-button-danger:hover {
+    background: linear-gradient(180deg, #ea645f 0%, #d84e4a 100%);
+  }
+
+  .app-kicker {
+    @apply text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400;
+  }
+
+  html.dark .app-kicker {
+    color: #71717a;
+  }
+
+  .app-chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.8);
+    color: #6b7280;
+    box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.24);
+  }
+
+  html.dark .app-chip {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.76);
+    color: #d4d4d8;
+  }
 }

@@ -10,7 +10,7 @@ import CategorySettings from './CategorySettings'
 
 export default function Settings() {
   const { t } = useTranslation()
-  const { contexts, addContext, removeContext, renameContext, updateContext, convert, activeContext, ratesUpdated } = useSettings()
+  const { contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated } = useSettings()
   const { setBudget, getBudget } = useBudgets()
   const { items, addItem, updateItem, deleteItem } = useRecurring()
 
@@ -56,8 +56,8 @@ export default function Settings() {
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
 
-  const inputCls = "w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
-  const selCls = "px-2 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 outline-none text-sm"
+  const inputCls = "app-input py-3 text-sm"
+  const selCls = "app-select px-3 py-2.5 text-sm"
 
   const handleAddContext = () => {
     if (!name.trim()) return
@@ -92,40 +92,43 @@ export default function Settings() {
   }
 
   return (
-    <div className="px-4 pb-8 flex flex-col gap-6">
+    <div className="px-4 pb-8 flex flex-col gap-4">
 
       {/* Context edit modal */}
       {editingCtx && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4" onClick={() => setEditingCtx(null)}>
-          <div className="bg-[#fafaf8] dark:bg-[#1a1a18] rounded-2xl p-4 w-full max-w-md flex flex-col gap-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{t('editContext')}</span>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-4 backdrop-blur-sm md:items-center" onClick={() => setEditingCtx(null)}>
+          <div className="app-panel w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
+            <div className="mb-1 flex items-center justify-between">
+              <div>
+                <div className="app-kicker mb-2">{t('settings')}</div>
+                <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t('editContext')}</span>
+              </div>
               <button onClick={() => setEditingCtx(null)} className="text-zinc-400 text-lg">✕</button>
             </div>
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">{t('newContext')}</label>
+            <div className="mt-4">
+              <label className="app-kicker block mb-2">{t('newContext')}</label>
               <input value={editCtxName} onChange={e => setEditCtxName(e.target.value)}
                 className={inputCls} style={{ fontSize: '16px' }} autoFocus />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">{t('localCurrency')}</label>
+                <label className="app-kicker block mb-2">{t('localCurrency')}</label>
                 <select value={editCtxCurrency} onChange={e => setEditCtxCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                   {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-zinc-400 block mb-1">{t('homeCurrency')}</label>
+                <label className="app-kicker block mb-2">{t('homeCurrency')}</label>
                 <select value={editCtxHomeCurrency} onChange={e => setEditCtxHomeCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                   {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">{t('startDate')}</label>
+              <label className="app-kicker block mb-2">{t('startDate')}</label>
               <input type="month" value={editCtxStartDate} onChange={e => setEditCtxStartDate(e.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
             </div>
-            <button onClick={handleSaveCtx} className="w-full py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium">{t('saveChanges')}</button>
+            <button onClick={handleSaveCtx} className="app-button-primary w-full">{t('saveChanges')}</button>
           </div>
         </div>
       )}
@@ -134,90 +137,90 @@ export default function Settings() {
       <CategorySettings />
 
       {/* Contexts */}
-      <div>
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('contexts')}</div>
+      <div className="app-panel p-4 sm:p-5">
+        <div className="app-kicker mb-3">{t('contexts')}</div>
         <div className="flex flex-col gap-2 mb-4">
           {contexts.map((c: Context) => (
-            <div key={c.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5">
+            <div key={c.id} className="rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-4 dark:border-white/10 dark:bg-slate-950/45">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{c.name}</div>
                   <div className="text-xs text-zinc-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {c.startDate}</div>
                 </div>
                 <div className="flex gap-3 ml-3">
-                  <button onClick={() => openEditCtx(c)} className="text-xs text-amber-500">{t('edit')}</button>
-                  <button onClick={() => removeContext(c.id)} className="text-xs text-red-400">{t('remove')}</button>
+                  <button onClick={() => openEditCtx(c)} className="text-xs font-medium text-indigo-500 dark:text-indigo-300">{t('edit')}</button>
+                  <button onClick={() => removeContext(c.id)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
             </div>
           ))}
         </div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
-          <div className="text-xs text-zinc-400 mb-1">{t('newContext')}</div>
+        <div className="app-panel-soft flex flex-col gap-3 p-4">
+          <div className="app-kicker">{t('newContext')}</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
             placeholder="e.g. Europe Trip 2027" className={inputCls} style={{ fontSize: '16px' }} />
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">{t('localCurrency')}</label>
+              <label className="app-kicker block mb-2">{t('localCurrency')}</label>
               <select value={currency} onChange={e => setCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                 {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">{t('homeCurrency')}</label>
+              <label className="app-kicker block mb-2">{t('homeCurrency')}</label>
               <select value={homeCurrency} onChange={e => setHomeCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                 {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="text-xs text-zinc-400 block mb-1">{t('startDate')}</label>
+            <label className="app-kicker block mb-2">{t('startDate')}</label>
             <input type="month" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
-          <button onClick={handleAddContext} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">{t('addContext')}</button>
+          <button onClick={handleAddContext} className="app-button-primary w-full">{t('addContext')}</button>
         </div>
       </div>
 
       {/* Recurring payments */}
-      <div>
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('recurringPayments').replace('⟳ ', '')}</div>
+      <div className="app-panel p-4 sm:p-5">
+        <div className="app-kicker mb-3">{t('recurringPayments').replace('⟳ ', '')}</div>
         <p className="text-xs text-zinc-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {contextRecurring.map(item => (
-            <div key={item.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2.5">
+            <div key={item.id} className="rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-4 dark:border-white/10 dark:bg-slate-950/45">
               {editingRecId === item.id && editRec ? (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">{t('summary')}</label>
+                      <label className="app-kicker block mb-2">{t('summary')}</label>
                       <input value={editRec.summary} onChange={e => setEditRec({ ...editRec, summary: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} />
                     </div>
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">{t('amount')}</label>
+                      <label className="app-kicker block mb-2">{t('amount')}</label>
                       <input type="number" value={editRec.amount} onChange={e => setEditRec({ ...editRec, amount: parseFloat(e.target.value) })} className={inputCls} style={{ fontSize: '16px' }} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Currency</label>
+                      <label className="app-kicker block mb-2">Currency</label>
                       <select value={editRec.currency} onChange={e => setEditRec({ ...editRec, currency: e.target.value })} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                         {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-zinc-400 block mb-1">{t('category')}</label>
+                      <label className="app-kicker block mb-2">{t('category')}</label>
                       <select value={editRec.category} onChange={e => setEditRec({ ...editRec, category: e.target.value })} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                         {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">{t('remarks')}</label>
+                    <label className="app-kicker block mb-2">{t('remarks')}</label>
                     <input value={editRec.remarks} onChange={e => setEditRec({ ...editRec, remarks: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handleSaveRec} className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">{t('save')}</button>
-                    <button onClick={() => { setEditingRecId(null); setEditRec(null) }} className="flex-1 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-500 text-sm">{t('cancel')}</button>
+                    <button onClick={handleSaveRec} className="app-button-primary flex-1">{t('save')}</button>
+                    <button onClick={() => { setEditingRecId(null); setEditRec(null) }} className="app-button-secondary flex-1">{t('cancel')}</button>
                   </div>
                 </div>
               ) : (
@@ -230,28 +233,28 @@ export default function Settings() {
                     </div>
                   </div>
                   <div className="flex gap-3 ml-3">
-                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }} className="text-xs text-amber-500">{t('edit')}</button>
-                    <button onClick={() => deleteItem(item.id)} className="text-xs text-red-400">{t('remove')}</button>
+                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }} className="text-xs font-medium text-indigo-500 dark:text-indigo-300">{t('edit')}</button>
+                    <button onClick={() => deleteItem(item.id)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
                   </div>
                 </div>
               )}
             </div>
           ))}
-          {contextRecurring.length === 0 && <div className="text-xs text-zinc-400 text-center py-3">—</div>}
+          {contextRecurring.length === 0 && <div className="app-panel-soft py-8 text-center text-xs text-zinc-400">—</div>}
         </div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
-          <div className="text-xs text-zinc-400 mb-1">Add recurring</div>
+        <div className="app-panel-soft flex flex-col gap-3 p-4">
+          <div className="app-kicker">Add recurring</div>
           <div>
-            <label className="text-xs text-zinc-400 block mb-1">{t('summary')}</label>
+            <label className="app-kicker block mb-2">{t('summary')}</label>
             <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder="e.g. Monthly Rent" className={inputCls} style={{ fontSize: '16px' }} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">{t('amount')}</label>
+              <label className="app-kicker block mb-2">{t('amount')}</label>
               <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder="0.00" className={inputCls} style={{ fontSize: '16px' }} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">Currency</label>
+              <label className="app-kicker block mb-2">Currency</label>
               <select value={recCurrency} onChange={e => setRecCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                 {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
               </select>
@@ -259,39 +262,39 @@ export default function Settings() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">{t('category')}</label>
+              <label className="app-kicker block mb-2">{t('category')}</label>
               <select value={recCategory} onChange={e => setRecCategory(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                 {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 block mb-1">{t('remarks')}</label>
+              <label className="app-kicker block mb-2">{t('remarks')}</label>
               <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder="e.g. Spectrum" className={inputCls} style={{ fontSize: '16px' }} />
             </div>
           </div>
-          <button onClick={handleAddRecurring} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">{t('addEntry')}</button>
+          <button onClick={handleAddRecurring} className="app-button-primary w-full">{t('addEntry')}</button>
         </div>
       </div>
 
       {/* Budgets */}
-      <div>
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('monthlyBudgets')}</div>
+      <div className="app-panel p-4 sm:p-5">
+        <div className="app-kicker mb-3">{t('monthlyBudgets')}</div>
         <p className="text-xs text-zinc-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {EXPENSE_CATEGORIES.map(cat => {
             const b = activeContext ? getBudget(activeContext.id, cat) : null
             return b ? (
-              <div key={cat} className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800 rounded-xl px-3 py-2">
+              <div key={cat} className="flex items-center justify-between rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-slate-950/45">
                 <span className="text-sm text-zinc-800 dark:text-zinc-100">{cat}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">{activeContext?.currency} {b.toLocaleString()}</span>
-                  <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs text-red-400">{t('remove')}</button>
+                  <span className="text-sm font-semibold text-indigo-500 dark:text-indigo-300">{activeContext?.currency} {b.toLocaleString()}</span>
+                  <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
             ) : null
           })}
         </div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 flex flex-col gap-2">
+        <div className="app-panel-soft flex flex-col gap-3 p-4">
           <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
             {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
@@ -300,17 +303,17 @@ export default function Settings() {
             if (!activeContext) return
             const amt = parseFloat(budgetAmt)
             if (!isNaN(amt) && amt > 0) { setBudget(activeContext.id, budgetCat, amt); setBudgetAmt('') }
-          }} className="w-full py-2 rounded-xl bg-amber-500 text-white text-sm font-medium">{t('save')}</button>
+          }} className="app-button-primary w-full">{t('save')}</button>
         </div>
       </div>
 
       {/* Exchange rates */}
-      <div>
+      <div className="app-panel p-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest">{t('exchangeRates')}</div>
+          <div className="app-kicker">{t('exchangeRates')}</div>
           {ratesUpdated && <div className="text-xs text-zinc-400">Updated {ratesUpdated.toLocaleTimeString()}</div>}
         </div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
+        <div className="app-panel-soft p-4">
           <div className="flex items-center gap-2 mb-3">
             <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} flex-1`} style={{ fontSize: '16px' }}>
               {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
@@ -329,9 +332,9 @@ export default function Settings() {
       </div>
 
       {/* Reset */}
-      <div>
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-3">{t('reset')}</div>
-        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3">
+      <div className="app-panel p-4 sm:p-5">
+        <div className="app-kicker mb-3">{t('reset')}</div>
+        <div className="app-panel-soft p-4">
           <p className="text-xs text-zinc-400 mb-3">Clear local settings (exchange rates, theme). Your data in Supabase is not affected.</p>
           <button onClick={() => {
             if (confirm(t('reset') + '?')) {
@@ -342,7 +345,7 @@ export default function Settings() {
               localStorage.removeItem('gagyebu-lang')
               window.location.reload()
             }
-          }} className="w-full py-2 rounded-xl bg-red-500 text-white text-sm font-medium">{t('resetLocalSettings')}</button>
+          }} className="app-button-danger w-full">{t('resetLocalSettings')}</button>
         </div>
       </div>
 
