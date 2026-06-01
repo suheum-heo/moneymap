@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol } from '../types'
+import { Entry, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, getAmountInputProps } from '../types'
 import { useSettings } from '../useSettings'
 import { useCategories } from '../useCategories'
 
@@ -94,6 +94,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const editCats = editType === 'expense' ? expenseCategories : incomeCategories
   const editDays = Array.from({ length: daysInMonth(editMonth, editYear) }, (_, i) => i + 1)
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
+  const editAmountProps = getAmountInputProps(editEntry?.currency || cur)
 
   const inputCls = "app-input py-3 text-sm"
   const miniSelCls = "app-select w-full px-3 py-2.5 text-sm"
@@ -134,7 +135,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('amount')} ({cur} {getCurrencySymbol(cur)})</label>
-              <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className={inputCls} step="0.01" inputMode="decimal" style={{fontSize:'16px'}} />
+              <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>

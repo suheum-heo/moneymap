@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, getCurrencySymbol, CURRENCIES, formatAmountValue } from '../types'
+import { Entry, getCurrencySymbol, CURRENCIES, formatAmountValue, getAmountInputProps } from '../types'
 import { useSettings } from '../useSettings'
 import { useRecurring } from '../useRecurring'
 import { useCategories } from '../useCategories'
@@ -60,6 +60,9 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
   const maxDay = daysInMonth(month, year)
   const days = Array.from({ length: maxDay }, (_, i) => i + 1)
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
+  const primaryAmountCurrency = showCurrencyOverride ? currency : contextCur
+  const primaryAmountProps = getAmountInputProps(primaryAmountCurrency)
+  const actualChargedProps = getAmountInputProps(homeCur)
 
   const pastVenues = [...new Set(entries.map(e => e.venue).filter(Boolean))].sort()
   const pastLocations = [...new Set(entries.map(e => e.location).filter(Boolean))].sort()
@@ -180,7 +183,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
           </div>
           <div className="flex gap-2">
             <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-              placeholder="0.00" step="0.01" inputMode="decimal" className={inputCls} style={{ fontSize: '16px' }} />
+              placeholder={primaryAmountProps.placeholder} step={primaryAmountProps.step} inputMode={primaryAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
             {showCurrencyOverride && (
               <select value={currency} onChange={e => setCurrency(e.target.value)}
                 className="app-select flex-shrink-0 px-3 py-2.5 text-sm"
@@ -205,8 +208,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
               onChange={e => setActualCharged(e.target.value)}
               placeholder={t('actualChargedHint')}
               className={inputCls}
-              step="0.01"
-              inputMode="decimal"
+              step={actualChargedProps.step}
+              inputMode={actualChargedProps.inputMode}
               style={{ fontSize: '16px' }}
             />
           </div>

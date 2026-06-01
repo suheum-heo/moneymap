@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol, formatAmountValue, usesZeroDecimalCurrency } from '../types'
+import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol, formatAmountValue, getAmountInputProps, usesZeroDecimalCurrency } from '../types'
 import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { useRecurring, RecurringItem } from '../useRecurring'
@@ -55,6 +55,9 @@ export default function Settings() {
   const [editRec, setEditRec] = useState<RecurringItem | null>(null)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
+  const recurringAmountProps = getAmountInputProps(recCurrency)
+  const budgetAmountProps = getAmountInputProps(activeContext?.currency || 'USD')
+  const editRecurringAmountProps = getAmountInputProps(editRec?.currency || activeContext?.currency || 'USD')
 
   const inputCls = "app-input py-3 text-sm"
   const selCls = "app-select px-3 py-2.5 text-sm"
@@ -197,7 +200,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="app-kicker block mb-2">{t('amount')}</label>
-                      <input type="number" value={editRec.amount} onChange={e => setEditRec({ ...editRec, amount: parseFloat(e.target.value) })} className={inputCls} style={{ fontSize: '16px' }} />
+                      <input type="number" value={editRec.amount} onChange={e => setEditRec({ ...editRec, amount: parseFloat(e.target.value) })} className={inputCls} step={editRecurringAmountProps.step} inputMode={editRecurringAmountProps.inputMode} placeholder={editRecurringAmountProps.placeholder} style={{ fontSize: '16px' }} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -251,7 +254,7 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="app-kicker block mb-2">{t('amount')}</label>
-              <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder="0.00" className={inputCls} style={{ fontSize: '16px' }} />
+              <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder={recurringAmountProps.placeholder} step={recurringAmountProps.step} inputMode={recurringAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
             </div>
             <div>
               <label className="app-kicker block mb-2">Currency</label>
@@ -298,7 +301,7 @@ export default function Settings() {
           <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
             {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
-          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(e.target.value)} placeholder="Monthly limit" className={inputCls} style={{ fontSize: '16px' }} />
+          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(e.target.value)} placeholder="Monthly limit" step={budgetAmountProps.step} inputMode={budgetAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
           <button onClick={() => {
             if (!activeContext) return
             const amt = parseFloat(budgetAmt)

@@ -93,6 +93,15 @@ export function formatAmount(amount: number | string, currency: string): string 
   return `${sym}${formatAmountValue(amount, currency)}`
 }
 
+export function getAmountInputProps(currency: string) {
+  const zeroDecimal = usesZeroDecimalCurrency(currency)
+  return {
+    inputMode: zeroDecimal ? 'numeric' : 'decimal',
+    placeholder: zeroDecimal ? '0' : '0.00',
+    step: zeroDecimal ? '1' : '0.01',
+  } as const
+}
+
 export const CAT_COLORS: Record<string, string> = {
   Rent:'#378ADD', Utilities:'#3B6D11', Subscription:'#534AB7',
   'Food/Drink':'#D85A30', 'Coffee/Snack':'#BA7517', Grocery:'#1D9E75',
