@@ -21,21 +21,21 @@ export default function CategorySettings() {
 
       {/* Expense categories */}
       <div className="mb-3">
-        <div className="mb-2 text-xs font-medium text-zinc-500">{t('expenses')}</div>
+        <div className="mb-2 text-xs font-medium text-slate-500">{t('expenses')}</div>
         <div className="flex flex-wrap gap-1.5">
           {expCats.map(c => (
-            <div key={c.id} className="flex items-center gap-1 rounded-full border border-zinc-200/70 bg-white/75 px-3 py-2 dark:border-white/10 dark:bg-slate-950/45">
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">{c.name}</span>
+            <div key={c.id} className="flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-900/70">
+              <span className="text-sm text-slate-700 dark:text-zinc-300">{c.name}</span>
               {confirmId === c.id ? (
                 <>
                   <button onClick={() => { removeCategory(c.id); setConfirmId(null) }}
                     className="text-xs text-red-500 ml-1">✓</button>
                   <button onClick={() => setConfirmId(null)}
-                    className="text-xs text-zinc-400">✕</button>
+                    className="text-xs text-slate-400">✕</button>
                 </>
               ) : (
                 <button onClick={() => setConfirmId(c.id)}
-                  className="text-zinc-300 dark:text-zinc-600 hover:text-red-400 text-xs ml-1">✕</button>
+                  className="text-slate-300 dark:text-zinc-600 hover:text-red-400 text-xs ml-1">✕</button>
               )}
             </div>
           ))}
@@ -44,21 +44,21 @@ export default function CategorySettings() {
 
       {/* Income categories */}
       <div className="mb-4">
-        <div className="mb-2 text-xs font-medium text-zinc-500">{t('income')}</div>
+        <div className="mb-2 text-xs font-medium text-slate-500">{t('income')}</div>
         <div className="flex flex-wrap gap-1.5">
           {incCats.map(c => (
-            <div key={c.id} className="flex items-center gap-1 rounded-full border border-zinc-200/70 bg-white/75 px-3 py-2 dark:border-white/10 dark:bg-slate-950/45">
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">{c.name}</span>
+            <div key={c.id} className="flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-900/70">
+              <span className="text-sm text-slate-700 dark:text-zinc-300">{c.name}</span>
               {confirmId === c.id ? (
                 <>
                   <button onClick={() => { removeCategory(c.id); setConfirmId(null) }}
                     className="text-xs text-red-500 ml-1">✓</button>
                   <button onClick={() => setConfirmId(null)}
-                    className="text-xs text-zinc-400">✕</button>
+                    className="text-xs text-slate-400">✕</button>
                 </>
               ) : (
                 <button onClick={() => setConfirmId(c.id)}
-                  className="text-zinc-300 dark:text-zinc-600 hover:text-red-400 text-xs ml-1">✕</button>
+                  className="text-slate-300 dark:text-zinc-600 hover:text-red-400 text-xs ml-1">✕</button>
               )}
             </div>
           ))}

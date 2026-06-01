@@ -100,7 +100,7 @@ function AppContent({ user }: { user: User }) {
     { id: 'settings' as Tab, label: t('settings') },
   ]
 
-  const arrowCls = "app-button-secondary flex h-11 w-11 flex-shrink-0 items-center justify-center !px-0 !py-0 text-lg text-zinc-500 dark:text-zinc-300"
+  const arrowCls = "app-button-secondary flex h-11 w-11 flex-shrink-0 items-center justify-center !px-0 !py-0 text-lg text-slate-500 dark:text-slate-300"
   const pickerCls = "app-select w-full min-w-0 py-2.5 text-sm"
 
   const MonthYearPicker = ({ col = false }: { col?: boolean }) => (
@@ -120,10 +120,13 @@ function AppContent({ user }: { user: User }) {
 
   const Sidebar = () => (
     <div className="flex h-full flex-col px-4 py-5">
-      <div className="mb-6 rounded-[24px] border border-white/70 bg-white/60 px-4 py-4 shadow-[0_18px_38px_-30px_rgba(15,23,42,0.32)] dark:border-white/10 dark:bg-slate-950/45 dark:shadow-[0_20px_36px_-30px_rgba(0,0,0,0.72)]">
+      <div className="mb-6 rounded-[26px] border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-white/10 dark:bg-slate-900/70">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#edf4ff] text-sm font-semibold text-[#3182f6] dark:bg-[#3182f6]/15 dark:text-sky-300">
+          MM
+        </div>
         <div className="app-kicker mb-2">{t('appName')}</div>
-        <h1 className="text-[1.35rem] font-semibold text-zinc-900 dark:text-zinc-50">{activeContext?.name || t('appName')}</h1>
-        <div className="mt-1 text-xs text-zinc-400 truncate">{user.email}</div>
+        <h1 className="text-[1.35rem] font-semibold text-slate-900 dark:text-zinc-50">{activeContext?.name || t('appName')}</h1>
+        <div className="mt-1 text-xs text-slate-400 truncate">{user.email}</div>
       </div>
       <div className="mb-4">
         <div className="app-kicker mb-2 px-2">{t('contexts')}</div>
@@ -132,32 +135,32 @@ function AppContent({ user }: { user: User }) {
           const isActive = c.id === activeContextId
           return (
             <button key={c.id} onClick={() => { switchContext(c.id); setTab('overview') }}
-              className={`mb-1 flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm transition-all ${isActive
-                ? 'border border-indigo-100 bg-indigo-50/90 text-indigo-700 shadow-[0_16px_32px_-28px_rgba(99,115,255,0.85)] dark:border-indigo-400/20 dark:bg-indigo-500/15 dark:text-indigo-200'
-                : 'text-zinc-500 hover:bg-white/80 hover:text-zinc-900 dark:hover:bg-slate-950/70 dark:hover:text-zinc-100'}`}>
+              className={`mb-1 flex w-full items-center justify-between rounded-[20px] px-3 py-3 text-left text-sm transition-all ${isActive
+                ? 'border border-[#dbe8ff] bg-[#eef5ff] text-[#1f5fbf] shadow-[0_14px_26px_-24px_rgba(49,130,246,0.8)] dark:border-sky-400/20 dark:bg-sky-500/12 dark:text-sky-200'
+                : 'text-slate-500 hover:bg-white hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'}`}>
               <span>{c.name}</span>
               <span className="text-xs opacity-60">{sym} {c.currency}</span>
             </button>
           )
         })}
       </div>
-      <div className="mx-2 my-3 border-t border-zinc-200/70 dark:border-white/10" />
+      <div className="mx-2 my-3 border-t border-slate-200/80 dark:border-white/10" />
       <nav className="flex flex-1 flex-col gap-1">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`rounded-2xl px-3 py-3 text-left text-sm transition-all ${tab === t.id
-              ? 'bg-white/92 text-zinc-900 font-medium shadow-[0_16px_30px_-28px_rgba(15,23,42,0.55)] dark:bg-slate-950/78 dark:text-zinc-100'
-              : 'text-zinc-500 hover:bg-white/70 hover:text-zinc-900 dark:hover:bg-slate-950/70 dark:hover:text-zinc-100'}`}>
+            className={`rounded-[20px] px-3 py-3 text-left text-sm transition-all ${tab === t.id
+              ? 'bg-white text-slate-900 font-medium shadow-[0_14px_24px_-22px_rgba(15,23,42,0.32)] dark:bg-slate-900/90 dark:text-zinc-100'
+              : 'text-slate-500 hover:bg-white hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'}`}>
             {t.label}
           </button>
         ))}
       </nav>
-      <div className="app-panel-soft mt-5 flex flex-col gap-3 p-3">
+      <div className="app-panel-soft mt-5 flex flex-col gap-3 p-3.5">
         <div className="flex items-center gap-2">
           <button onClick={goPrevMonth} className={arrowCls}>‹</button>
           <div className="flex-1 text-center">
-            <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">{t('calendar')}</div>
-            <div className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">{monthLabel}</div>
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{t('calendar')}</div>
+            <div className="mt-1 text-sm font-medium text-slate-700 dark:text-zinc-200">{monthLabel}</div>
           </div>
           <button onClick={goNextMonth} className={arrowCls}>›</button>
         </div>
@@ -167,7 +170,7 @@ function AppContent({ user }: { user: User }) {
           {dark ? `☀️ ${t('light')}` : `🌙 ${t('dark')}`}
         </button>
         <button onClick={() => document.getElementById('sign-out-btn')?.click()}
-          className="rounded-2xl px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10 dark:hover:text-rose-300">
+          className="rounded-[18px] px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10 dark:hover:text-rose-300">
           Sign out
         </button>
       </div>
@@ -196,13 +199,13 @@ function AppContent({ user }: { user: User }) {
               <div className="app-kicker mb-2">{tabs.find(item => item.id === tab)?.label}</div>
               <div className="flex items-end justify-between gap-6">
                 <div>
-                  <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">{activeContext?.name}</h2>
-                  <p className="mt-2 text-base font-medium text-indigo-500 dark:text-indigo-300">{monthLabel}</p>
-                  <p className="mt-1 text-sm text-zinc-400">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                  <h2 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{activeContext?.name}</h2>
+                  <p className="mt-2 text-base font-medium text-[#3182f6] dark:text-sky-300">{monthLabel}</p>
+                  <p className="mt-1 text-sm text-slate-400">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                 </div>
-                <div className="hidden rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-3 text-right shadow-[0_18px_32px_-30px_rgba(15,23,42,0.28)] dark:border-white/10 dark:bg-slate-950/45 dark:shadow-[0_20px_34px_-30px_rgba(0,0,0,0.7)] lg:block">
-                  <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">{t('settings')}</div>
-                  <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{activeContext?.currency}{activeContext?.homeCurrency && activeContext.homeCurrency !== activeContext.currency ? ` → ${activeContext.homeCurrency}` : ''}</div>
+                <div className="hidden rounded-[24px] border border-slate-200/80 bg-slate-50 px-4 py-3 text-right lg:block dark:border-white/10 dark:bg-slate-900/70">
+                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{t('settings')}</div>
+                  <div className="mt-1 text-sm text-slate-700 dark:text-zinc-300">{activeContext?.currency}{activeContext?.homeCurrency && activeContext.homeCurrency !== activeContext.currency ? ` → ${activeContext.homeCurrency}` : ''}</div>
                 </div>
               </div>
             </div>
@@ -217,11 +220,11 @@ function AppContent({ user }: { user: User }) {
             <button onClick={() => setMobileMenuOpen(true)}
               className="flex-1 text-left">
               <div className="app-kicker mb-1">{tabs.find(item => item.id === tab)?.label}</div>
-              <div className="flex items-center gap-1.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              <div className="flex items-center gap-1.5 text-lg font-semibold text-slate-900 dark:text-zinc-50">
                 <span className="truncate">{activeContext?.name}</span>
-                <span className="text-sm text-zinc-400 flex-shrink-0">▾</span>
+                <span className="text-sm text-slate-400 flex-shrink-0">▾</span>
               </div>
-              <p className="mt-1 text-sm font-medium text-indigo-500 dark:text-indigo-300">{monthLabel}</p>
+              <p className="mt-1 text-sm font-medium text-[#3182f6] dark:text-sky-300">{monthLabel}</p>
             </button>
             <button onClick={() => setDark(d => !d)}
               className="app-button-secondary flex h-11 w-11 flex-shrink-0 items-center justify-center !px-0 !py-0 text-sm">
@@ -232,7 +235,7 @@ function AppContent({ user }: { user: User }) {
           <div className="mt-4 flex items-center gap-2">
             <button onClick={goPrevMonth} className={arrowCls}>‹</button>
             <div className="flex-1 text-center">
-              <p className="text-sm text-zinc-500 dark:text-zinc-300">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+              <p className="text-sm text-slate-500 dark:text-zinc-300">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
             </div>
             <button onClick={goNextMonth} className={arrowCls}>›</button>
           </div>
@@ -246,23 +249,23 @@ function AppContent({ user }: { user: User }) {
           <div className="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
             <div className="app-panel absolute bottom-0 left-3 right-3 rounded-b-none rounded-t-[30px] p-4 pb-8"
               onClick={e => e.stopPropagation()}>
-              <div className="text-xs text-zinc-400 mb-3 truncate">{user.email}</div>
+              <div className="text-xs text-slate-400 mb-3 truncate">{user.email}</div>
               <div className="app-kicker mb-3">{t('switchContext')}</div>
               {contexts.map(c => {
                 const sym = getCurrencySymbol(c.currency)
                 const isActive = c.id === activeContextId
                 return (
                   <button key={c.id} onClick={() => { switchContext(c.id); setMobileMenuOpen(false); setTab('overview') }}
-                    className={`mb-1.5 flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm transition-all ${isActive
-                      ? 'border border-indigo-100 bg-indigo-50/90 text-indigo-700 shadow-[0_16px_32px_-28px_rgba(99,115,255,0.85)] dark:border-indigo-400/20 dark:bg-indigo-500/15 dark:text-indigo-200'
-                      : 'bg-white/78 text-zinc-700 dark:bg-slate-950/55 dark:text-zinc-300'}`}>
+                    className={`mb-1.5 flex w-full items-center justify-between rounded-[20px] px-3 py-3 text-left text-sm transition-all ${isActive
+                      ? 'border border-[#dbe8ff] bg-[#eef5ff] text-[#1f5fbf] shadow-[0_14px_26px_-24px_rgba(49,130,246,0.8)] dark:border-sky-400/20 dark:bg-sky-500/12 dark:text-sky-200'
+                      : 'bg-white text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'}`}>
                     <span>{c.name}</span>
                     <span className="text-xs opacity-60">{sym} {c.currency}</span>
                   </button>
                 )
               })}
               <button onClick={() => document.getElementById('sign-out-btn')?.click()}
-                className="mt-3 w-full rounded-2xl border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-500 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">
+                className="mt-3 w-full rounded-[18px] border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-500 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">
                 Sign out
               </button>
             </div>
@@ -272,9 +275,9 @@ function AppContent({ user }: { user: User }) {
         <div className="app-panel-soft mt-4 grid grid-cols-5 gap-1 p-1.5">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`rounded-2xl px-2 py-2.5 text-sm transition-all ${tab === t.id
-                ? 'bg-white/92 text-zinc-900 font-medium shadow-[0_16px_30px_-28px_rgba(15,23,42,0.55)] dark:bg-slate-950/78 dark:text-zinc-100'
-                : 'text-zinc-400'}`}>
+              className={`rounded-[18px] px-2 py-2.5 text-sm transition-all ${tab === t.id
+                ? 'bg-white text-slate-900 font-medium shadow-[0_12px_20px_-18px_rgba(15,23,42,0.24)] dark:bg-slate-900/90 dark:text-zinc-100'
+                : 'text-slate-400 dark:text-slate-500'}`}>
               {t.label}
             </button>
           ))}

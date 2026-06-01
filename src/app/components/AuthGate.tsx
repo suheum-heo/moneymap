@@ -50,25 +50,25 @@ export default function AuthGate({ children }: Props) {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">Loading…</div>
+    <div className="flex items-center justify-center min-h-screen text-slate-400 text-sm">Loading…</div>
   )
 
   if (!user) return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="app-panel px-6 py-7">
+      <div className="w-full max-w-md">
+        <div className="app-panel px-6 py-8 sm:px-7">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-indigo-50 text-2xl text-indigo-500 shadow-[0_18px_28px_-20px_rgba(92,108,255,0.45)] dark:bg-indigo-500/15 dark:text-indigo-300">◎</div>
-            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">MoneyMap</h1>
-            <p className="text-sm text-zinc-400">Personal budget tracker</p>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#edf4ff] text-lg font-semibold text-[#3182f6] dark:bg-[#3182f6]/15 dark:text-sky-300">MM</div>
+            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">MoneyMap</h1>
+            <p className="text-sm text-slate-400">Simple personal finance, organized clearly.</p>
           </div>
 
           {sent ? (
             <div className="app-panel-soft p-6 text-center">
               <div className="text-2xl mb-3">📧</div>
-              <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100 mb-2">Check your email</div>
-              <div className="text-xs text-zinc-400">We sent a magic link to <span className="font-medium text-zinc-600 dark:text-zinc-300">{email}</span></div>
-              <button onClick={() => { setSent(false); setShowEmail(false) }} className="mt-4 text-xs font-medium text-indigo-500 dark:text-indigo-300">Use a different method</button>
+              <div className="text-sm font-medium text-slate-800 dark:text-zinc-100 mb-2">Check your email</div>
+              <div className="text-xs text-slate-400">We sent a magic link to <span className="font-medium text-slate-600 dark:text-zinc-300">{email}</span></div>
+              <button onClick={() => { setSent(false); setShowEmail(false) }} className="mt-4 text-xs font-medium text-[#3182f6] dark:text-sky-300">Use a different method</button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -85,9 +85,9 @@ export default function AuthGate({ children }: Props) {
               </button>
 
               <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                <span className="text-xs text-zinc-400">or</span>
-                <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
+                <span className="text-xs text-slate-400">or</span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
               </div>
 
               {/* Email magic link */}
@@ -102,12 +102,12 @@ export default function AuthGate({ children }: Props) {
                     style={{ fontSize: '16px' }}
                     onKeyDown={e => e.key === 'Enter' && signInWithEmail()}
                   />
-                  {error && <div className="px-1 text-xs text-red-500">{error}</div>}
+                  {error && <div className="px-1 text-xs text-rose-500">{error}</div>}
                   <button onClick={signInWithEmail}
                     className="app-button-primary w-full">
                     Send magic link
                   </button>
-                  <button onClick={() => setShowEmail(false)} className="text-center text-xs text-zinc-400">Cancel</button>
+                  <button onClick={() => setShowEmail(false)} className="text-center text-xs text-slate-400">Cancel</button>
                 </>
               ) : (
                 <button onClick={() => setShowEmail(true)}

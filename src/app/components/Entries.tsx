@@ -132,14 +132,14 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
             <div className="mb-1 flex items-center justify-between">
               <div>
                 <div className="app-kicker mb-2">{t('entries')}</div>
-                <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t('editEntry')}</span>
+                <span className="text-base font-semibold text-slate-900 dark:text-zinc-50">{t('editEntry')}</span>
               </div>
-              <button onClick={() => setEditEntry(null)} className="text-zinc-400 text-lg">✕</button>
+              <button onClick={() => setEditEntry(null)} className="text-slate-400 text-lg">✕</button>
             </div>
             <div className="mt-4 flex gap-2">
               {(['expense', 'income'] as const).map(tp => (
                 <button key={tp} onClick={() => { setEditType(tp); setEditCategory(tp === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0]) }}
-                  className={`flex-1 rounded-2xl border py-2.5 text-sm font-medium transition-colors ${editType === tp ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-zinc-200/80 bg-white/70 text-zinc-500 dark:border-white/10 dark:bg-slate-950/40 dark:text-zinc-300'}`}>
+                  className={`app-segment flex-1 ${editType === tp ? 'app-segment-active' : ''}`}>
                   {tp === 'expense' ? t('expense') : t('income2')}
                 </button>
               ))}
@@ -211,7 +211,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
             {allCats.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button onClick={() => setWeekOnly(v => !v)}
-            className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors ${weekOnly ? 'bg-indigo-500 text-white shadow-[0_18px_26px_-18px_rgba(92,108,255,0.85)]' : 'app-button-secondary'}`}>
+            className={weekOnly ? 'app-segment app-segment-active' : 'app-button-secondary'}>
             {t('thisWeek')}
           </button>
           <button onClick={exportCSV} className="app-button-secondary ml-auto px-4 py-2.5 text-xs">
@@ -221,14 +221,14 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
       </div>
 
       {weekOnly && weekTotal !== null && (
-        <div className="app-panel-soft flex items-center justify-between gap-3 px-4 py-3">
-          <span className="text-xs font-medium text-indigo-600 dark:text-indigo-300">{t('thisWeek')} ({weekRange.start.slice(5)} – {weekRange.end.slice(5)})</span>
+        <div className="app-panel flex items-center justify-between gap-3 px-4 py-3">
+          <span className="text-xs font-medium text-[#3182f6] dark:text-sky-300">{t('thisWeek')} ({weekRange.start.slice(5)} – {weekRange.end.slice(5)})</span>
           <span className="text-sm font-semibold text-rose-500 dark:text-rose-300">-{formatAmount(weekTotal, cur)}</span>
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div className="app-panel-soft py-14 text-center text-sm text-zinc-400">{t('noEntriesFound')}</div>
+        <div className="app-panel py-14 text-center text-sm text-slate-400">{t('noEntriesFound')}</div>
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map(e => {
@@ -236,28 +236,33 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
             const isIncome = e.type === 'income'
             const converted = showConversion ? (e.homeAmount ?? convert(e.amount, cur, homeCur)) : null
             return (
-              <div key={e.id} className="app-panel-soft flex items-start gap-3 rounded-[24px] px-4 py-4" style={{ background: col + '12', borderLeft: `3px solid ${col}` }}>
-                <div className="w-12 flex-shrink-0 pt-0.5 text-xs text-zinc-400">{e.date.slice(5)}</div>
+              <div key={e.id} className="app-list-row flex items-start gap-3">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-xs font-medium text-slate-500 dark:bg-slate-900/80 dark:text-slate-300">
+                  {e.date.slice(5)}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="truncate text-sm font-medium leading-snug text-zinc-800 dark:text-zinc-100">{e.summary}</div>
-                  {e.venue && <div className="mt-1 truncate text-xs text-zinc-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
-                  {e.remarks && <div className="text-xs text-zinc-400 truncate">{e.remarks}</div>}
-                  <span className="mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: col + '22', color: col }}>{e.category}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: col }} />
+                    <div className="truncate text-sm font-medium leading-snug text-slate-800 dark:text-zinc-100">{e.summary}</div>
+                  </div>
+                  {e.venue && <div className="mt-1 truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                  {e.remarks && <div className="text-xs text-slate-400 truncate">{e.remarks}</div>}
+                  <span className="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: col + '14', color: col }}>{e.category}</span>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <div className="text-sm font-semibold" style={{ color: col }}>
                     {isIncome ? '+' : '-'}{formatAmount(e.amount, e.currency || cur)}
                   </div>
-                  {converted !== null && <div className="text-xs text-zinc-400">≈{formatAmount(converted, homeCur)}</div>}
+                  {converted !== null && <div className="text-xs text-slate-400">≈{formatAmount(converted, homeCur)}</div>}
                   <div className="mt-1 flex gap-2">
-                    <button onClick={() => openEdit(e)} className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:text-indigo-300 dark:hover:text-indigo-200">{t('edit')}</button>
+                    <button onClick={() => openEdit(e)} className="text-xs font-medium text-[#3182f6] hover:text-[#2272e7] dark:text-sky-300 dark:hover:text-sky-200">{t('edit')}</button>
                     {confirmId === e.id ? (
                       <>
                         <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="rounded-full border border-rose-200 px-2 py-1 text-xs font-medium text-rose-500 dark:border-rose-400/20 dark:text-rose-300">{t('deleteEntry')}</button>
-                        <button onClick={() => setConfirmId(null)} className="rounded-full border border-zinc-300/80 px-2 py-1 text-xs text-zinc-400 dark:border-white/10">{t('cancel')}</button>
+                        <button onClick={() => setConfirmId(null)} className="rounded-full border border-slate-300/80 px-2 py-1 text-xs text-slate-400 dark:border-white/10">{t('cancel')}</button>
                       </>
                     ) : (
-                      <button onClick={() => setConfirmId(e.id)} className="text-xs text-zinc-300 transition-colors hover:text-rose-400 dark:text-zinc-600">✕</button>
+                      <button onClick={() => setConfirmId(e.id)} className="text-xs text-slate-300 transition-colors hover:text-rose-400 dark:text-slate-600">✕</button>
                     )}
                   </div>
                 </div>

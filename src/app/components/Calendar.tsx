@@ -106,14 +106,14 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
             <div className="mb-1 flex items-center justify-between">
               <div>
                 <div className="app-kicker mb-2">{t('calendar')}</div>
-                <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t('editEntry')}</span>
+                <span className="text-base font-semibold text-slate-900 dark:text-zinc-50">{t('editEntry')}</span>
               </div>
-              <button onClick={() => setEditEntry(null)} className="text-zinc-400 text-lg">✕</button>
+              <button onClick={() => setEditEntry(null)} className="text-slate-400 text-lg">✕</button>
             </div>
             <div className="mt-4 flex gap-2">
               {(['expense', 'income'] as const).map(tp => (
                 <button key={tp} onClick={() => { setEditType(tp); setEditCategory(tp === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0]) }}
-                  className={`flex-1 rounded-2xl border py-2.5 text-sm font-medium transition-colors ${editType === tp ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-zinc-200/80 bg-white/70 text-zinc-500 dark:border-white/10 dark:bg-slate-950/40 dark:text-zinc-300'}`}>
+                  className={`app-segment flex-1 ${editType === tp ? 'app-segment-active' : ''}`}>
                   {tp === 'expense' ? t('expense') : t('income2')}
                 </button>
               ))}
@@ -171,7 +171,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
         <div className="app-kicker mb-3">{t('calendar')}</div>
         <div className="mb-2 grid grid-cols-7">
           {DAYS_EN.map(day => (
-            <div key={day} className="py-2 text-center text-xs font-medium text-zinc-400">{day}</div>
+            <div key={day} className="py-2 text-center text-xs font-medium text-slate-400">{day}</div>
           ))}
         </div>
 
@@ -186,15 +186,15 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
             const intensity = totals ? Math.min(totals.expense / maxExpense, 1) : 0
             return (
               <button key={date} onClick={() => setSelectedDay(isSelected ? null : date)}
-                className={`relative aspect-square rounded-[22px] border flex flex-col items-center justify-center transition-all ${isSelected ? 'border-indigo-300 ring-4 ring-indigo-100 dark:border-indigo-400 dark:ring-indigo-500/10' : 'border-zinc-200/60 dark:border-white/10'}`}
+                className={`relative aspect-square rounded-[22px] border flex flex-col items-center justify-center p-1.5 transition-all ${isSelected ? 'border-[#3182f6] ring-4 ring-[#3182f6]/10 dark:border-sky-400 dark:ring-sky-400/10' : 'border-slate-200/80 dark:border-white/10'}`}
                 style={{
-                  background: hasData ? `rgba(110, 128, 255, ${0.08 + intensity * 0.24})` : 'rgba(255,255,255,0.55)',
-                  borderColor: isToday ? '#6e80ff' : undefined,
+                  background: hasData ? `rgba(49, 130, 246, ${0.06 + intensity * 0.18})` : 'rgba(255,255,255,0.92)',
+                  borderColor: isToday ? '#3182f6' : undefined,
                 }}>
-                <span className={`text-xs md:text-base ${isToday ? 'font-bold text-indigo-500 dark:text-indigo-300' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                <span className={`text-xs md:text-base ${isToday ? 'font-bold text-[#3182f6] dark:text-sky-300' : 'text-slate-600 dark:text-zinc-400'}`}>
                   {dayNum}
                 </span>
-                {isToday && <span className="rounded-full bg-indigo-500 px-1.5 py-0.5 text-[8px] leading-tight text-white md:text-[10px]">{t('today')}</span>}
+                {isToday && <span className="rounded-full bg-[#3182f6] px-1.5 py-0.5 text-[8px] leading-tight text-white md:text-[10px]">{t('today')}</span>}
                 {totals?.expense > 0 && (
                   <span className="text-[10px] text-rose-500 dark:text-rose-300 md:text-sm">
                     -{formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
@@ -214,7 +214,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
       {selectedDay && (
         <div className="app-panel p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+            <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">
               {new Date(selectedDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </div>
             <div className="flex items-center gap-2">
@@ -222,11 +222,11 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                 className="app-button-primary px-4 py-2.5 text-xs">
                 + Add entry
               </button>
-              <button onClick={() => setSelectedDay(null)} className="text-zinc-400 text-sm">✕</button>
+              <button onClick={() => setSelectedDay(null)} className="text-slate-400 text-sm">✕</button>
             </div>
           </div>
           {selectedEntries.length === 0 ? (
-            <div className="app-panel-soft py-8 text-center text-sm text-zinc-400">{t('noEntriesFound')}</div>
+            <div className="app-panel-soft py-8 text-center text-sm text-slate-400">{t('noEntriesFound')}</div>
           ) : (
             <>
               <div className="mb-4 grid grid-cols-2 gap-3">
@@ -247,12 +247,12 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                 {selectedEntries.map(e => {
                   const col = e.type === 'income' ? '#3B6D11' : (CAT_COLORS[e.category] || '#888')
                   return (
-                    <div key={e.id} className="app-panel-soft flex cursor-pointer items-center gap-3 rounded-[24px] px-4 py-4"
-                      style={{ background: col + '14', borderLeft: `3px solid ${col}` }}
+                    <div key={e.id} className="app-list-row flex cursor-pointer items-center gap-3"
                       onClick={() => openEdit(e)}>
+                      <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
                       <div className="flex-1 min-w-0">
-                        <div className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{e.summary}</div>
-                        {e.venue && <div className="mt-1 truncate text-xs text-zinc-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                        <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
+                        {e.venue && <div className="mt-1 truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
                         <span className="mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: col + '25', color: col }}>{e.category}</span>
                       </div>
                       <div className="flex flex-col items-end gap-1">
@@ -262,10 +262,10 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                         {confirmId === e.id ? (
                           <div className="flex gap-1" onClick={ev => ev.stopPropagation()}>
                             <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="rounded-full border border-rose-200 px-2 py-1 text-xs font-medium text-rose-500 dark:border-rose-400/20 dark:text-rose-300">{t('deleteEntry')}</button>
-                            <button onClick={() => setConfirmId(null)} className="rounded-full border border-zinc-300/80 px-2 py-1 text-xs text-zinc-400 dark:border-white/10">{t('cancel')}</button>
+                            <button onClick={() => setConfirmId(null)} className="rounded-full border border-slate-300/80 px-2 py-1 text-xs text-slate-400 dark:border-white/10">{t('cancel')}</button>
                           </div>
                         ) : (
-                          <button onClick={ev => { ev.stopPropagation(); setConfirmId(e.id) }} className="text-xs text-zinc-300 transition-colors hover:text-rose-400 dark:text-zinc-600">✕</button>
+                          <button onClick={ev => { ev.stopPropagation(); setConfirmId(e.id) }} className="text-xs text-slate-300 transition-colors hover:text-rose-400 dark:text-slate-600">✕</button>
                         )}
                       </div>
                     </div>
@@ -278,7 +278,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
       )}
 
       {monthEntries.length === 0 && (
-        <div className="app-panel-soft py-14 text-center text-sm text-zinc-400">{t('noEntries')}</div>
+        <div className="app-panel py-14 text-center text-sm text-slate-400">{t('noEntries')}</div>
       )}
     </div>
   )

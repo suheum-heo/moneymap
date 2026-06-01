@@ -18,10 +18,10 @@ export default function LanguageSelector() {
           <button
             key={lang.code}
             onClick={() => changeLang(lang.code)}
-            className={`rounded-2xl px-3 py-3 text-left text-sm transition-colors ${
+            className={`rounded-[18px] px-3 py-3 text-left text-sm transition-colors ${
               i18n.language === lang.code
-                ? 'border border-indigo-500 bg-indigo-500 text-white font-medium'
-                : 'border border-zinc-200/70 bg-white/70 text-zinc-700 dark:border-white/10 dark:bg-slate-950/45 dark:text-zinc-300'
+                ? 'border border-[#3182f6] bg-[#3182f6] text-white font-medium shadow-[0_12px_22px_-16px_rgba(49,130,246,0.72)]'
+                : 'border border-slate-200/80 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-slate-900/70 dark:text-zinc-300'
             }`}>
             {lang.label}
           </button>

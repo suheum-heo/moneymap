@@ -101,9 +101,9 @@ export default function Settings() {
             <div className="mb-1 flex items-center justify-between">
               <div>
                 <div className="app-kicker mb-2">{t('settings')}</div>
-                <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t('editContext')}</span>
+                <span className="text-base font-semibold text-slate-900 dark:text-zinc-50">{t('editContext')}</span>
               </div>
-              <button onClick={() => setEditingCtx(null)} className="text-zinc-400 text-lg">✕</button>
+              <button onClick={() => setEditingCtx(null)} className="text-slate-400 text-lg">✕</button>
             </div>
             <div className="mt-4">
               <label className="app-kicker block mb-2">{t('newContext')}</label>
@@ -141,14 +141,14 @@ export default function Settings() {
         <div className="app-kicker mb-3">{t('contexts')}</div>
         <div className="flex flex-col gap-2 mb-4">
           {contexts.map((c: Context) => (
-            <div key={c.id} className="rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-4 dark:border-white/10 dark:bg-slate-950/45">
+            <div key={c.id} className="app-list-row">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{c.name}</div>
-                  <div className="text-xs text-zinc-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {c.startDate}</div>
+                  <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{c.name}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {c.startDate}</div>
                 </div>
                 <div className="flex gap-3 ml-3">
-                  <button onClick={() => openEditCtx(c)} className="text-xs font-medium text-indigo-500 dark:text-indigo-300">{t('edit')}</button>
+                  <button onClick={() => openEditCtx(c)} className="text-xs font-medium text-[#3182f6] dark:text-sky-300">{t('edit')}</button>
                   <button onClick={() => removeContext(c.id)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
@@ -184,10 +184,10 @@ export default function Settings() {
       {/* Recurring payments */}
       <div className="app-panel p-4 sm:p-5">
         <div className="app-kicker mb-3">{t('recurringPayments').replace('⟳ ', '')}</div>
-        <p className="text-xs text-zinc-400 mb-3">{activeContext?.name}</p>
+        <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {contextRecurring.map(item => (
-            <div key={item.id} className="rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-4 dark:border-white/10 dark:bg-slate-950/45">
+            <div key={item.id} className="app-list-row">
               {editingRecId === item.id && editRec ? (
                 <div className="flex flex-col gap-3">
                   <div className="grid grid-cols-2 gap-2">
@@ -226,21 +226,21 @@ export default function Settings() {
               ) : (
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{item.summary}</div>
-                    <div className="text-xs text-zinc-400 mt-0.5">
+                    <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{item.summary}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">
                       {getCurrencySymbol(item.currency)}{item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {item.currency} · {item.category}
                       {item.remarks ? ` · ${item.remarks}` : ''}
                     </div>
                   </div>
                   <div className="flex gap-3 ml-3">
-                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }} className="text-xs font-medium text-indigo-500 dark:text-indigo-300">{t('edit')}</button>
+                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }} className="text-xs font-medium text-[#3182f6] dark:text-sky-300">{t('edit')}</button>
                     <button onClick={() => deleteItem(item.id)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
                   </div>
                 </div>
               )}
             </div>
           ))}
-          {contextRecurring.length === 0 && <div className="app-panel-soft py-8 text-center text-xs text-zinc-400">—</div>}
+          {contextRecurring.length === 0 && <div className="app-panel-soft py-8 text-center text-xs text-slate-400">—</div>}
         </div>
         <div className="app-panel-soft flex flex-col gap-3 p-4">
           <div className="app-kicker">Add recurring</div>
@@ -279,15 +279,15 @@ export default function Settings() {
       {/* Budgets */}
       <div className="app-panel p-4 sm:p-5">
         <div className="app-kicker mb-3">{t('monthlyBudgets')}</div>
-        <p className="text-xs text-zinc-400 mb-3">{activeContext?.name}</p>
+        <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {EXPENSE_CATEGORIES.map(cat => {
             const b = activeContext ? getBudget(activeContext.id, cat) : null
             return b ? (
-              <div key={cat} className="flex items-center justify-between rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-slate-950/45">
-                <span className="text-sm text-zinc-800 dark:text-zinc-100">{cat}</span>
+              <div key={cat} className="app-list-row flex items-center justify-between !py-3">
+                <span className="text-sm text-slate-800 dark:text-zinc-100">{cat}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-indigo-500 dark:text-indigo-300">{activeContext?.currency} {b.toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-[#3182f6] dark:text-sky-300">{activeContext?.currency} {b.toLocaleString()}</span>
                   <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
@@ -311,7 +311,7 @@ export default function Settings() {
       <div className="app-panel p-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="app-kicker">{t('exchangeRates')}</div>
-          {ratesUpdated && <div className="text-xs text-zinc-400">Updated {ratesUpdated.toLocaleTimeString()}</div>}
+          {ratesUpdated && <div className="text-xs text-slate-400">Updated {ratesUpdated.toLocaleTimeString()}</div>}
         </div>
         <div className="app-panel-soft p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -324,7 +324,7 @@ export default function Settings() {
             </select>
           </div>
           {rateFrom !== rateTo && (
-            <div className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+            <div className="text-lg font-semibold text-slate-800 dark:text-zinc-100">
               1 {rateFrom} = {convert(1, rateFrom, rateTo).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {rateTo}
             </div>
           )}
@@ -335,7 +335,7 @@ export default function Settings() {
       <div className="app-panel p-4 sm:p-5">
         <div className="app-kicker mb-3">{t('reset')}</div>
         <div className="app-panel-soft p-4">
-          <p className="text-xs text-zinc-400 mb-3">Clear local settings (exchange rates, theme). Your data in Supabase is not affected.</p>
+          <p className="text-xs text-slate-400 mb-3">Clear local settings (exchange rates, theme). Your data in Supabase is not affected.</p>
           <button onClick={() => {
             if (confirm(t('reset') + '?')) {
               localStorage.removeItem('gagyebu-active-context')

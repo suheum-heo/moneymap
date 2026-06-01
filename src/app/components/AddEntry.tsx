@@ -121,9 +121,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
         <div className="flex gap-2">
         {(['expense', 'income'] as const).map(tp => (
           <button key={tp} onClick={() => handleTypeChange(tp)}
-            className={`flex-1 rounded-2xl border py-2.5 text-sm font-medium transition-colors ${entryType === tp
-              ? 'border-indigo-500 bg-indigo-500 text-white'
-              : 'border-zinc-200/80 bg-white/70 text-zinc-500 dark:border-white/10 dark:bg-slate-950/40 dark:text-zinc-300'}`}>
+            className={`app-segment flex-1 ${entryType === tp ? 'app-segment-active' : ''}`}>
             {tp === 'expense' ? t('expense') : t('income2')}
           </button>
         ))}
@@ -133,7 +131,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
       {entryType === 'expense' && contextRecurring.length > 0 && (
         <div className="app-panel-soft p-4 sm:p-5">
           <button onClick={() => setShowRecurring(v => !v)}
-            className="flex w-full items-center justify-between rounded-2xl border border-indigo-100 bg-indigo-50/80 px-4 py-3 text-left text-sm font-medium text-indigo-600 dark:border-indigo-400/15 dark:bg-indigo-500/10 dark:text-indigo-300">
+            className="flex w-full items-center justify-between rounded-[20px] border border-[#dbe8ff] bg-[#eef5ff] px-4 py-3 text-left text-sm font-medium text-[#1f5fbf] dark:border-sky-400/15 dark:bg-sky-500/10 dark:text-sky-300">
             <span>{t('recurringPayments')}</span>
             <span>{showRecurring ? '▲' : '▼'}</span>
           </button>
@@ -141,12 +139,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
             <div className="mt-3 flex flex-col gap-2">
               {contextRecurring.map(r => (
                 <button key={r.id} onClick={() => applyRecurring(r)}
-                  className="flex w-full items-center justify-between rounded-[24px] border border-zinc-200/70 bg-white/70 px-4 py-3 text-left dark:border-white/10 dark:bg-slate-950/45">
+                  className="app-list-row flex w-full items-center justify-between text-left">
                   <div className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{r.summary}</span>
-                    {r.remarks && <span className="mt-1 block text-xs text-zinc-400">{r.remarks}</span>}
+                    <span className="block truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{r.summary}</span>
+                    {r.remarks && <span className="mt-1 block text-xs text-slate-400">{r.remarks}</span>}
                   </div>
-                  <span className="ml-3 text-sm font-semibold text-indigo-500 dark:text-indigo-300">
+                  <span className="ml-3 text-sm font-semibold text-[#3182f6] dark:text-sky-300">
                     {getCurrencySymbol(r.currency)}{r.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {r.currency !== contextCur ? r.currency : ''}
                   </span>
                 </button>
@@ -176,7 +174,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
             <label className="app-kicker">{t('amount')} ({showCurrencyOverride ? currency : contextCur} {showCurrencyOverride ? getCurrencySymbol(currency) : sym})</label>
-            <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur); setActualCharged('') }} className="text-xs font-medium text-indigo-500 dark:text-indigo-300">
+            <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur); setActualCharged('') }} className="text-xs font-medium text-[#3182f6] dark:text-sky-300">
               {showCurrencyOverride ? t('useDefaultCurrency') : t('differentCurrency')}
             </button>
           </div>
@@ -199,7 +197,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
               <label className="app-kicker">
                 {t('actualCharged')} ({homeCur} {homeSym})
               </label>
-              <span className="text-xs text-zinc-300 dark:text-zinc-600">{t('optional')}</span>
+              <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
             </div>
             <input
               type="number"
@@ -250,7 +248,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
           </div>
         </div>
 
-        {error && <div className="text-xs text-red-500">{error}</div>}
+        {error && <div className="text-xs text-rose-500">{error}</div>}
 
         <button onClick={handleSubmit}
           className="app-button-primary mt-1 w-full">
