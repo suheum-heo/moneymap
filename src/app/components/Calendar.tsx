@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, getAmountInputProps } from '../types'
+import { Entry, CAT_COLORS, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
 import { useSettings } from '../useSettings'
 import { useCategories } from '../useCategories'
 
@@ -38,6 +38,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
 
   const cur = activeContext?.currency || 'USD'
+  const homeCur = activeContext?.homeCurrency || cur
 
   const monthEntries = useMemo(() =>
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
@@ -84,17 +85,18 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
 
   const handleSave = () => {
     if (!editEntry) return
-    const parsed = parseFloat(editAmount)
+    const parsed = parseCurrencyInput(editAmount, editCurrency)
     if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
     const dateStr = `${editYear}-${String(editMonth + 1).padStart(2, '0')}-${String(editDay).padStart(2, '0')}`
-    onUpdate({ ...editEntry, type: editType, date: dateStr, amount: parsed, summary: editSummary.trim(), venue: editVenue.trim(), location: editLocation.trim(), category: editCategory, remarks: editRemarks.trim() })
+    onUpdate({ ...editEntry, type: editType, date: dateStr, amount: parsed, currency: editCurrency, summary: editSummary.trim(), venue: editVenue.trim(), location: editLocation.trim(), category: editCategory, remarks: editRemarks.trim() })
     setEditEntry(null)
   }
 
   const editCats = editType === 'expense' ? expenseCategories : incomeCategories
   const editDays = Array.from({ length: daysInMonth(editMonth, editYear) }, (_, i) => i + 1)
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
-  const editAmountProps = getAmountInputProps(editEntry?.currency || cur)
+  const editCurrency = editEntry ? getEntryCurrency(editEntry, cur, homeCur) : cur
+  const editAmountProps = getAmountInputProps(editCurrency)
 
   const inputCls = "app-input py-3 text-sm"
   const miniSelCls = "app-select w-full px-3 py-2.5 text-sm"
@@ -134,8 +136,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               </div>
             </div>
             <div>
-              <label className="app-kicker mb-2 block">{t('amount')} ({cur} {getCurrencySymbol(cur)})</label>
-              <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
+              <label className="app-kicker mb-2 block">{t('amount')} ({editCurrency} {getCurrencySymbol(editCurrency)})</label>
+              <input type="number" value={editAmount} onChange={e => setEditAmount(normalizeAmountInputValue(e.target.value, editCurrency))} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>
@@ -246,6 +248,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               </div>
               <div className="flex flex-col gap-3">
                 {selectedEntries.map(e => {
+                  const entryCurrency = getEntryCurrency(e, cur, homeCur)
                   const col = e.type === 'income' ? '#3B6D11' : (CAT_COLORS[e.category] || '#888')
                   return (
                     <div key={e.id} className="app-list-row flex cursor-pointer items-center gap-3"
@@ -258,7 +261,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <div className="text-sm font-semibold" style={{ color: col }}>
-                          {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, e.currency || cur)}
+                          {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
                         </div>
                         {confirmId === e.id ? (
                           <div className="flex gap-1" onClick={ev => ev.stopPropagation()}>

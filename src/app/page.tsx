@@ -11,7 +11,7 @@ import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
 import { UserContext } from './UserContext'
-import { getCurrencySymbol, Context } from './types'
+import { getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context } from './types'
 import type { User } from '@supabase/supabase-js'
 
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
@@ -38,6 +38,7 @@ function AppContent({ user }: { user: User }) {
   const [dark, setDark] = useState<boolean | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const wheelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const repairedLegacyEntryIds = useRef<Set<string>>(new Set())
   const [calendarAddDate, setCalendarAddDate] = useState<string | null>(null)
 
   const now = new Date()
@@ -80,6 +81,26 @@ function AppContent({ user }: { user: User }) {
     document.documentElement.classList.toggle('dark', dark)
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
+
+  useEffect(() => {
+    if (!entriesLoaded || !settingsLoaded || contexts.length === 0) return
+    const contextsById = new Map(contexts.map(ctx => [ctx.id, ctx]))
+    const legacyEntries = entries.filter(entry => {
+      if (repairedLegacyEntryIds.current.has(entry.id)) return false
+      const ctx = contextsById.get(entry.context)
+      return !!ctx && shouldRepairLegacyEntryCurrency(entry, ctx.currency, ctx.homeCurrency)
+    })
+
+    legacyEntries.forEach(entry => {
+      const ctx = contextsById.get(entry.context)
+      if (!ctx) return
+      repairedLegacyEntryIds.current.add(entry.id)
+      void updateEntry({
+        ...entry,
+        currency: getEntryCurrency(entry, ctx.currency, ctx.homeCurrency),
+      })
+    })
+  }, [contexts, entries, entriesLoaded, settingsLoaded, updateEntry])
 
   if (!entriesLoaded || !settingsLoaded || dark === null) return (
     <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">{t('loading')}</div>

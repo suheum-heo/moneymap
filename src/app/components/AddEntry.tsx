@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, getCurrencySymbol, CURRENCIES, formatAmountValue, getAmountInputProps } from '../types'
+import { Entry, getCurrencySymbol, CURRENCIES, formatAmountValue, getAmountInputProps, normalizeAmountInputValue, parseCurrencyInput } from '../types'
 import { useSettings } from '../useSettings'
 import { useRecurring } from '../useRecurring'
 import { useCategories } from '../useCategories'
@@ -64,6 +64,18 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
   const primaryAmountProps = getAmountInputProps(primaryAmountCurrency)
   const actualChargedProps = getAmountInputProps(homeCur)
 
+  useEffect(() => {
+    if (!showCurrencyOverride) setCurrency(contextCur)
+  }, [contextCur, showCurrencyOverride])
+
+  useEffect(() => {
+    setAmount((prev: string) => normalizeAmountInputValue(prev, primaryAmountCurrency))
+  }, [primaryAmountCurrency])
+
+  useEffect(() => {
+    setActualCharged((prev: string) => normalizeAmountInputValue(prev, homeCur))
+  }, [homeCur])
+
   const pastVenues = [...new Set(entries.map(e => e.venue).filter(Boolean))].sort()
   const pastLocations = [...new Set(entries.map(e => e.location).filter(Boolean))].sort()
 
@@ -87,12 +99,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
 
   const handleSubmit = () => {
     if (!amount || !summary.trim()) { setError(t('amount') + ' & ' + t('summary') + ' required'); return }
-    const parsed = parseFloat(amount)
+    const parsed = parseCurrencyInput(amount, primaryAmountCurrency)
     if (isNaN(parsed) || parsed <= 0) { setError('Invalid amount'); return }
     if (!category) { setError('Please select a category'); return }
     setError('')
 
-    const parsedActual = actualCharged.trim() ? parseFloat(actualCharged.trim()) : undefined
+    const parsedActual = actualCharged.trim() ? parseCurrencyInput(actualCharged.trim(), homeCur) : undefined
 
     onAdd({
       id: Date.now().toString(),
@@ -104,7 +116,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
       category,
       amount: parsed,
       remarks: remarks.trim(),
-      currency,
+      currency: showCurrencyOverride ? currency : contextCur,
       context: activeContext?.id || '',
       homeAmount: parsedActual,
     })
@@ -182,7 +194,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
             </button>
           </div>
           <div className="flex gap-2">
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+            <input type="number" value={amount} onChange={e => setAmount(normalizeAmountInputValue(e.target.value, primaryAmountCurrency))}
               placeholder={primaryAmountProps.placeholder} step={primaryAmountProps.step} inputMode={primaryAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
             {showCurrencyOverride && (
               <select value={currency} onChange={e => setCurrency(e.target.value)}
@@ -205,7 +217,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate }: P
             <input
               type="number"
               value={actualCharged}
-              onChange={e => setActualCharged(e.target.value)}
+              onChange={e => setActualCharged(normalizeAmountInputValue(e.target.value, homeCur))}
               placeholder={t('actualChargedHint')}
               className={inputCls}
               step={actualChargedProps.step}

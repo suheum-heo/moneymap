@@ -93,6 +93,19 @@ export function formatAmount(amount: number | string, currency: string): string 
   return `${sym}${formatAmountValue(amount, currency)}`
 }
 
+export function normalizeAmountInputValue(value: string, currency: string): string {
+  if (!usesZeroDecimalCurrency(currency)) return value
+  const trimmed = value.trim()
+  if (!trimmed) return value
+  if (!/^-?\d+(?:\.0+)?$/.test(trimmed)) return value
+  return String(Math.round(Number(trimmed)))
+}
+
+export function parseCurrencyInput(value: string, currency: string): number {
+  const numeric = coerceAmount(value)
+  return usesZeroDecimalCurrency(currency) ? Math.round(numeric) : numeric
+}
+
 export function getAmountInputProps(currency: string) {
   const zeroDecimal = usesZeroDecimalCurrency(currency)
   return {
@@ -100,6 +113,41 @@ export function getAmountInputProps(currency: string) {
     placeholder: zeroDecimal ? '0' : '0.00',
     step: zeroDecimal ? '1' : '0.01',
   } as const
+}
+
+export function getEntryCurrency(
+  entry: Pick<Entry, 'amount' | 'currency' | 'homeAmount'>,
+  contextCurrency: string,
+  homeCurrency: string,
+): string {
+  const raw = normalizeCurrencyCode(entry.currency || contextCurrency)
+  const context = normalizeCurrencyCode(contextCurrency)
+  const home = normalizeCurrencyCode(homeCurrency || contextCurrency)
+  const amount = Math.abs(coerceAmount(entry.amount))
+
+  // Repair legacy entries that were saved with the home-currency fallback
+  // before the active context finished loading in the add-entry form.
+  if (
+    raw === home &&
+    raw !== context &&
+    entry.homeAmount == null &&
+    usesZeroDecimalCurrency(context) &&
+    !usesZeroDecimalCurrency(home) &&
+    Number.isInteger(amount) &&
+    amount >= 1000
+  ) {
+    return context
+  }
+
+  return raw
+}
+
+export function shouldRepairLegacyEntryCurrency(
+  entry: Pick<Entry, 'amount' | 'currency' | 'homeAmount'>,
+  contextCurrency: string,
+  homeCurrency: string,
+): boolean {
+  return getEntryCurrency(entry, contextCurrency, homeCurrency) !== normalizeCurrencyCode(entry.currency || contextCurrency)
 }
 
 export const CAT_COLORS: Record<string, string> = {

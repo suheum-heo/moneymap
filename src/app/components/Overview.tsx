@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, formatAmountValue } from '../types'
+import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency } from '../types'
 import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { Chart, registerables } from 'chart.js'
@@ -47,7 +47,7 @@ export default function Overview({ entries, month, onNavigate }: Props) {
   const net = income - expenses
 
   // Sum in home currency: use homeAmount if set, otherwise convert via live rate
-  const toHome = (e: Entry) => e.homeAmount ?? convert(e.amount, cur, homeCur)
+  const toHome = (e: Entry) => e.homeAmount ?? convert(e.amount, getEntryCurrency(e, cur, homeCur), homeCur)
 
   const expensesHome = useMemo(() =>
     monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
@@ -264,22 +264,25 @@ export default function Overview({ entries, month, onNavigate }: Props) {
                       return (
                         <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
                           <div className="space-y-2">
-                            {catEntriesForCat.map(e => (
-                              <div
-                                key={e.id}
-                                className="app-list-row flex items-center gap-3 !rounded-[20px] !px-3 !py-3"
-                              >
-                                <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
-                                <div className="w-10 flex-shrink-0 text-xs text-slate-400">{e.date.slice(5)}</div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                  {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                            {catEntriesForCat.map(e => {
+                              const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                              return (
+                                <div
+                                  key={e.id}
+                                  className="app-list-row flex items-center gap-3 !rounded-[20px] !px-3 !py-3"
+                                >
+                                  <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
+                                  <div className="w-10 flex-shrink-0 text-xs text-slate-400">{e.date.slice(5)}</div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
+                                    {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                                  </div>
+                                  <div className="flex-shrink-0 text-sm font-semibold" style={{ color: col }}>
+                                    -{formatAmount(e.amount, entryCurrency)}
+                                  </div>
                                 </div>
-                                <div className="flex-shrink-0 text-sm font-semibold" style={{ color: col }}>
-                                  -{formatAmount(e.amount, e.currency || cur)}
-                                </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                           <div className="px-2 pt-3 text-xs text-slate-400">
                             {catEntriesForCat.length} {catEntriesForCat.length === 1 ? 'entry' : 'entries'} · total {formatAmount(amt, cur)}

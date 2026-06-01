@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getAmountInputProps } from '../types'
+import { Entry, CAT_COLORS, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
 import { useSettings } from '../useSettings'
 import { useCategories } from '../useCategories'
 
@@ -95,16 +95,16 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
 
   const handleSave = () => {
     if (!editEntry) return
-    const parsed = parseFloat(editAmount)
+    const parsed = parseCurrencyInput(editAmount, editCurrency)
     if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
     const dateStr = `${editYear}-${String(editMonth + 1).padStart(2, '0')}-${String(editDay).padStart(2, '0')}`
-    onUpdate({ ...editEntry, type: editType, date: dateStr, amount: parsed, summary: editSummary.trim(), venue: editVenue.trim(), location: editLocation.trim(), category: editCategory, remarks: editRemarks.trim() })
+    onUpdate({ ...editEntry, type: editType, date: dateStr, amount: parsed, currency: editCurrency, summary: editSummary.trim(), venue: editVenue.trim(), location: editLocation.trim(), category: editCategory, remarks: editRemarks.trim() })
     setEditEntry(null)
   }
 
   const exportCSV = () => {
     const headers = [t('date'), t('expense') + '/' + t('income2'), t('summary'), t('venue'), t('location'), t('category'), t('amount'), 'Currency', t('remarks')]
-    const rows = filtered.map(e => [e.date, e.type, e.summary, e.venue || '', e.location || '', e.category, e.amount, e.currency || cur, e.remarks || ''])
+    const rows = filtered.map(e => [e.date, e.type, e.summary, e.venue || '', e.location || '', e.category, e.amount, getEntryCurrency(e, cur, homeCur), e.remarks || ''])
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -124,7 +124,8 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
   const editDays = Array.from({ length: daysInMonth(editMonth, editYear) }, (_, i) => i + 1)
   const editCats = editType === 'expense' ? expenseCategories : incomeCategories
-  const editAmountProps = getAmountInputProps(editEntry?.currency || cur)
+  const editCurrency = editEntry ? getEntryCurrency(editEntry, cur, homeCur) : cur
+  const editAmountProps = getAmountInputProps(editCurrency)
   return (
     <div className="px-4 pb-8 space-y-4">
       {editEntry && (
@@ -160,8 +161,8 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
               </div>
             </div>
             <div>
-              <label className="app-kicker mb-2 block">{t('amount')} ({cur})</label>
-              <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
+              <label className="app-kicker mb-2 block">{t('amount')} ({editCurrency} {getCurrencySymbol(editCurrency)})</label>
+              <input type="number" value={editAmount} onChange={e => setEditAmount(normalizeAmountInputValue(e.target.value, editCurrency))} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>
@@ -233,9 +234,10 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map(e => {
+            const entryCurrency = getEntryCurrency(e, cur, homeCur)
             const col = e.type === 'income' ? '#3B6D11' : (CAT_COLORS[e.category] || '#888')
             const isIncome = e.type === 'income'
-            const converted = showConversion ? (e.homeAmount ?? convert(e.amount, cur, homeCur)) : null
+            const converted = showConversion ? (e.homeAmount ?? convert(e.amount, entryCurrency, homeCur)) : null
             return (
               <div key={e.id} className="app-list-row flex items-start gap-3">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-xs font-medium text-slate-500 dark:bg-slate-900/80 dark:text-slate-300">
@@ -252,7 +254,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <div className="text-sm font-semibold" style={{ color: col }}>
-                    {isIncome ? '+' : '-'}{formatAmount(e.amount, e.currency || cur)}
+                    {isIncome ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
                   </div>
                   {converted !== null && <div className="text-xs text-slate-400">≈{formatAmount(converted, homeCur)}</div>}
                   <div className="mt-1 flex gap-2">

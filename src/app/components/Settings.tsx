@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol, formatAmountValue, getAmountInputProps, usesZeroDecimalCurrency } from '../types'
+import { CURRENCIES, Context, EXPENSE_CATEGORIES, getCurrencySymbol, formatAmountValue, getAmountInputProps, normalizeAmountInputValue, parseCurrencyInput, usesZeroDecimalCurrency } from '../types'
 import { useSettings } from '../useSettings'
 import { useBudgets } from '../useBudgets'
 import { useRecurring, RecurringItem } from '../useRecurring'
@@ -59,6 +59,10 @@ export default function Settings() {
   const budgetAmountProps = getAmountInputProps(activeContext?.currency || 'USD')
   const editRecurringAmountProps = getAmountInputProps(editRec?.currency || activeContext?.currency || 'USD')
 
+  useEffect(() => {
+    if (activeContext?.currency) setRecCurrency(activeContext.currency)
+  }, [activeContext?.currency])
+
   const inputCls = "app-input py-3 text-sm"
   const selCls = "app-select px-3 py-2.5 text-sm"
 
@@ -71,7 +75,7 @@ export default function Settings() {
 
   const handleAddRecurring = () => {
     if (!recSummary.trim() || !recAmount || !activeContext) return
-    const amt = parseFloat(recAmount)
+    const amt = parseCurrencyInput(recAmount, recCurrency)
     if (isNaN(amt) || amt <= 0) return
     const item: RecurringItem = {
       id: Date.now().toString(),
@@ -88,7 +92,7 @@ export default function Settings() {
 
   const handleSaveRec = () => {
     if (!editRec) return
-    const amt = parseFloat(editRec.amount.toString())
+    const amt = parseCurrencyInput(editRec.amount.toString(), editRec.currency)
     if (isNaN(amt) || amt <= 0) return
     updateItem({ ...editRec, amount: amt })
     setEditingRecId(null); setEditRec(null)
@@ -200,7 +204,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="app-kicker block mb-2">{t('amount')}</label>
-                      <input type="number" value={editRec.amount} onChange={e => setEditRec({ ...editRec, amount: parseFloat(e.target.value) })} className={inputCls} step={editRecurringAmountProps.step} inputMode={editRecurringAmountProps.inputMode} placeholder={editRecurringAmountProps.placeholder} style={{ fontSize: '16px' }} />
+                      <input type="number" value={editRec.amount} onChange={e => setEditRec({ ...editRec, amount: parseCurrencyInput(normalizeAmountInputValue(e.target.value, editRec.currency), editRec.currency) })} className={inputCls} step={editRecurringAmountProps.step} inputMode={editRecurringAmountProps.inputMode} placeholder={editRecurringAmountProps.placeholder} style={{ fontSize: '16px' }} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -254,7 +258,7 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="app-kicker block mb-2">{t('amount')}</label>
-              <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder={recurringAmountProps.placeholder} step={recurringAmountProps.step} inputMode={recurringAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
+              <input type="number" value={recAmount} onChange={e => setRecAmount(normalizeAmountInputValue(e.target.value, recCurrency))} placeholder={recurringAmountProps.placeholder} step={recurringAmountProps.step} inputMode={recurringAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
             </div>
             <div>
               <label className="app-kicker block mb-2">Currency</label>
@@ -301,10 +305,10 @@ export default function Settings() {
           <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
             {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
-          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(e.target.value)} placeholder="Monthly limit" step={budgetAmountProps.step} inputMode={budgetAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
+          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(normalizeAmountInputValue(e.target.value, activeContext?.currency || 'USD'))} placeholder="Monthly limit" step={budgetAmountProps.step} inputMode={budgetAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
           <button onClick={() => {
             if (!activeContext) return
-            const amt = parseFloat(budgetAmt)
+            const amt = parseCurrencyInput(budgetAmt, activeContext.currency)
             if (!isNaN(amt) && amt > 0) { setBudget(activeContext.id, budgetCat, amt); setBudgetAmt('') }
           }} className="app-button-primary w-full">{t('save')}</button>
         </div>
