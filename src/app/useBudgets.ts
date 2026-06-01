@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
+import { coerceAmount } from './types'
 import { useUserId } from './UserContext'
 
 export interface Budget { context: string; category: string; amount: number }
@@ -14,7 +15,7 @@ export function useBudgets() {
     if (!userId) { setLoaded(true); return }
     supabase.from('budgets').select('*').eq('user_id', userId)
       .then(({ data }) => {
-        setBudgets((data || []).map(r => ({ context: r.context, category: r.category, amount: r.amount })))
+        setBudgets((data || []).map(r => ({ context: r.context, category: r.category, amount: coerceAmount(r.amount) })))
         setLoaded(true)
       })
   }, [userId])

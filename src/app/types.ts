@@ -59,6 +59,15 @@ export function normalizeCurrencyCode(code: string): string {
   return code.trim().toUpperCase()
 }
 
+export function coerceAmount(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/,/g, '').trim())
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
+
 export function getCurrencySymbol(code: string): string {
   const normalized = normalizeCurrencyCode(code)
   return CURRENCIES.find(c => c.code === normalized)?.symbol || normalized
@@ -70,15 +79,16 @@ export function usesZeroDecimalCurrency(currency: string): boolean {
   return NO_DECIMAL_CURRENCIES.has(normalizeCurrencyCode(currency))
 }
 
-export function formatAmountValue(amount: number, currency: string): string {
+export function formatAmountValue(amount: number | string, currency: string): string {
+  const numeric = coerceAmount(amount)
   const noDecimal = usesZeroDecimalCurrency(currency)
-  return amount.toLocaleString(undefined, {
+  return numeric.toLocaleString(undefined, {
     minimumFractionDigits: noDecimal ? 0 : 2,
     maximumFractionDigits: noDecimal ? 0 : 2,
   })
 }
 
-export function formatAmount(amount: number, currency: string): string {
+export function formatAmount(amount: number | string, currency: string): string {
   const sym = getCurrencySymbol(currency)
   return `${sym}${formatAmountValue(amount, currency)}`
 }

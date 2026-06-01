@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
+import { coerceAmount, normalizeCurrencyCode } from './types'
 import { useUserId } from './UserContext'
 
 export interface RecurringItem {
@@ -19,7 +20,7 @@ export function useRecurring() {
       .then(({ data }) => {
         setItems((data || []).map(r => ({
           id: r.id, context: r.context, category: r.category,
-          amount: r.amount, currency: r.currency || 'USD',
+          amount: coerceAmount(r.amount), currency: normalizeCurrencyCode(r.currency || 'USD'),
           summary: r.summary, remarks: r.remarks || '',
         })))
         setLoaded(true)

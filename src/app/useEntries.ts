@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
-import { Entry } from './types'
+import { Entry, coerceAmount, normalizeCurrencyCode } from './types'
 import { useUserId } from './UserContext'
 
 export function useEntries() {
@@ -16,8 +16,8 @@ export function useEntries() {
         setEntries((data || []).map(r => ({
           id: r.id, type: r.type, date: r.date, summary: r.summary,
           venue: r.venue || '', location: r.location || '', category: r.category,
-          amount: r.amount, remarks: r.remarks || '', currency: r.currency || 'USD',
-          context: r.context, homeAmount: r.home_amount ?? undefined,
+          amount: coerceAmount(r.amount), remarks: r.remarks || '', currency: normalizeCurrencyCode(r.currency || 'USD'),
+          context: r.context, homeAmount: r.home_amount == null ? undefined : coerceAmount(r.home_amount),
         })))
         setLoaded(true)
       })

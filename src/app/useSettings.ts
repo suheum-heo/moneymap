@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Context } from './types'
+import { Context, normalizeCurrencyCode } from './types'
 import { supabase } from './lib/supabase'
 import { useUserId } from './UserContext'
 
@@ -72,8 +72,8 @@ export function useSettings() {
       .then(({ data }) => {
         if (data && data.length > 0) {
           const ctxs = data.map(r => ({
-            id: r.id, name: r.name, currency: r.currency,
-            homeCurrency: r.home_currency, startDate: r.start_date,
+            id: r.id, name: r.name, currency: normalizeCurrencyCode(r.currency || 'USD'),
+            homeCurrency: normalizeCurrencyCode(r.home_currency || r.currency || 'USD'), startDate: r.start_date,
           }))
           setContexts(ctxs)
           setActiveContextId(prev => prev || ctxs[0]?.id || '')
