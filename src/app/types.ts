@@ -55,14 +55,19 @@ export const CURRENCIES: { code: string; symbol: string; name: string }[] = [
   { code: 'VND', symbol: '₫', name: 'Vietnamese Dong' },
 ]
 
+export function normalizeCurrencyCode(code: string): string {
+  return code.trim().toUpperCase()
+}
+
 export function getCurrencySymbol(code: string): string {
-  return CURRENCIES.find(c => c.code === code)?.symbol || code
+  const normalized = normalizeCurrencyCode(code)
+  return CURRENCIES.find(c => c.code === normalized)?.symbol || normalized
 }
 
 const NO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY', 'VND', 'IDR', 'HUF', 'ISK', 'CLP', 'PYG'])
 
 export function usesZeroDecimalCurrency(currency: string): boolean {
-  return NO_DECIMAL_CURRENCIES.has(currency.toUpperCase())
+  return NO_DECIMAL_CURRENCIES.has(normalizeCurrencyCode(currency))
 }
 
 export function formatAmountValue(amount: number, currency: string): string {
