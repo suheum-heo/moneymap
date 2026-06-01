@@ -101,7 +101,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const miniSelCls = "app-select w-full px-3 py-2.5 text-sm"
 
   return (
-    <div className="px-4 pb-8 space-y-4">
+    <div className="px-4 pb-6 space-y-3">
       {editEntry && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-4 backdrop-blur-sm md:items-center" onClick={() => setEditEntry(null)}>
           <div className="app-panel w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
@@ -169,11 +169,11 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
         </div>
       )}
 
-      <div className="app-panel p-4 sm:p-5">
+      <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('calendar')}</div>
         <div className="mb-2 grid grid-cols-7">
           {DAYS_EN.map(day => (
-            <div key={day} className="py-2 text-center text-xs font-medium text-slate-400">{day}</div>
+            <div key={day} className="py-2 text-center text-[11px] font-medium tracking-[0.08em] text-slate-400/90">{day}</div>
           ))}
         </div>
 
@@ -198,12 +198,12 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                 </span>
                 {isToday && <span className="rounded-full bg-[#3182f6] px-1.5 py-0.5 text-[8px] leading-tight text-white md:text-[10px]">{t('today')}</span>}
                 {totals?.expense > 0 && (
-                  <span className="text-[10px] text-rose-500 dark:text-rose-300 md:text-sm">
+                  <span className="text-[10px] text-rose-400 dark:text-rose-300 md:text-sm">
                     -{formatAmount(totals.expense, cur).replace(/[^0-9.,]/g, '')}
                   </span>
                 )}
                 {totals?.income > 0 && (
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-300 md:text-sm">
+                  <span className="text-[10px] text-emerald-500 dark:text-emerald-300 md:text-sm">
                     +{formatAmount(totals.income, cur).replace(/[^0-9.,]/g, '')}
                   </span>
                 )}
@@ -214,7 +214,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
       </div>
 
       {selectedDay && (
-        <div className="app-panel p-4 sm:p-5">
+        <div className="app-panel p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">
               {new Date(selectedDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -233,15 +233,15 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
             <>
               <div className="mb-4 grid grid-cols-2 gap-3">
                 {selectedExpense > 0 && (
-                  <div className="app-panel-soft p-4">
+                  <div className="app-panel-soft p-3.5">
                     <div className="app-kicker mb-2">{t('spent')}</div>
-                    <div className="text-base font-semibold text-rose-500 dark:text-rose-300">{formatAmount(selectedExpense, cur)}</div>
+                    <div className="app-negative text-base font-semibold">{formatAmount(selectedExpense, cur)}</div>
                   </div>
                 )}
                 {selectedIncome > 0 && (
-                  <div className="app-panel-soft p-4">
+                  <div className="app-panel-soft p-3.5">
                     <div className="app-kicker mb-2">{t('earned')}</div>
-                    <div className="text-base font-semibold text-emerald-600 dark:text-emerald-300">{formatAmount(selectedIncome, cur)}</div>
+                    <div className="app-positive text-base font-semibold">{formatAmount(selectedIncome, cur)}</div>
                   </div>
                 )}
               </div>
@@ -264,11 +264,11 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
                         </div>
                         {confirmId === e.id ? (
                           <div className="flex gap-1" onClick={ev => ev.stopPropagation()}>
-                            <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="rounded-full border border-rose-200 px-2 py-1 text-xs font-medium text-rose-500 dark:border-rose-400/20 dark:text-rose-300">{t('deleteEntry')}</button>
+                            <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="rounded-full border border-rose-200/90 px-2 py-1 text-xs font-medium text-rose-400 dark:border-rose-400/20 dark:text-rose-300">{t('deleteEntry')}</button>
                             <button onClick={() => setConfirmId(null)} className="rounded-full border border-slate-300/80 px-2 py-1 text-xs text-slate-400 dark:border-white/10">{t('cancel')}</button>
                           </div>
                         ) : (
-                          <button onClick={ev => { ev.stopPropagation(); setConfirmId(e.id) }} className="text-xs text-slate-300 transition-colors hover:text-rose-400 dark:text-slate-600">✕</button>
+                          <button onClick={ev => { ev.stopPropagation(); setConfirmId(e.id) }} className="text-xs text-slate-300 transition-colors hover:text-rose-300 dark:text-slate-600">✕</button>
                         )}
                       </div>
                     </div>
@@ -281,7 +281,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
       )}
 
       {monthEntries.length === 0 && (
-        <div className="app-panel py-14 text-center text-sm text-slate-400">{t('noEntries')}</div>
+        <div className="app-panel py-12 text-center text-sm text-slate-400">{t('noEntries')}</div>
       )}
     </div>
   )

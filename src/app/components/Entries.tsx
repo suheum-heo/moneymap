@@ -127,7 +127,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
   const editCurrency = editEntry ? getEntryCurrency(editEntry, cur, homeCur) : cur
   const editAmountProps = getAmountInputProps(editCurrency)
   return (
-    <div className="px-4 pb-8 space-y-4">
+    <div className="px-4 pb-6 space-y-3">
       {editEntry && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-4 backdrop-blur-sm md:items-center" onClick={() => setEditEntry(null)}>
           <div className="app-panel w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
@@ -197,7 +197,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
         </div>
       )}
 
-      <div className="app-panel p-4 sm:p-5">
+      <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('entries')}</div>
         <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchEntries')}
           className={`${inputCls} mb-3`} style={{fontSize:'16px'}} />
@@ -224,13 +224,13 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
 
       {weekOnly && weekTotal !== null && (
         <div className="app-panel flex items-center justify-between gap-3 px-4 py-3">
-          <span className="text-xs font-medium text-[#3182f6] dark:text-sky-300">{t('thisWeek')} ({weekRange.start.slice(5)} – {weekRange.end.slice(5)})</span>
-          <span className="text-sm font-semibold text-rose-500 dark:text-rose-300">-{formatAmount(weekTotal, cur)}</span>
+          <span className="app-accent text-xs font-medium">{t('thisWeek')} ({weekRange.start.slice(5)} – {weekRange.end.slice(5)})</span>
+          <span className="app-negative text-sm font-semibold">-{formatAmount(weekTotal, cur)}</span>
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div className="app-panel py-14 text-center text-sm text-slate-400">{t('noEntriesFound')}</div>
+        <div className="app-panel py-12 text-center text-sm text-slate-400">{t('noEntriesFound')}</div>
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map(e => {
@@ -258,14 +258,14 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
                   </div>
                   {converted !== null && <div className="text-xs text-slate-400">≈{formatAmount(converted, homeCur)}</div>}
                   <div className="mt-1 flex gap-2">
-                    <button onClick={() => openEdit(e)} className="text-xs font-medium text-[#3182f6] hover:text-[#2272e7] dark:text-sky-300 dark:hover:text-sky-200">{t('edit')}</button>
+                    <button onClick={() => openEdit(e)} className="app-accent text-xs font-medium transition-colors hover:text-[#255fcb] dark:hover:text-sky-200">{t('edit')}</button>
                     {confirmId === e.id ? (
                       <>
-                        <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="rounded-full border border-rose-200 px-2 py-1 text-xs font-medium text-rose-500 dark:border-rose-400/20 dark:text-rose-300">{t('deleteEntry')}</button>
+                        <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="rounded-full border border-rose-200/90 px-2 py-1 text-xs font-medium text-rose-400 dark:border-rose-400/20 dark:text-rose-300">{t('deleteEntry')}</button>
                         <button onClick={() => setConfirmId(null)} className="rounded-full border border-slate-300/80 px-2 py-1 text-xs text-slate-400 dark:border-white/10">{t('cancel')}</button>
                       </>
                     ) : (
-                      <button onClick={() => setConfirmId(e.id)} className="text-xs text-slate-300 transition-colors hover:text-rose-400 dark:text-slate-600">✕</button>
+                      <button onClick={() => setConfirmId(e.id)} className="text-xs text-slate-300 transition-colors hover:text-rose-300 dark:text-slate-600">✕</button>
                     )}
                   </div>
                 </div>

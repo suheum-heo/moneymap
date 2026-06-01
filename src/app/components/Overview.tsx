@@ -14,6 +14,15 @@ interface Props {
   getBudget: (context: string, category: string) => number | null
 }
 
+function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
+  const raw = hex.replace('#', '')
+  if (raw.length !== 3 && raw.length !== 6) return hex
+  const full = raw.length === 3 ? raw.split('').map(char => char + char).join('') : raw
+  const channels = [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16))
+  const softened = channels.map(channel => Math.round(channel + (255 - channel) * mix))
+  return `rgba(${softened[0]}, ${softened[1]}, ${softened[2]}, ${alpha})`
+}
+
 export default function Overview({ entries, month, onNavigate, activeContext, convert, getBudget }: Props) {
   const { t } = useTranslation()
   const catChartRef = useRef<HTMLCanvasElement>(null)
@@ -27,8 +36,13 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
   const showConversion = cur !== homeCur
   const sym = getCurrencySymbol(cur)
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
-  const chartGridColor = isDark ? 'rgba(148,163,184,0.16)' : 'rgba(191,201,212,0.55)'
-  const chartTextColor = isDark ? '#94a3b8' : '#6b7684'
+  const chartGridColor = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(203,213,225,0.62)'
+  const chartTextColor = isDark ? '#95a2b3' : '#7b8794'
+  const accentBarColor = isDark ? 'rgba(112, 167, 250, 0.8)' : 'rgba(91, 142, 240, 0.86)'
+  const tooltipBackground = isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.97)'
+  const tooltipBorder = isDark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(203, 213, 225, 0.9)'
+  const tooltipTitle = isDark ? '#f8fafc' : '#0f172a'
+  const tooltipBody = isDark ? '#dbe4ef' : '#334155'
 
   const monthEntries = useMemo(() =>
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
@@ -105,14 +119,43 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
       type: 'bar',
       data: {
         labels: byCategory.map(([c]) => c),
-        datasets: [{ data: byCategory.map(([, v]) => parseFloat(v.toFixed(2))), backgroundColor: byCategory.map(([c]) => CAT_COLORS[c] || '#888'), borderRadius: 10, borderSkipped: false }]
+        datasets: [{
+          data: byCategory.map(([, v]) => parseFloat(v.toFixed(2))),
+          backgroundColor: byCategory.map(([c]) => softenColor(CAT_COLORS[c] || '#888', isDark ? 0.08 : 0.16, isDark ? 0.78 : 0.9)),
+          borderRadius: 12,
+          borderSkipped: false,
+          maxBarThickness: 26,
+          categoryPercentage: 0.74,
+          barPercentage: 0.88,
+        }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: tooltipBackground,
+            borderColor: tooltipBorder,
+            borderWidth: 1,
+            displayColors: false,
+            cornerRadius: 14,
+            padding: 12,
+            titleColor: tooltipTitle,
+            bodyColor: tooltipBody,
+            callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` }
+          }
+        },
         scales: {
-          x: { grid: { display: false }, ticks: { color: chartTextColor, font: { size: 11 }, maxRotation: 40, autoSkip: false } },
-          y: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11 } } }
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: chartTextColor, font: { size: 11, weight: 500 }, maxRotation: 32, autoSkipPadding: 12 }
+          },
+          y: {
+            grid: { color: chartGridColor, drawTicks: false },
+            border: { display: false },
+            ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11, weight: 500 }, padding: 8 }
+          }
         }
       }
     })
@@ -126,14 +169,43 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
       type: 'bar',
       data: {
         labels: byLocation.map(([l]) => l),
-        datasets: [{ data: byLocation.map(([, v]) => parseFloat(v.toFixed(2))), backgroundColor: '#3182f6', borderRadius: 10, borderSkipped: false }]
+        datasets: [{
+          data: byLocation.map(([, v]) => parseFloat(v.toFixed(2))),
+          backgroundColor: accentBarColor,
+          borderRadius: 12,
+          borderSkipped: false,
+          maxBarThickness: 20,
+          categoryPercentage: 0.76,
+          barPercentage: 0.88,
+        }]
       },
       options: {
         indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: tooltipBackground,
+            borderColor: tooltipBorder,
+            borderWidth: 1,
+            displayColors: false,
+            cornerRadius: 14,
+            padding: 12,
+            titleColor: tooltipTitle,
+            bodyColor: tooltipBody,
+            callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` }
+          }
+        },
         scales: {
-          x: { grid: { color: chartGridColor }, ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11 } } },
-          y: { grid: { display: false }, ticks: { color: chartTextColor, font: { size: 11 } } }
+          x: {
+            grid: { color: chartGridColor, drawTicks: false },
+            border: { display: false },
+            ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11, weight: 500 }, padding: 8 }
+          },
+          y: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: chartTextColor, font: { size: 11, weight: 500 } }
+          }
         }
       }
     })
@@ -151,20 +223,20 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
   }, [byCategory])
 
   return (
-    <div className="px-4 pb-8">
+    <div className="px-4 pb-6">
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: t('expenses'), value: fmt(expenses), sub: fmtHome(expensesHome), color: 'text-rose-500 dark:text-rose-300', filter: 'expense' },
-          { label: t('income'), value: fmt(income), sub: fmtHome(incomeHome), color: 'text-emerald-600 dark:text-emerald-300', filter: 'income' },
-          { label: t('net'), value: (net < 0 ? '-' : '') + fmt(net), sub: fmtHome(netHome), color: net < 0 ? 'text-rose-500 dark:text-rose-300' : 'text-[#3182f6] dark:text-sky-300', filter: 'all' },
+          { label: t('expenses'), value: fmt(expenses), sub: fmtHome(expensesHome), color: 'app-negative', filter: 'expense' },
+          { label: t('income'), value: fmt(income), sub: fmtHome(incomeHome), color: 'app-positive', filter: 'income' },
+          { label: t('net'), value: (net < 0 ? '-' : '') + fmt(net), sub: fmtHome(netHome), color: net < 0 ? 'app-negative' : 'app-accent', filter: 'all' },
         ].map(m => (
           <button
             key={m.label}
             onClick={() => onNavigate('entries', m.filter)}
-            className="app-panel flex flex-col items-start gap-3 p-6 text-left transition-transform hover:-translate-y-0.5"
+            className="app-panel flex flex-col items-start gap-2.5 p-5 text-left transition-transform hover:-translate-y-0.5"
           >
             <span className="app-kicker">{m.label}</span>
-            <span className={`whitespace-nowrap text-[1.72rem] font-semibold tracking-tight sm:text-[1.9rem] xl:text-[2rem] ${m.color}`}>{m.value}</span>
+            <span className={`whitespace-nowrap text-[1.72rem] font-semibold tracking-tight sm:text-[1.86rem] xl:text-[1.96rem] ${m.color}`}>{m.value}</span>
             {m.sub && <span className="text-sm text-slate-400">{m.sub}</span>}
           </button>
         ))}
@@ -176,14 +248,14 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="text-slate-500 dark:text-zinc-300">{t('vsLastMonth')}</span>
-              <span className={expenses <= lastMonthExpenses ? 'font-medium text-emerald-600 dark:text-emerald-300' : 'font-medium text-rose-500 dark:text-rose-300'}>
+              <span className={expenses <= lastMonthExpenses ? 'app-positive font-medium' : 'app-negative font-medium'}>
                 {expenses <= lastMonthExpenses ? '▼' : '▲'} {fmt(Math.abs(expenses - lastMonthExpenses))} {expenses <= lastMonthExpenses ? t('less') : t('more')}
               </span>
             </div>
             {isCurrentMonth && sameDayLastMonth > 0 && (
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-slate-500 dark:text-zinc-300">{t('vsSameDay')}</span>
-                <span className={expenses <= sameDayLastMonth ? 'font-medium text-emerald-600 dark:text-emerald-300' : 'font-medium text-rose-500 dark:text-rose-300'}>
+                <span className={expenses <= sameDayLastMonth ? 'app-positive font-medium' : 'app-negative font-medium'}>
                   {expenses <= sameDayLastMonth ? '▼' : '▲'} {fmt(Math.abs(expenses - sameDayLastMonth))} {expenses <= sameDayLastMonth ? t('less') : t('more')}
                 </span>
               </div>
@@ -193,12 +265,12 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
       )}
 
       {monthEntries.length === 0 && (
-        <div className="app-panel mt-6 py-14 text-center text-sm text-slate-400">{t('noEntries')}</div>
+        <div className="app-panel mt-5 py-12 text-center text-sm text-slate-400">{t('noEntries')}</div>
       )}
 
       {monthEntries.length > 0 && (
-        <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.95fr)]">
-          <div className="app-panel p-5 sm:p-6">
+        <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.95fr)]">
+          <div className="app-panel p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="app-kicker mb-2">{t('byCategory')}</div>
@@ -232,7 +304,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                                 <div className="flex items-center gap-2">
                                   <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: col }} />
                                   <span className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{cat}</span>
-                                  {isDanger && <span className="text-xs font-medium text-rose-500 dark:text-rose-300">Over!</span>}
+                                  {isDanger && <span className="app-negative text-xs font-medium">Over!</span>}
                                   {isWarning && <span className="text-xs font-medium text-amber-500">80%</span>}
                                 </div>
                                 <div className="mt-2 text-xs text-slate-400">{pct}% of spending</div>
@@ -247,7 +319,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                               <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
                                 <div
                                   className="h-full rounded-full transition-all"
-                                  style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#e15854' : isWarning ? '#f59e0b' : col }}
+                                  style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#d97784' : isWarning ? '#e7ae4b' : softenColor(col, 0.12, 0.95) }}
                                 />
                               </div>
                             )}
@@ -261,7 +333,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                       const col = CAT_COLORS[cat] || '#888'
                       const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => a.date.localeCompare(b.date))
                       return (
-                        <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
+                        <div className="rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
                           <div className="space-y-2">
                             {catEntriesForCat.map(e => {
                               const entryCurrency = getEntryCurrency(e, cur, homeCur)
@@ -296,7 +368,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
           </div>
 
           {byCategory.length > 0 && (
-            <div className="app-panel p-5 sm:p-6">
+            <div className="app-panel p-4 sm:p-5">
               <div className="mb-4">
                 <div className="app-kicker mb-2">{t('spendingChart')}</div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('spendingChart')}</h3>
@@ -310,8 +382,8 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
       )}
 
       {byLocation.length > 0 && (
-        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,1.05fr)]">
-          <div className="app-panel p-5 sm:p-6">
+        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,1.05fr)]">
+          <div className="app-panel p-4 sm:p-5">
             <div className="mb-4">
               <div className="app-kicker mb-2">{t('byLocation')}</div>
               <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t('byLocation')}</h3>
@@ -326,7 +398,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                       <span className="flex-shrink-0 text-xs text-slate-400">{pct}%</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
-                      <div className="h-full rounded-full bg-[#3182f6]" style={{ width: `${pct}%` }} />
+                      <div className="h-full rounded-full bg-[#5b8ef0]" style={{ width: `${pct}%` }} />
                     </div>
                     <div className="mt-3 text-right text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
                   </div>
@@ -335,7 +407,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
             </div>
           </div>
 
-          <div className="app-panel p-5 sm:p-6">
+          <div className="app-panel p-4 sm:p-5">
               <div className="mb-4">
                 <div className="app-kicker mb-2">{t('spendingChart')}</div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('byLocation')}</h3>

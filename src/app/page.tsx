@@ -146,8 +146,8 @@ function AppContent({ user }: { user: User }) {
   )
 
   const Sidebar = () => (
-    <div className="flex h-full flex-col px-4 py-5">
-      <div className="mb-6 rounded-[26px] border border-slate-200/80 bg-slate-50 px-4 py-4 dark:border-white/10 dark:bg-slate-900/70">
+    <div className="flex h-full flex-col px-4 py-4">
+      <div className="mb-5 rounded-[26px] border border-slate-200/75 bg-white/88 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:border-white/10 dark:bg-slate-900/70">
         <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#edf4ff] text-sm font-semibold text-[#3182f6] dark:bg-[#3182f6]/15 dark:text-sky-300">
           MM
         </div>
@@ -155,34 +155,35 @@ function AppContent({ user }: { user: User }) {
         <h1 className="text-[1.35rem] font-semibold text-slate-900 dark:text-zinc-50">{activeContext?.name || t('appName')}</h1>
         <div className="mt-1 text-xs text-slate-400 truncate">{user.email}</div>
       </div>
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="app-kicker mb-2 px-2">{t('contexts')}</div>
-        {contexts.map(c => {
-          const sym = getCurrencySymbol(c.currency)
-          const isActive = c.id === activeContextId
-          return (
-            <button key={c.id} onClick={() => { switchContext(c.id); setTab('overview') }}
-              className={`mb-1 flex w-full items-center justify-between rounded-[20px] px-3 py-3 text-left text-sm transition-all ${isActive
-                ? 'border border-[#dbe8ff] bg-[#eef5ff] text-[#1f5fbf] shadow-[0_14px_26px_-24px_rgba(49,130,246,0.8)] dark:border-sky-400/20 dark:bg-sky-500/12 dark:text-sky-200'
-                : 'text-slate-500 hover:bg-white hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'}`}>
-              <span>{c.name}</span>
-              <span className="text-xs opacity-60">{sym} {c.currency}</span>
-            </button>
-          )
-        })}
+        <div className="app-panel-soft p-2">
+          {contexts.map(c => {
+            const sym = getCurrencySymbol(c.currency)
+            const isActive = c.id === activeContextId
+            return (
+              <button key={c.id} onClick={() => { switchContext(c.id); setTab('overview') }}
+                className={`mb-1 flex w-full items-center justify-between rounded-[20px] px-3 py-3 text-left text-sm transition-all last:mb-0 ${isActive
+                  ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
+                  : 'text-slate-500 hover:bg-white/85 hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'}`}>
+                <span>{c.name}</span>
+                <span className="text-xs opacity-60">{sym} {c.currency}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
-      <div className="mx-2 my-3 border-t border-slate-200/80 dark:border-white/10" />
-      <nav className="flex flex-1 flex-col gap-1">
+      <nav className="app-panel-soft flex flex-1 flex-col gap-1 p-2">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`rounded-[20px] px-3 py-3 text-left text-sm transition-all ${tab === t.id
-              ? 'bg-white text-slate-900 font-medium shadow-[0_14px_24px_-22px_rgba(15,23,42,0.32)] dark:bg-slate-900/90 dark:text-zinc-100'
-              : 'text-slate-500 hover:bg-white hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'}`}>
+              ? 'border border-slate-200/85 bg-white text-slate-900 font-medium shadow-[0_12px_24px_-22px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-slate-950/85 dark:text-zinc-100'
+              : 'text-slate-500 hover:bg-white/85 hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'}`}>
             {t.label}
           </button>
         ))}
       </nav>
-      <div className="app-panel-soft mt-5 flex flex-col gap-3 p-3.5">
+      <div className="app-panel-soft mt-4 flex flex-col gap-3 p-3">
         <div className="flex items-center gap-2">
           <button onClick={goPrevMonth} className={arrowCls}>‹</button>
           <div className="flex-1 text-center">
@@ -216,13 +217,13 @@ function AppContent({ user }: { user: User }) {
 
   return (
     <div className="min-h-screen">
-      <div className="hidden min-h-screen gap-6 px-4 py-4 md:flex xl:px-6">
+      <div className="hidden min-h-screen gap-5 px-4 py-4 md:flex xl:px-6">
         <div className="app-panel w-[268px] flex-shrink-0 overflow-y-auto">
           <Sidebar />
         </div>
         <div className="flex-1 overflow-y-auto pr-1" onWheel={onWheel}>
           <div className={`${tab === 'calendar' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto py-4`}>
-            <div className="app-panel mb-6 px-6 py-6">
+            <div className="app-panel mb-5 px-5 py-5">
               <div className="app-kicker mb-2">{tabs.find(item => item.id === tab)?.label}</div>
               <div className="flex items-end justify-between gap-6">
                 <div>
@@ -230,7 +231,7 @@ function AppContent({ user }: { user: User }) {
                   <p className="mt-2 text-base font-medium text-[#3182f6] dark:text-sky-300">{monthLabel}</p>
                   <p className="mt-1 text-sm text-slate-400">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                 </div>
-                <div className="hidden rounded-[24px] border border-slate-200/80 bg-slate-50 px-4 py-3 text-right lg:block dark:border-white/10 dark:bg-slate-900/70">
+                <div className="hidden rounded-[22px] border border-slate-200/75 bg-slate-50/80 px-4 py-3 text-right lg:block dark:border-white/10 dark:bg-slate-900/70">
                   <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{t('settings')}</div>
                   <div className="mt-1 text-sm text-slate-700 dark:text-zinc-300">{activeContext?.currency}{activeContext?.homeCurrency && activeContext.homeCurrency !== activeContext.currency ? ` → ${activeContext.homeCurrency}` : ''}</div>
                 </div>
@@ -284,15 +285,15 @@ function AppContent({ user }: { user: User }) {
                 return (
                   <button key={c.id} onClick={() => { switchContext(c.id); setMobileMenuOpen(false); setTab('overview') }}
                     className={`mb-1.5 flex w-full items-center justify-between rounded-[20px] px-3 py-3 text-left text-sm transition-all ${isActive
-                      ? 'border border-[#dbe8ff] bg-[#eef5ff] text-[#1f5fbf] shadow-[0_14px_26px_-24px_rgba(49,130,246,0.8)] dark:border-sky-400/20 dark:bg-sky-500/12 dark:text-sky-200'
-                      : 'bg-white text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'}`}>
+                      ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
+                      : 'bg-white/88 text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'}`}>
                     <span>{c.name}</span>
                     <span className="text-xs opacity-60">{sym} {c.currency}</span>
                   </button>
                 )
               })}
               <button onClick={() => document.getElementById('sign-out-btn')?.click()}
-                className="mt-3 w-full rounded-[18px] border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-500 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">
+                className="mt-3 w-full rounded-[18px] border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-400 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">
                 Sign out
               </button>
             </div>
@@ -303,7 +304,7 @@ function AppContent({ user }: { user: User }) {
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`rounded-[18px] px-2 py-2.5 text-sm transition-all ${tab === t.id
-                ? 'bg-white text-slate-900 font-medium shadow-[0_12px_20px_-18px_rgba(15,23,42,0.24)] dark:bg-slate-900/90 dark:text-zinc-100'
+                ? 'border border-slate-200/85 bg-white text-slate-900 font-medium shadow-[0_12px_20px_-18px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-slate-900/90 dark:text-zinc-100'
                 : 'text-slate-400 dark:text-slate-500'}`}>
               {t.label}
             </button>

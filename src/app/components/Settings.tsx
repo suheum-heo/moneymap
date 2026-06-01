@@ -114,7 +114,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
   }
 
   return (
-    <div className="px-4 pb-8 flex flex-col gap-4">
+    <div className="flex flex-col gap-3 px-4 pb-6">
 
       {/* Context edit modal */}
       {editingCtx && (
@@ -159,7 +159,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
       <CategorySettings categories={categories} addCategory={addCategory} removeCategory={removeCategory} />
 
       {/* Contexts */}
-      <div className="app-panel p-4 sm:p-5">
+      <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('contexts')}</div>
         <div className="flex flex-col gap-2 mb-4">
           {contexts.map((c: Context) => (
@@ -170,14 +170,14 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
                   <div className="text-xs text-slate-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {c.startDate}</div>
                 </div>
                 <div className="flex gap-3 ml-3">
-                  <button onClick={() => openEditCtx(c)} className="text-xs font-medium text-[#3182f6] dark:text-sky-300">{t('edit')}</button>
-                  <button onClick={() => removeContext(c.id)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
+                  <button onClick={() => openEditCtx(c)} className="app-accent text-xs font-medium">{t('edit')}</button>
+                  <button onClick={() => removeContext(c.id)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
             </div>
           ))}
         </div>
-        <div className="app-panel-soft flex flex-col gap-3 p-4">
+        <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">{t('newContext')}</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
             placeholder="e.g. Europe Trip 2027" className={inputCls} style={{ fontSize: '16px' }} />
@@ -204,7 +204,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
       </div>
 
       {/* Recurring payments */}
-      <div className="app-panel p-4 sm:p-5">
+      <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('recurringPayments').replace('⟳ ', '')}</div>
         <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
@@ -255,8 +255,8 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
                     </div>
                   </div>
                   <div className="flex gap-3 ml-3">
-                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }} className="text-xs font-medium text-[#3182f6] dark:text-sky-300">{t('edit')}</button>
-                    <button onClick={() => deleteItem(item.id)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
+                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }} className="app-accent text-xs font-medium">{t('edit')}</button>
+                    <button onClick={() => deleteItem(item.id)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
                   </div>
                 </div>
               )}
@@ -264,7 +264,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
           ))}
           {contextRecurring.length === 0 && <div className="app-panel-soft py-8 text-center text-xs text-slate-400">—</div>}
         </div>
-        <div className="app-panel-soft flex flex-col gap-3 p-4">
+        <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">Add recurring</div>
           <div>
             <label className="app-kicker block mb-2">{t('summary')}</label>
@@ -299,7 +299,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
       </div>
 
       {/* Budgets */}
-      <div className="app-panel p-4 sm:p-5">
+      <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('monthlyBudgets')}</div>
         <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
@@ -309,14 +309,14 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
               <div key={cat} className="app-list-row flex items-center justify-between !py-3">
                 <span className="text-sm text-slate-800 dark:text-zinc-100">{cat}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-[#3182f6] dark:text-sky-300">{activeContext?.currency} {formatAmountValue(b, activeContext?.currency || 'USD')}</span>
-                  <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs font-medium text-rose-500 dark:text-rose-300">{t('remove')}</button>
+                  <span className="app-accent text-sm font-semibold">{activeContext?.currency} {formatAmountValue(b, activeContext?.currency || 'USD')}</span>
+                  <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
             ) : null
           })}
         </div>
-        <div className="app-panel-soft flex flex-col gap-3 p-4">
+        <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
             {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
@@ -330,12 +330,12 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
       </div>
 
       {/* Exchange rates */}
-      <div className="app-panel p-4 sm:p-5">
+      <div className="app-panel p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="app-kicker">{t('exchangeRates')}</div>
           {ratesUpdated && <div className="text-xs text-slate-400">Updated {ratesUpdated.toLocaleTimeString()}</div>}
         </div>
-        <div className="app-panel-soft p-4">
+        <div className="app-panel-soft p-3.5">
           <div className="flex items-center gap-2 mb-3">
             <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} flex-1`} style={{ fontSize: '16px' }}>
               {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
@@ -357,9 +357,9 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
       </div>
 
       {/* Reset */}
-      <div className="app-panel p-4 sm:p-5">
+      <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('reset')}</div>
-        <div className="app-panel-soft p-4">
+        <div className="app-panel-soft p-3.5">
           <p className="text-xs text-slate-400 mb-3">Clear local settings (exchange rates, theme). Your data in Supabase is not affected.</p>
           <button onClick={() => {
             if (confirm(t('reset') + '?')) {
