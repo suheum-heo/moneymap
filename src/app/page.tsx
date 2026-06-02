@@ -14,10 +14,11 @@ import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
 import { UserContext } from './UserContext'
-import { getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context } from './types'
+import { getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
 import type { User } from '@supabase/supabase-js'
 
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
+const ENTRY_SORT_ORDER_KEY = 'gagyebu-entry-sort-order'
 
 type Tab = 'overview' | 'entries' | 'calendar' | 'add' | 'settings'
 
@@ -42,6 +43,7 @@ function AppContent({ user }: { user: User }) {
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [entriesCategoryFilter, setEntriesCategoryFilter] = useState<string>('all')
+  const [entrySortOrder, setEntrySortOrder] = useState<EntrySortOrder | null>(null)
   const [dark, setDark] = useState<boolean | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const wheelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -82,6 +84,9 @@ function AppContent({ user }: { user: User }) {
     const saved = localStorage.getItem('theme')
     if (saved) setDark(saved === 'dark')
     else setDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+    const savedSortOrder = localStorage.getItem(ENTRY_SORT_ORDER_KEY)
+    setEntrySortOrder(savedSortOrder === 'oldest' ? 'oldest' : 'newest')
   }, [])
 
   useEffect(() => {
@@ -89,6 +94,11 @@ function AppContent({ user }: { user: User }) {
     document.documentElement.classList.toggle('dark', dark)
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
+
+  useEffect(() => {
+    if (!entrySortOrder) return
+    localStorage.setItem(ENTRY_SORT_ORDER_KEY, entrySortOrder)
+  }, [entrySortOrder])
 
   useEffect(() => {
     if (!entriesLoaded || !settingsLoaded || contexts.length === 0) return
@@ -110,7 +120,7 @@ function AppContent({ user }: { user: User }) {
     })
   }, [contexts, entries, entriesLoaded, settingsLoaded, updateEntry])
 
-  if (!entriesLoaded || !settingsLoaded || !recurringLoaded || !budgetsLoaded || !categoriesLoaded || dark === null) return (
+  if (!entriesLoaded || !settingsLoaded || !recurringLoaded || !budgetsLoaded || !categoriesLoaded || dark === null || entrySortOrder === null) return (
     <div className="flex items-center justify-center min-h-screen text-zinc-400 text-sm">{t('loading')}</div>
   )
 
@@ -209,9 +219,9 @@ function AppContent({ user }: { user: User }) {
 
   const TabContent = () => (
     <>
-      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} onUpdate={updateEntry} activeContext={activeContext} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} activeContext={activeContext} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} onUpdate={updateEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} sortOrder={entrySortOrder} activeContext={activeContext} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'settings' && <Settings contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} addCategory={addCategory} removeCategory={removeCategory} />}
     </>

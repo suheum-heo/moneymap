@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput, sortEntriesForDisplay } from '../types'
+import { Entry, Context, EntrySortOrder, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput, sortEntriesForDisplay } from '../types'
 
 interface Props {
   entries: Entry[]
@@ -9,6 +9,7 @@ interface Props {
   onUpdate: (entry: Entry) => void
   onDelete: (id: string) => void
   onAddForDate: (date: string) => void
+  sortOrder: EntrySortOrder
   activeContext?: Context
   expenseCategories: string[]
   incomeCategories: string[]
@@ -19,7 +20,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
-export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate, activeContext, expenseCategories, incomeCategories }: Props) {
+export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate, sortOrder, activeContext, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
@@ -66,8 +67,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   }
 
   const selectedEntries = useMemo(() =>
-    selectedDay ? sortEntriesForDisplay(monthEntries.filter(e => e.date === selectedDay)) : [],
-    [selectedDay, monthEntries])
+    selectedDay ? sortEntriesForDisplay(monthEntries.filter(e => e.date === selectedDay), sortOrder) : [],
+    [selectedDay, monthEntries, sortOrder])
 
   const selectedExpense = selectedEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
   const selectedIncome = selectedEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)

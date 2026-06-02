@@ -1,5 +1,6 @@
 'use client'
 export type EntryType = 'expense' | 'income'
+export type EntrySortOrder = 'newest' | 'oldest'
 
 export interface Entry {
   id: string
@@ -264,36 +265,39 @@ function parseTimestampForSort(value?: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function compareNullableDesc(a: number | null, b: number | null): number {
-  if (a !== null && b !== null) return b - a
+function compareNullableByDirection(a: number | null, b: number | null, direction: 1 | -1): number {
+  if (a !== null && b !== null) return (a - b) * direction
   if (a !== null) return -1
   if (b !== null) return 1
   return 0
 }
 
-export function sortEntriesForDisplay(entries: Entry[]): Entry[] {
+export function sortEntriesForDisplay(entries: Entry[], sortOrder: EntrySortOrder = 'newest'): Entry[] {
+  const direction: 1 | -1 = sortOrder === 'newest' ? -1 : 1
   return entries
     .map((entry, index) => ({ entry, index }))
     .sort((a, b) => {
-      const dateComparison = b.entry.date.localeCompare(a.entry.date)
+      const dateComparison = a.entry.date.localeCompare(b.entry.date) * direction
       if (dateComparison !== 0) return dateComparison
 
-      const timeComparison = compareNullableDesc(
+      const timeComparison = compareNullableByDirection(
         parseTimeForSort(a.entry.time),
         parseTimeForSort(b.entry.time),
+        direction,
       )
       if (timeComparison !== 0) return timeComparison
 
-      const createdAtComparison = compareNullableDesc(
+      const createdAtComparison = compareNullableByDirection(
         parseTimestampForSort(a.entry.createdAt),
         parseTimestampForSort(b.entry.createdAt),
+        direction,
       )
       if (createdAtComparison !== 0) return createdAtComparison
 
-      const idComparison = String(b.entry.id).localeCompare(String(a.entry.id), undefined, {
+      const idComparison = String(a.entry.id).localeCompare(String(b.entry.id), undefined, {
         numeric: true,
         sensitivity: 'base',
-      })
+      }) * direction
       if (idComparison !== 0) return idComparison
 
       return a.index - b.index

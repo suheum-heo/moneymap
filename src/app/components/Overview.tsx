@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, getCategoryColor, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency, sortEntriesForDisplay } from '../types'
+import { Entry, Context, EntrySortOrder, getCategoryColor, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency, sortEntriesForDisplay } from '../types'
 import EntryEditModal from './EntryEditModal'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
@@ -11,6 +11,7 @@ interface Props {
   month: string
   onNavigate: (tab: string, filter?: string, categoryFilter?: string) => void
   onUpdate: (entry: Entry) => void
+  sortOrder: EntrySortOrder
   activeContext?: Context
   convert: (amount: number, from: string, to: string) => number
   getBudget: (context: string, category: string) => number | null
@@ -27,7 +28,7 @@ function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
   return `rgba(${softened[0]}, ${softened[1]}, ${softened[2]}, ${alpha})`
 }
 
-export default function Overview({ entries, month, onNavigate, onUpdate, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
+export default function Overview({ entries, month, onNavigate, onUpdate, sortOrder, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
   const catChartRef = useRef<HTMLCanvasElement>(null)
   const locChartRef = useRef<HTMLCanvasElement>(null)
@@ -122,8 +123,9 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
     if (!expandedLocation) return []
     return sortEntriesForDisplay(
       monthEntries.filter(e => e.type === 'expense' && e.location?.trim() === expandedLocation),
+      sortOrder,
     )
-  }, [expandedLocation, monthEntries])
+  }, [expandedLocation, monthEntries, sortOrder])
 
   useEffect(() => {
     if (expandedLocation && !byLocation.some(([loc]) => loc === expandedLocation)) {
@@ -362,6 +364,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
                       const col = getCategoryColor(cat, 'expense')
                       const catEntriesForCat = sortEntriesForDisplay(
                         monthEntries.filter(e => e.type === 'expense' && e.category === cat),
+                        sortOrder,
                       )
                       return (
                         <div className="rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">

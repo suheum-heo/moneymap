@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, getCategoryBadgeStyle, getCategoryColor, formatAmount, getEntryCurrency, sortEntriesForDisplay } from '../types'
+import { Entry, Context, EntrySortOrder, getCategoryBadgeStyle, getCategoryColor, formatAmount, getEntryCurrency, sortEntriesForDisplay } from '../types'
 import EntryEditModal from './EntryEditModal'
 
 interface Props {
@@ -11,6 +11,8 @@ interface Props {
   onUpdate: (entry: Entry) => void
   initialTypeFilter?: string
   initialCategoryFilter?: string
+  sortOrder: EntrySortOrder
+  onSortOrderChange: (sortOrder: EntrySortOrder) => void
   activeContext?: Context
   convert: (amount: number, from: string, to: string) => number
   expenseCategories: string[]
@@ -29,7 +31,7 @@ function getWeekRange() {
   return { start: mon.toISOString().slice(0,10), end: sun.toISOString().slice(0,10) }
 }
 
-export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', activeContext, convert, expenseCategories, incomeCategories }: Props) {
+export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, convert, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
   const [catFilter, setCatFilter] = useState(initialCategoryFilter)
@@ -65,8 +67,8 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
         (e.remarks || '').toLowerCase().includes(q)
       )
     }
-    return sortEntriesForDisplay(f)
-  }, [monthEntries, typeFilter, catFilter, search, weekOnly, weekRange])
+    return sortEntriesForDisplay(f, sortOrder)
+  }, [monthEntries, typeFilter, catFilter, search, weekOnly, weekRange, sortOrder])
 
   const openEdit = (e: Entry) => setEditEntry(e)
 
@@ -101,7 +103,25 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
       />
 
       <div className="app-panel p-4">
-        <div className="app-kicker mb-3">{t('entries')}</div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="app-kicker">{t('entries')}</div>
+          <div className="inline-flex rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
+            {([
+              ['newest', 'Newest'],
+              ['oldest', 'Oldest'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => onSortOrderChange(value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortOrder === value
+                  ? 'bg-white text-slate-900 shadow-[0_8px_18px_-14px_rgba(15,23,42,0.26)] dark:bg-slate-950 dark:text-zinc-100'
+                  : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-zinc-200'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchEntries')}
           className={`${inputCls} mb-3`} style={{fontSize:'16px'}} />
 
