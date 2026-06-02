@@ -60,7 +60,7 @@ export default function AuthGate({ children }: Props) {
       <div className="w-full max-w-md">
         <div className="app-panel px-6 py-8 sm:px-7">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#edf4ff] text-lg font-semibold text-[#3182f6] dark:bg-[#3182f6]/15 dark:text-sky-300">MM</div>
+            <img src="/moneymap-logo.png" alt={t('appName')} className="mx-auto mb-4 h-14 w-14 rounded-[20px] object-cover" />
             <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{t('appName')}</h1>
             <p className="text-sm text-slate-400">{t('authSubtitle')}</p>
           </div>

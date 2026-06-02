@@ -162,9 +162,7 @@ function AppContent({ user }: { user: User }) {
   const Sidebar = () => (
     <div className="flex h-full flex-col px-4 py-4">
       <div className="mb-5 rounded-[26px] border border-slate-200/75 bg-white/88 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:border-white/10 dark:bg-slate-900/70">
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#edf4ff] text-sm font-semibold text-[#3182f6] dark:bg-[#3182f6]/15 dark:text-sky-300">
-          MM
-        </div>
+        <img src="/moneymap-logo.png" alt={t('appName')} className="mb-3 h-10 w-10 rounded-2xl object-cover" />
         <div className="app-kicker mb-2">{t('appName')}</div>
         <h1 className="text-[1.35rem] font-semibold text-slate-900 dark:text-zinc-50">{activeContext?.name || t('appName')}</h1>
         <div className="mt-1 text-xs text-slate-400 truncate">{user.email}</div>
