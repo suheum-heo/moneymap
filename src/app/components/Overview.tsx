@@ -407,97 +407,98 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                 const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                 const isExpanded = expandedLocation === loc
                 return (
-                  <button
-                    key={loc}
-                    onClick={() => setExpandedLocation(prev => prev === loc ? null : loc)}
-                    className={`app-list-row w-full cursor-pointer text-left transition-all hover:-translate-y-0.5 hover:border-slate-300/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3182f6]/10 dark:hover:border-white/15 ${isExpanded ? 'border-[#d7e4fb] bg-[#f8fbff] shadow-[0_16px_28px_-24px_rgba(49,130,246,0.28)] dark:border-sky-400/15 dark:bg-slate-950/70' : ''}`}
-                  >
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{loc}</div>
-                        <div className="mt-1 text-xs text-slate-400">{pct}% of spending</div>
+                  <div key={loc} className="space-y-2">
+                    <button
+                      onClick={() => setExpandedLocation(prev => prev === loc ? null : loc)}
+                      className={`app-list-row w-full cursor-pointer text-left transition-all hover:-translate-y-0.5 hover:border-slate-300/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3182f6]/10 dark:hover:border-white/15 ${isExpanded ? 'border-[#d7e4fb] bg-[#f8fbff] shadow-[0_16px_28px_-24px_rgba(49,130,246,0.28)] dark:border-sky-400/15 dark:bg-slate-950/70' : ''}`}
+                    >
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{loc}</div>
+                          <div className="mt-1 text-xs text-slate-400">{pct}% of spending</div>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <div className="text-xs font-medium text-[#5b8ef0] dark:text-sky-300">{isExpanded ? 'Hide entries' : 'View entries'}</div>
+                          <div className="mt-1 text-xs text-slate-400">{isExpanded ? '▲' : '▼'}</div>
+                        </div>
                       </div>
-                      <div className="flex-shrink-0 text-right">
-                        <div className="text-xs font-medium text-[#5b8ef0] dark:text-sky-300">{isExpanded ? 'Hide entries' : 'View entries'}</div>
-                        <div className="mt-1 text-xs text-slate-400">{isExpanded ? '▲' : '▼'}</div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                        <div className="h-full rounded-full bg-[#5b8ef0]" style={{ width: `${pct}%` }} />
                       </div>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
-                      <div className="h-full rounded-full bg-[#5b8ef0]" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="mt-3 text-right text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
-                  </button>
+                      <div className="mt-3 text-right text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="ml-3 rounded-[20px] border border-[#d7e4fb] bg-slate-50/90 px-3 py-3 shadow-[0_12px_22px_-24px_rgba(49,130,246,0.35)] dark:border-sky-400/15 dark:bg-slate-950/55">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="app-kicker mb-1">{loc}</div>
+                            <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">
+                              {locationEntries.length} {locationEntries.length === 1 ? 'entry' : 'entries'}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setExpandedLocation(null)}
+                            className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-zinc-200"
+                          >
+                            Close
+                          </button>
+                        </div>
+
+                        {locationEntries.length === 0 ? (
+                          <div className="app-panel-soft py-5 text-center text-sm text-slate-400">No entries found for this location.</div>
+                        ) : (
+                          <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
+                            {locationEntries.map(e => {
+                              const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                              const col = getCategoryColor(e.category, e.type)
+                              return (
+                                <div
+                                  key={e.id}
+                                  className="app-list-row flex items-start gap-3 !rounded-[18px] !px-3 !py-3"
+                                >
+                                  <div className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
+                                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                                          <span>{e.date}</span>
+                                          <span aria-hidden="true">·</span>
+                                          <span className="truncate">{e.location}</span>
+                                          {e.venue ? (
+                                            <>
+                                              <span aria-hidden="true">·</span>
+                                              <span className="truncate">{e.venue}</span>
+                                            </>
+                                          ) : null}
+                                        </div>
+                                        {e.remarks && <div className="mt-1 truncate text-xs text-slate-400">{e.remarks}</div>}
+                                      </div>
+                                      <div className="flex-shrink-0 text-sm font-semibold" style={{ color: col }}>
+                                        {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
+                                      </div>
+                                    </div>
+                                    <div className="mt-2">
+                                      <span
+                                        className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
+                                        style={{ background: softenColor(col, 0.18, 0.14), color: col }}
+                                      >
+                                        {e.category}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
-
-            {expandedLocation && (
-              <div className="mt-4 rounded-[22px] border border-slate-200/75 bg-slate-50/80 px-3 py-3 dark:border-white/10 dark:bg-slate-950/55">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="app-kicker mb-1">{expandedLocation}</div>
-                    <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">
-                      {locationEntries.length} {locationEntries.length === 1 ? 'entry' : 'entries'}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setExpandedLocation(null)}
-                    className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-zinc-200"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                {locationEntries.length === 0 ? (
-                  <div className="app-panel-soft py-6 text-center text-sm text-slate-400">No entries found for this location.</div>
-                ) : (
-                  <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
-                    {locationEntries.map(e => {
-                      const entryCurrency = getEntryCurrency(e, cur, homeCur)
-                      const col = getCategoryColor(e.category, e.type)
-                      return (
-                        <div
-                          key={e.id}
-                          className="app-list-row flex items-start gap-3 !rounded-[20px] !px-3 !py-3"
-                        >
-                          <div className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-                                  <span>{e.date}</span>
-                                  <span aria-hidden="true">·</span>
-                                  <span className="truncate">{e.location}</span>
-                                  {e.venue ? (
-                                    <>
-                                      <span aria-hidden="true">·</span>
-                                      <span className="truncate">{e.venue}</span>
-                                    </>
-                                  ) : null}
-                                </div>
-                                {e.remarks && <div className="mt-1 truncate text-xs text-slate-400">{e.remarks}</div>}
-                              </div>
-                              <div className="flex-shrink-0 text-sm font-semibold" style={{ color: col }}>
-                                {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
-                              </div>
-                            </div>
-                            <div className="mt-2">
-                              <span
-                                className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
-                                style={{ background: softenColor(col, 0.18, 0.14), color: col }}
-                              >
-                                {e.category}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           <div className="app-panel p-4 sm:p-5">
