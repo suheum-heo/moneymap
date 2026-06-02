@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CURRENCIES } from '../types'
+import LanguageSelector from './LanguageSelector'
 
 interface Props {
   onDone: (ctx: { name: string; currency: string; homeCurrency: string; startDate: string }) => void
@@ -27,6 +28,10 @@ export default function Onboarding({ onDone }: Props) {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="app-panel px-6 py-8 sm:px-7">
+          <div className="mb-6 flex justify-end">
+            <LanguageSelector variant="inline" />
+          </div>
+
           <div className="mb-8 text-center">
             <img src="/moneymap-logo.png" alt={t('appName')} className="mx-auto mb-4 h-14 w-14 rounded-[20px] object-cover" />
             <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{t('appName')}</h1>
