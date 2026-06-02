@@ -1,90 +1,182 @@
 # MoneyMap
 
-A personal budget tracker PWA — multi-user, multi-currency, installable on iPhone.
+MoneyMap is a personal finance and budgeting app for tracking expenses and income across multiple life contexts such as home, school, travel, or a specific city. It is a multi-user Supabase-backed app with authentication, per-user data isolation, multi-currency support, and a PWA-style mobile experience.
 
-**Live**: [moneymap-io.vercel.app](https://moneymap-io.vercel.app)
+**Live app**: [moneymap-io.vercel.app](https://moneymap-io.vercel.app)
 
-## What it does
+## Core Features
 
-MoneyMap lets you track expenses and income across multiple life contexts — school, home country, travel, wherever. Each user gets their own isolated data, and everything syncs across devices in real time.
+- Authentication with Supabase Auth
+- Multiple budget contexts per user
+- Expense and income tracking
+- Multi-currency contexts with local and home currency support
+- Converted home-currency totals
+- Calendar view with inline editing
+- Overview dashboard with category and location breakdowns
+- Monthly budgets
+- Recurring transaction templates
+- Custom categories
+- CSV export
+- Language selection and localized UI
+- Installable PWA-style experience
+- Account deletion flow
 
-- **Google OAuth** — one-tap sign in, no passwords
-- **Multiple budgets** — separate contexts for different situations (e.g. Madison 25-26, Korea Summer, Europe Trip)
-- **Multi-currency** — each context has its own currency, with live exchange rates auto-fetched hourly
-- **Calendar view** — see spending by day, tap to edit entries inline
-- **Budget goals** — set monthly limits per category, with progress bars and warnings at 80% / 100%
-- **Recurring payments** — save templates, tap to pre-fill the add form
-- **Custom categories** — add and remove your own expense/income categories
-- **Monthly comparison** — track vs last month full and vs same day last month
-- **Location breakdown** — visualize spending by city
-- **Search, filter, export** — filter by type, category, or week; export to CSV
-- **7 languages** — English, 한국어, 日本語, 简体中文, Español, Français, Deutsch
-- **Dark mode** — manual toggle, remembers your preference
-- **PWA** — installable on iPhone via Safari, feels like a native app
+## Tech Stack
 
-## Stack
+- Framework: Next.js 14 App Router
+- Language: TypeScript
+- UI: React, Tailwind CSS
+- Charts: Chart.js, react-chartjs-2
+- Auth and database: Supabase
+- i18n: i18next, react-i18next
+- Deployment: Vercel
+- Exchange-rate source: Frankfurter API via `/api/rates`
 
-- **Frontend** — Next.js 14, TypeScript, Tailwind CSS, Chart.js, i18next
-- **Backend** — Supabase (PostgreSQL + Auth with RLS)
-- **Deployment** — Vercel
-- **Exchange rates** — Frankfurter API, proxied via Next.js API route, cached 1hr
+## Current Data Backend
 
-## Getting started
+MoneyMap currently uses **Supabase** as the live app data backend.
 
-### 1. Clone the repo
+User-owned app data is stored in Supabase tables such as:
+
+- `entries`
+- `contexts`
+- `categories`
+- `budgets`
+- `recurring`
+- `profiles` if your project uses it
+
+Legacy Google Sheets-backed API routes were removed because they bypassed proper user isolation and Row Level Security. Old Google Sheets environment variables are no longer required.
+
+## Local Development Setup
+
+### 1. Install dependencies
 
 ```bash
-git clone https://github.com/suheum-heo/moneymap.git
-cd moneymap
 npm install
 ```
 
-### 2. Set up Supabase
+### 2. Create `.env.local`
 
-Create a project at [supabase.com](https://supabase.com) and run the schema SQL to create the following tables — all with Row Level Security so users only access their own data:
+Documented environment variable names:
 
-`profiles` · `contexts` · `entries` · `budgets` · `recurring` · `categories`
-
-### 3. Set up Google OAuth
-
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com)
-2. Go to **APIs & Services → Credentials → Create OAuth client ID** (Web application)
-3. Add your Supabase callback URL as an authorized redirect URI:
-   ```
-   https://YOUR_PROJECT_ID.supabase.co/auth/v1/callback
-   ```
-4. Enable Google in Supabase → **Authentication → Sign In / Providers**
-
-### 4. Environment variables
-
-Create `.env.local`:
-
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_legacy_anon_key
-```
+
+Notes:
+
+- `NEXT_PUBLIC_SUPABASE_URL` is required for the client and server app to talk to Supabase.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` is the public client key used by the app.
+- `SUPABASE_SERVICE_ROLE_KEY` is required for the secure account deletion route and must remain server-only.
+
+Removed and no-longer-required legacy environment variables:
+
+- `GOOGLE_PRIVATE_KEY`
+- `GOOGLE_CLIENT_EMAIL`
+- `GOOGLE_SHEET_ID`
+
+These legacy Google Sheets variables should not be required for development, deployment, or runtime anymore.
+
+### 3. Configure Supabase
+
+Create a Supabase project and set up the app tables that MoneyMap expects:
+
+- `entries`
+- `contexts`
+- `categories`
+- `budgets`
+- `recurring`
+- `profiles` if used
+
+Every user-owned table should have Row Level Security enabled and scoped to the authenticated user. See [SECURITY.md](./SECURITY.md).
+
+### 4. Configure authentication
+
+Set up the sign-in providers you want in Supabase Auth, including Google if you want Google sign-in.
+
+Important current implementation note:
+
+- The current auth flow in the app uses the deployed callback URL in the client auth code.
+- That means local UI development works, but end-to-end localhost sign-in may require careful redirect configuration if you want a fully local auth round-trip.
 
 ### 5. Run locally
 
 ```bash
 npm run dev
-# Open http://localhost:3000
 ```
 
-## Deploy
+Then open the local URL shown by Next.js, usually:
 
-1. Push to GitHub
-2. Import to [vercel.com](https://vercel.com) — Next.js is auto-detected
-3. Add environment variables in Vercel → Settings → Environment Variables
-4. Set your Vercel URL in Supabase → Authentication → URL Configuration
-5. Add `https://your-app.vercel.app/auth/callback` to Supabase redirect URLs
+- `http://localhost:3000`
 
-## Install on iPhone
+If that port is occupied, Next.js will move to the next available port.
 
-1. Open your app URL in **Safari**
-2. Tap Share → **Add to Home Screen**
-3. Tap **Add** — launches full screen like a native app
+### 6. Production build check
 
-## First time setup
+```bash
+npm run build
+```
 
-New users see an onboarding screen to create their first budget context — name, local currency, home currency, and start date. More contexts can be added anytime in Settings.
+## Deploying on Vercel
+
+1. Push the repository to GitHub.
+2. Import the repo into Vercel.
+3. Add the required environment variables in Vercel:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+4. Configure Supabase Auth redirect URLs for your deployed domain.
+5. Deploy.
+
+Do not add legacy Google Sheets env vars to Vercel for the current app path.
+
+## Project Structure
+
+High-level structure:
+
+- [src/app/page.tsx](./src/app/page.tsx)
+  - Main app shell, tab layout, shared top-level state wiring
+- [src/app/components](./src/app/components)
+  - UI components such as `Overview`, `Entries`, `Calendar`, `AddEntry`, `Settings`, onboarding, auth, and shared modals
+- [src/app/useEntries.ts](./src/app/useEntries.ts)
+  - Supabase-backed entry loading and CRUD
+- [src/app/useSettings.ts](./src/app/useSettings.ts)
+  - Context loading, active context state, exchange-rate cache, conversion helper
+- [src/app/useCategories.ts](./src/app/useCategories.ts)
+  - Category loading, localized default-category seeding, add/remove
+- [src/app/useRecurring.ts](./src/app/useRecurring.ts)
+  - Recurring template loading and CRUD
+- [src/app/useBudgets.ts](./src/app/useBudgets.ts)
+  - Monthly budget loading and updates
+- [src/app/types.ts](./src/app/types.ts)
+  - Shared domain types and display/formatting utilities
+- [src/app/i18n/index.ts](./src/app/i18n/index.ts)
+  - Translation resources and language bootstrapping
+- [src/app/lib/supabase.ts](./src/app/lib/supabase.ts)
+  - Shared browser Supabase client
+- [src/app/api/account/delete/route.ts](./src/app/api/account/delete/route.ts)
+  - Secure server-side account deletion route
+- [src/app/api/rates/route.ts](./src/app/api/rates/route.ts)
+  - Exchange-rate proxy route with caching
+
+## Security and Privacy Notes
+
+- Supabase is the current source of truth for app data.
+- The app expects per-user isolation through Supabase Row Level Security.
+- The service role key must never be exposed to the browser.
+- Legacy Google Sheets API routes were removed and should not be reintroduced without authenticated, user-scoped access.
+
+See:
+
+- [SECURITY.md](./SECURITY.md)
+- [PRIVACY.md](./PRIVACY.md)
+- [DEVELOPMENT.md](./DEVELOPMENT.md)
+
+## Contributor Notes
+
+- Keep visible UI strings in i18n.
+- Do not auto-translate user-generated content.
+- Use shared formatting helpers for dates, currencies, and transaction sorting.
+- Keep Supabase user scoping and RLS assumptions intact when changing data access.
