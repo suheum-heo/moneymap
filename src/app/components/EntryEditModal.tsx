@@ -155,7 +155,7 @@ export default function EntryEditModal({
         <div>
           <label className="app-kicker mb-2 block">{t('amount')} ({editCurrency} {getCurrencySymbol(editCurrency)})</label>
           <input
-            type="number"
+            type="text"
             value={editAmount}
             onChange={event => setEditAmount(normalizeAmountInputValue(event.target.value, editCurrency))}
             className={inputCls}

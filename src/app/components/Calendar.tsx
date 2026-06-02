@@ -162,7 +162,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('amount')} ({editCurrency} {getCurrencySymbol(editCurrency)})</label>
-              <input type="number" value={editAmount} onChange={e => setEditAmount(normalizeAmountInputValue(e.target.value, editCurrency))} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
+              <input type="text" value={editAmount} onChange={e => setEditAmount(normalizeAmountInputValue(e.target.value, editCurrency))} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>

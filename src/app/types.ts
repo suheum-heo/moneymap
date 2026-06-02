@@ -398,16 +398,86 @@ export function normalizeAmountInputValue(value: string, currency: string): stri
   return String(Math.round(Number(trimmed)))
 }
 
+function getLocaleNumberSeparators(locale: string) {
+  const formatter = new Intl.NumberFormat(locale)
+  const parts = formatter.formatToParts(12345.6)
+  const group = parts.find(part => part.type === 'group')?.value || ','
+  const decimal = parts.find(part => part.type === 'decimal')?.value || '.'
+  return { group, decimal }
+}
+
+export function parseLocalizedAmount(value: string, currency: string): number {
+  const normalizedCurrency = normalizeCurrencyCode(currency)
+  const trimmed = value
+    .trim()
+    .replace(/[\s\u00A0\u202F]/g, '')
+    .replace(/['’]/g, '')
+
+  if (!trimmed) return Number.NaN
+
+  const signMatch = trimmed.match(/^[+-]/)
+  const sign = signMatch?.[0] || ''
+  const unsigned = sign ? trimmed.slice(1) : trimmed
+  if (!unsigned || /[^0-9,.-]/.test(unsigned)) return Number.NaN
+
+  if (usesZeroDecimalCurrency(normalizedCurrency)) {
+    const integerLike = `${sign}${unsigned.replace(/[.,]/g, '')}`
+    if (!/^[+-]?\d+$/.test(integerLike)) return Number.NaN
+    const parsedInteger = Number(integerLike)
+    return Number.isFinite(parsedInteger) ? parsedInteger : Number.NaN
+  }
+
+  const locale = getCurrencyLocale(normalizedCurrency)
+  const { group, decimal } = getLocaleNumberSeparators(locale)
+  const hasDot = unsigned.includes('.')
+  const hasComma = unsigned.includes(',')
+
+  let decimalSeparator: '.' | ',' | null = null
+
+  if (hasDot && hasComma) {
+    decimalSeparator = unsigned.lastIndexOf('.') > unsigned.lastIndexOf(',') ? '.' : ','
+  } else {
+    const separator = hasDot ? '.' : hasComma ? ',' : null
+    if (separator) {
+      const parts = unsigned.split(separator)
+      const fractionLength = parts[parts.length - 1]?.length ?? 0
+      const localeGroupSeparator = group === '.' || group === ',' ? group : null
+      const localeDecimalSeparator = decimal === '.' || decimal === ',' ? decimal : null
+
+      if (fractionLength === 0) return Number.NaN
+
+      if (parts.length === 2) {
+        if (fractionLength <= 2) decimalSeparator = separator
+        else if (fractionLength > 3) decimalSeparator = separator
+        else if (localeDecimalSeparator === separator && localeGroupSeparator !== separator) decimalSeparator = separator
+      } else if (parts.length > 2 && fractionLength <= 2) {
+        decimalSeparator = separator
+      }
+    }
+  }
+
+  const normalized = decimalSeparator
+    ? `${sign}${unsigned.slice(0, unsigned.lastIndexOf(decimalSeparator)).replace(/[.,]/g, '') || '0'}.${unsigned.slice(unsigned.lastIndexOf(decimalSeparator) + 1).replace(/[.,]/g, '')}`
+    : `${sign}${unsigned.replace(/[.,]/g, '')}`
+
+  if (!/^[+-]?\d+(?:\.\d+)?$/.test(normalized)) return Number.NaN
+
+  const parsed = Number(normalized)
+  if (!Number.isFinite(parsed)) return Number.NaN
+
+  return usesZeroDecimalCurrency(normalizedCurrency) ? Math.round(parsed) : parsed
+}
+
 export function parseCurrencyInput(value: string, currency: string): number {
-  const numeric = coerceAmount(value)
-  return usesZeroDecimalCurrency(currency) ? Math.round(numeric) : numeric
+  return parseLocalizedAmount(value, currency)
 }
 
 export function getAmountInputProps(currency: string) {
   const zeroDecimal = usesZeroDecimalCurrency(currency)
+  const decimalSeparator = getLocaleNumberSeparators(getCurrencyLocale(currency)).decimal
   return {
     inputMode: zeroDecimal ? 'numeric' : 'decimal',
-    placeholder: zeroDecimal ? '0' : '0.00',
+    placeholder: zeroDecimal ? '0' : `0${decimalSeparator === ',' ? ',' : '.'}00`,
     step: zeroDecimal ? '1' : '0.01',
   } as const
 }

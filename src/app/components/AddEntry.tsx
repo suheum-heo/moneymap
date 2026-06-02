@@ -119,9 +119,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     const parsed = parseCurrencyInput(amount, primaryAmountCurrency)
     if (isNaN(parsed) || parsed <= 0) { setError(t('invalidAmount')); return }
     if (!category) { setError(t('selectCategoryError')); return }
-    setError('')
-
     const parsedActual = actualCharged.trim() ? parseCurrencyInput(actualCharged.trim(), homeCur) : undefined
+    if (actualCharged.trim() && (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)) {
+      setError(t('invalidAmount'))
+      return
+    }
+    setError('')
 
     onAdd({
       id: Date.now().toString(),
@@ -211,7 +214,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
             </button>
           </div>
           <div className="flex gap-2">
-            <input type="number" value={amount} onChange={e => setAmount(normalizeAmountInputValue(e.target.value, primaryAmountCurrency))}
+            <input type="text" value={amount} onChange={e => setAmount(normalizeAmountInputValue(e.target.value, primaryAmountCurrency))}
               placeholder={primaryAmountProps.placeholder} step={primaryAmountProps.step} inputMode={primaryAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
             {showCurrencyOverride && (
               <select value={currency} onChange={e => setCurrency(e.target.value)}
@@ -232,7 +235,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
               <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
             </div>
             <input
-              type="number"
+              type="text"
               value={actualCharged}
               onChange={e => setActualCharged(normalizeAmountInputValue(e.target.value, homeCur))}
               placeholder={t('actualChargedHint')}
