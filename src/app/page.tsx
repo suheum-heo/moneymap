@@ -58,12 +58,23 @@ function AppContent({ user }: { user: User }) {
 
   const month = monthStr(selMonth, selYear)
   const monthLabel = new Date(selYear, selMonth, 1).toLocaleDateString(language, { month: 'long', year: 'numeric' })
+  const currentTabLabel = tab === 'add' ? t('addEntry') : ({
+    overview: t('overview'),
+    entries: t('entries'),
+    calendar: t('calendar'),
+    settings: t('settings'),
+  } as const)[tab]
 
   const navigateTo = (newTab: string, filter?: string, categoryFilter?: string) => {
     setTab(newTab as Tab)
     setEntriesFilter(filter || 'all')
     setEntriesCategoryFilter(categoryFilter || 'all')
   }
+
+  const openAddEntry = useCallback((date: string | null = null) => {
+    setCalendarAddDate(date)
+    setTab('add')
+  }, [])
 
   const goNextMonth = useCallback(() => {
     const next = addMonths(selMonth, selYear, 1)
@@ -137,7 +148,6 @@ function AppContent({ user }: { user: User }) {
     { id: 'overview' as Tab, label: t('overview') },
     { id: 'entries' as Tab, label: t('entries') },
     { id: 'calendar' as Tab, label: t('calendar') },
-    { id: 'add' as Tab, label: t('add') },
     { id: 'settings' as Tab, label: t('settings') },
   ]
 
@@ -221,7 +231,7 @@ function AppContent({ user }: { user: User }) {
     <>
       {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} onUpdate={updateEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} sortOrder={entrySortOrder} activeContext={activeContext} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={openAddEntry} sortOrder={entrySortOrder} activeContext={activeContext} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'settings' && <Settings contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} addCategory={addCategory} removeCategory={removeCategory} />}
     </>
@@ -236,16 +246,24 @@ function AppContent({ user }: { user: User }) {
         <div className="flex-1 overflow-y-auto pr-1" onWheel={onWheel}>
           <div className={`${tab === 'calendar' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto py-4`}>
             <div className="app-panel mb-5 px-5 py-5">
-              <div className="app-kicker mb-2">{tabs.find(item => item.id === tab)?.label}</div>
+              <div className="app-kicker mb-2">{currentTabLabel}</div>
               <div className="flex items-end justify-between gap-6">
                 <div>
                   <h2 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{activeContext?.name}</h2>
                   <p className="mt-2 text-base font-medium text-[#3182f6] dark:text-sky-300">{monthLabel}</p>
                   <p className="mt-1 text-sm text-slate-400">{formatFullDate(todayKey, language)}</p>
                 </div>
-                <div className="hidden rounded-[22px] border border-slate-200/75 bg-slate-50/80 px-4 py-3 text-right lg:block dark:border-white/10 dark:bg-slate-900/70">
-                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{t('settings')}</div>
-                  <div className="mt-1 text-sm text-slate-700 dark:text-zinc-300">{activeContext?.currency}{activeContext?.homeCurrency && activeContext.homeCurrency !== activeContext.currency ? ` → ${activeContext.homeCurrency}` : ''}</div>
+                <div className="flex flex-col items-end gap-3">
+                  {tab !== 'add' && (
+                    <button onClick={() => openAddEntry()}
+                      className="app-button-primary px-5 py-3 text-sm shadow-[0_16px_30px_-22px_rgba(49,130,246,0.5)]">
+                      + {t('addEntry')}
+                    </button>
+                  )}
+                  <div className="hidden rounded-[22px] border border-slate-200/75 bg-slate-50/80 px-4 py-3 text-right lg:block dark:border-white/10 dark:bg-slate-900/70">
+                    <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{t('settings')}</div>
+                    <div className="mt-1 text-sm text-slate-700 dark:text-zinc-300">{activeContext?.currency}{activeContext?.homeCurrency && activeContext.homeCurrency !== activeContext.currency ? ` → ${activeContext.homeCurrency}` : ''}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -259,7 +277,7 @@ function AppContent({ user }: { user: User }) {
           <div className="flex items-start gap-3">
             <button onClick={() => setMobileMenuOpen(true)}
               className="flex-1 text-left">
-              <div className="app-kicker mb-1">{tabs.find(item => item.id === tab)?.label}</div>
+              <div className="app-kicker mb-1">{currentTabLabel}</div>
               <div className="flex items-center gap-1.5 text-lg font-semibold text-slate-900 dark:text-zinc-50">
                 <span className="truncate">{activeContext?.name}</span>
                 <span className="text-sm text-slate-400 flex-shrink-0">▾</span>
@@ -283,6 +301,13 @@ function AppContent({ user }: { user: User }) {
           <div className="mt-3">
             <MonthYearPicker />
           </div>
+
+          {tab !== 'add' && (
+            <button onClick={() => openAddEntry()}
+              className="app-button-primary mt-3 w-full shadow-[0_16px_30px_-22px_rgba(49,130,246,0.5)]">
+              + {t('addEntry')}
+            </button>
+          )}
         </div>
 
         {mobileMenuOpen && (
@@ -312,7 +337,7 @@ function AppContent({ user }: { user: User }) {
           </div>
         )}
 
-        <div className="app-panel-soft mt-4 grid grid-cols-5 gap-1 p-1.5">
+        <div className="app-panel-soft mt-4 grid grid-cols-4 gap-1 p-1.5">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`rounded-[18px] px-2 py-2.5 text-sm transition-all ${tab === t.id
