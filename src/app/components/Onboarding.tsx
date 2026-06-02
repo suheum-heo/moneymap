@@ -29,7 +29,7 @@ export default function Onboarding({ onDone }: Props) {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="app-panel px-6 py-8 sm:px-7">
-          <div className="mb-6 flex justify-end">
+          <div className="mb-4 flex justify-end">
             <LanguageSelector variant="inline" />
           </div>
 

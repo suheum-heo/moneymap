@@ -9,6 +9,7 @@ interface Props {
 export default function LanguageSelector({ variant = 'panel' }: Props) {
   const { t, i18n } = useTranslation()
   const activeLanguage = i18n.resolvedLanguage || i18n.language
+  const activeLabel = LANGUAGES.find(lang => lang.code === activeLanguage)?.label || LANGUAGES[0].label
 
   const changeLang = (code: string) => {
     i18n.changeLanguage(code)
@@ -17,12 +18,16 @@ export default function LanguageSelector({ variant = 'panel' }: Props) {
 
   if (variant === 'inline') {
     return (
-      <div className="min-w-[180px]">
-        <label className="app-kicker mb-2 block text-right">{t('language')}</label>
+      <div className="relative inline-flex">
+        <div className="pointer-events-none inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-200/85 bg-white/88 px-3 py-2 text-sm text-slate-600 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.28)] dark:border-white/10 dark:bg-slate-900/75 dark:text-zinc-300">
+          <span className="text-[13px] opacity-70" aria-hidden="true">🌐</span>
+          <span className="max-w-[96px] truncate font-medium">{activeLabel}</span>
+          <span className="text-[11px] opacity-60" aria-hidden="true">▾</span>
+        </div>
         <select
           value={activeLanguage}
           onChange={e => changeLang(e.target.value)}
-          className="app-select w-full px-3 py-2 text-sm"
+          className="absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0"
           style={{ fontSize: '16px' }}
           aria-label={t('language')}
         >
