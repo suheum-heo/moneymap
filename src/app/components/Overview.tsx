@@ -2,6 +2,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Entry, Context, getCategoryColor, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency } from '../types'
+import EntryEditModal from './EntryEditModal'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -9,9 +10,12 @@ interface Props {
   entries: Entry[]
   month: string
   onNavigate: (tab: string, filter?: string) => void
+  onUpdate: (entry: Entry) => void
   activeContext?: Context
   convert: (amount: number, from: string, to: string) => number
   getBudget: (context: string, category: string) => number | null
+  expenseCategories: string[]
+  incomeCategories: string[]
 }
 
 function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
@@ -23,7 +27,7 @@ function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
   return `rgba(${softened[0]}, ${softened[1]}, ${softened[2]}, ${alpha})`
 }
 
-export default function Overview({ entries, month, onNavigate, activeContext, convert, getBudget }: Props) {
+export default function Overview({ entries, month, onNavigate, onUpdate, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
   const catChartRef = useRef<HTMLCanvasElement>(null)
   const locChartRef = useRef<HTMLCanvasElement>(null)
@@ -31,6 +35,7 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
   const locChartInstance = useRef<Chart | null>(null)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null)
+  const [editEntry, setEditEntry] = useState<Entry | null>(null)
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -238,6 +243,16 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
 
   return (
     <div className="px-4 pb-6">
+      <EntryEditModal
+        entry={editEntry}
+        entries={entries}
+        activeContext={activeContext}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+        onClose={() => setEditEntry(null)}
+        onUpdate={onUpdate}
+      />
+
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           { label: t('expenses'), value: fmt(expenses), sub: fmtHome(expensesHome), color: 'app-negative', filter: 'expense' },
@@ -453,9 +468,10 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                               const entryCurrency = getEntryCurrency(e, cur, homeCur)
                               const col = getCategoryColor(e.category, e.type)
                               return (
-                                <div
+                                <button
                                   key={e.id}
-                                  className="app-list-row flex items-start gap-3 !rounded-[18px] !px-3 !py-3"
+                                  onClick={() => setEditEntry(e)}
+                                  className="app-list-row flex w-full cursor-pointer items-start gap-3 !rounded-[18px] !px-3 !py-3 text-left transition-all hover:border-slate-300/85 hover:bg-white/92 dark:hover:border-white/15 dark:hover:bg-slate-900/80"
                                 >
                                   <div className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
                                   <div className="min-w-0 flex-1">
@@ -479,16 +495,19 @@ export default function Overview({ entries, month, onNavigate, activeContext, co
                                         {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
                                       </div>
                                     </div>
-                                    <div className="mt-2">
+                                    <div className="mt-2 flex items-center justify-between gap-3">
                                       <span
                                         className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
                                         style={{ background: softenColor(col, 0.18, 0.14), color: col }}
                                       >
                                         {e.category}
                                       </span>
+                                      <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] dark:text-sky-300">
+                                        {t('edit')}
+                                      </span>
                                     </div>
                                   </div>
-                                </div>
+                                </button>
                               )
                             })}
                           </div>

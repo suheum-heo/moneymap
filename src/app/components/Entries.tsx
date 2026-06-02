@@ -1,7 +1,8 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
+import { Entry, Context, getCategoryBadgeStyle, getCategoryColor, formatAmount, getEntryCurrency } from '../types'
+import EntryEditModal from './EntryEditModal'
 
 interface Props {
   entries: Entry[]
@@ -14,10 +15,6 @@ interface Props {
   expenseCategories: string[]
   incomeCategories: string[]
 }
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
-function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
 function getWeekRange() {
   const now = new Date()
@@ -70,37 +67,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
     return [...f].sort((a, b) => a.date.localeCompare(b.date))
   }, [monthEntries, typeFilter, catFilter, search, weekOnly, weekRange])
 
-  const pastVenues = useMemo(() => [...new Set(entries.map(e => e.venue).filter(Boolean))].sort(), [entries])
-  const pastLocations = useMemo(() => [...new Set(entries.map(e => e.location).filter(Boolean))].sort(), [entries])
-
-  const [editMonth, setEditMonth] = useState(0)
-  const [editDay, setEditDay] = useState(1)
-  const [editYear, setEditYear] = useState(2026)
-  const [editAmount, setEditAmount] = useState('')
-  const [editSummary, setEditSummary] = useState('')
-  const [editVenue, setEditVenue] = useState('')
-  const [editLocation, setEditLocation] = useState('')
-  const [editCategory, setEditCategory] = useState('')
-  const [editRemarks, setEditRemarks] = useState('')
-  const [editType, setEditType] = useState<'expense' | 'income'>('expense')
-
-  const openEdit = (e: Entry) => {
-    const [y, m, d] = e.date.split('-').map(Number)
-    setEditMonth(m - 1); setEditDay(d); setEditYear(y)
-    setEditAmount(e.amount.toString()); setEditSummary(e.summary)
-    setEditVenue(e.venue || ''); setEditLocation(e.location || '')
-    setEditCategory(e.category); setEditRemarks(e.remarks || '')
-    setEditType(e.type); setEditEntry(e)
-  }
-
-  const handleSave = () => {
-    if (!editEntry) return
-    const parsed = parseCurrencyInput(editAmount, editCurrency)
-    if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
-    const dateStr = `${editYear}-${String(editMonth + 1).padStart(2, '0')}-${String(editDay).padStart(2, '0')}`
-    onUpdate({ ...editEntry, type: editType, date: dateStr, amount: parsed, currency: editCurrency, summary: editSummary.trim(), venue: editVenue.trim(), location: editLocation.trim(), category: editCategory, remarks: editRemarks.trim() })
-    setEditEntry(null)
-  }
+  const openEdit = (e: Entry) => setEditEntry(e)
 
   const exportCSV = () => {
     const headers = [t('date'), t('expense') + '/' + t('income2'), t('summary'), t('venue'), t('location'), t('category'), t('amount'), 'Currency', t('remarks')]
@@ -120,82 +87,17 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
 
   const selCls = "app-select px-3 py-2.5 text-sm"
   const inputCls = "app-input py-3 text-sm"
-  const miniSelCls = "app-select w-full px-3 py-2.5 text-sm"
-  const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
-  const editDays = Array.from({ length: daysInMonth(editMonth, editYear) }, (_, i) => i + 1)
-  const editCats = editType === 'expense' ? expenseCategories : incomeCategories
-  const editCurrency = editEntry ? getEntryCurrency(editEntry, cur, homeCur) : cur
-  const editAmountProps = getAmountInputProps(editCurrency)
   return (
     <div className="px-4 pb-6 space-y-3">
-      {editEntry && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-4 backdrop-blur-sm md:items-center" onClick={() => setEditEntry(null)}>
-          <div className="app-panel w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
-            <div className="mb-1 flex items-center justify-between">
-              <div>
-                <div className="app-kicker mb-2">{t('entries')}</div>
-                <span className="text-base font-semibold text-slate-900 dark:text-zinc-50">{t('editEntry')}</span>
-              </div>
-              <button onClick={() => setEditEntry(null)} className="text-slate-400 text-lg">✕</button>
-            </div>
-            <div className="mt-4 flex gap-2">
-              {(['expense', 'income'] as const).map(tp => (
-                <button key={tp} onClick={() => { setEditType(tp); setEditCategory(tp === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0]) }}
-                  className={`app-segment flex-1 ${editType === tp ? 'app-segment-active' : ''}`}>
-                  {tp === 'expense' ? t('expense') : t('income2')}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4">
-              <label className="app-kicker mb-2 block">{t('date')}</label>
-              <div className="grid grid-cols-3 gap-2">
-                <select value={editMonth} onChange={e => setEditMonth(Number(e.target.value))} className={miniSelCls} style={{fontSize:'16px'}}>
-                  {MONTHS.map((mo, i) => <option key={mo} value={i}>{mo}</option>)}
-                </select>
-                <select value={editDay} onChange={e => setEditDay(Number(e.target.value))} className={miniSelCls} style={{fontSize:'16px'}}>
-                  {editDays.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select value={editYear} onChange={e => setEditYear(Number(e.target.value))} className={miniSelCls} style={{fontSize:'16px'}}>
-                  {years.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="app-kicker mb-2 block">{t('amount')} ({editCurrency} {getCurrencySymbol(editCurrency)})</label>
-              <input type="number" value={editAmount} onChange={e => setEditAmount(normalizeAmountInputValue(e.target.value, editCurrency))} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
-            </div>
-            <div>
-              <label className="app-kicker mb-2 block">{t('summary')}</label>
-              <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="app-kicker mb-2 block">{t('venue')}</label>
-                <input type="text" value={editVenue} onChange={e => setEditVenue(e.target.value)} className={inputCls} style={{fontSize:'16px'}} list="edit-venue-list" />
-              </div>
-              <div>
-                <label className="app-kicker mb-2 block">{t('location')}</label>
-                <input type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} className={inputCls} style={{fontSize:'16px'}} list="edit-location-list" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="app-kicker mb-2 block">{t('category')}</label>
-                <select value={editCategory} onChange={e => setEditCategory(e.target.value)} className={miniSelCls} style={{fontSize:'16px'}}>
-                  {editCats.map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="app-kicker mb-2 block">{t('remarks')}</label>
-                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
-              </div>
-            </div>
-            <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
-            <datalist id="edit-venue-list">{pastVenues.map(v => <option key={v} value={v} />)}</datalist>
-            <datalist id="edit-location-list">{pastLocations.map(l => <option key={l} value={l} />)}</datalist>
-          </div>
-        </div>
-      )}
+      <EntryEditModal
+        entry={editEntry}
+        entries={entries}
+        activeContext={activeContext}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+        onClose={() => setEditEntry(null)}
+        onUpdate={onUpdate}
+      />
 
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('entries')}</div>

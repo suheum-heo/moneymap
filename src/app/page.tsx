@@ -207,7 +207,7 @@ function AppContent({ user }: { user: User }) {
 
   const TabContent = () => (
     <>
-      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} activeContext={activeContext} convert={convert} getBudget={getBudget} />}
+      {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} onUpdate={updateEntry} activeContext={activeContext} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} activeContext={activeContext} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
