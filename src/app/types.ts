@@ -310,6 +310,29 @@ export const CURRENCIES: { code: string; symbol: string; name: string }[] = [
   { code: 'VND', symbol: '₫', name: 'Vietnamese Dong' },
 ]
 
+const CURRENCY_LOCALE_MAP: Record<string, string> = {
+  USD: 'en-US',
+  KRW: 'ko-KR',
+  EUR: 'de-DE',
+  GBP: 'en-GB',
+  JPY: 'ja-JP',
+  CAD: 'en-CA',
+  AUD: 'en-AU',
+  CHF: 'de-CH',
+  CNY: 'zh-CN',
+  HKD: 'zh-HK',
+  SGD: 'en-SG',
+  NZD: 'en-NZ',
+  SEK: 'sv-SE',
+  NOK: 'nb-NO',
+  DKK: 'da-DK',
+  MXN: 'es-MX',
+  BRL: 'pt-BR',
+  INR: 'en-IN',
+  THB: 'th-TH',
+  VND: 'vi-VN',
+}
+
 export function normalizeCurrencyCode(code: string): string {
   return code.trim().toUpperCase()
 }
@@ -328,6 +351,11 @@ export function getCurrencySymbol(code: string): string {
   return CURRENCIES.find(c => c.code === normalized)?.symbol || normalized
 }
 
+export function getCurrencyLocale(code: string): string {
+  const normalized = normalizeCurrencyCode(code)
+  return CURRENCY_LOCALE_MAP[normalized] || 'en-US'
+}
+
 const NO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY', 'VND', 'IDR', 'HUF', 'ISK', 'CLP', 'PYG'])
 
 export function usesZeroDecimalCurrency(currency: string): boolean {
@@ -337,15 +365,29 @@ export function usesZeroDecimalCurrency(currency: string): boolean {
 export function formatAmountValue(amount: number | string, currency: string): string {
   const numeric = coerceAmount(amount)
   const noDecimal = usesZeroDecimalCurrency(currency)
-  return numeric.toLocaleString(undefined, {
+  return new Intl.NumberFormat(getCurrencyLocale(currency), {
     minimumFractionDigits: noDecimal ? 0 : 2,
     maximumFractionDigits: noDecimal ? 0 : 2,
-  })
+  }).format(numeric)
 }
 
 export function formatAmount(amount: number | string, currency: string): string {
-  const sym = getCurrencySymbol(currency)
-  return `${sym}${formatAmountValue(amount, currency)}`
+  const normalized = normalizeCurrencyCode(currency)
+  const numeric = coerceAmount(amount)
+  const noDecimal = usesZeroDecimalCurrency(normalized)
+
+  try {
+    return new Intl.NumberFormat(getCurrencyLocale(normalized), {
+      style: 'currency',
+      currency: normalized,
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: noDecimal ? 0 : 2,
+      maximumFractionDigits: noDecimal ? 0 : 2,
+    }).format(numeric)
+  } catch {
+    const sym = getCurrencySymbol(normalized)
+    return `${sym}${formatAmountValue(numeric, normalized)}`
+  }
 }
 
 export function normalizeAmountInputValue(value: string, currency: string): string {

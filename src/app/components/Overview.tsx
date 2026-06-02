@@ -6,10 +6,8 @@ import {
   Context,
   EntrySortOrder,
   formatAmount,
-  formatAmountValue,
   formatEntryDate,
   getCategoryColor,
-  getCurrencySymbol,
   getEntryCurrency,
   sortEntriesForDisplay,
 } from '../types'
@@ -53,7 +51,6 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
   const showConversion = cur !== homeCur
-  const sym = getCurrencySymbol(cur)
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
   const chartGridColor = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(203,213,225,0.62)'
   const chartTextColor = isDark ? '#95a2b3' : '#7b8794'
@@ -175,7 +172,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
             padding: 12,
             titleColor: tooltipTitle,
             bodyColor: tooltipBody,
-            callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` }
+            callbacks: { label: ctx => ` ${formatAmount(ctx.raw as number, cur)}` }
           }
         },
         scales: {
@@ -187,13 +184,13 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
           y: {
             grid: { color: chartGridColor, drawTicks: false },
             border: { display: false },
-            ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11, weight: 500 }, padding: 8 }
+            ticks: { color: chartTextColor, callback: v => formatAmount(Number(v), cur), font: { size: 11, weight: 500 }, padding: 8 }
           }
         }
       }
     })
     return () => { catChartInstance.current?.destroy() }
-  }, [byCategory, chartGridColor, chartTextColor, cur, sym])
+  }, [byCategory, chartGridColor, chartTextColor, cur])
 
   useEffect(() => {
     if (!locChartRef.current || byLocation.length === 0) return
@@ -225,14 +222,14 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
             padding: 12,
             titleColor: tooltipTitle,
             bodyColor: tooltipBody,
-            callbacks: { label: ctx => ` ${sym}${formatAmountValue(ctx.raw as number, cur)}` }
+            callbacks: { label: ctx => ` ${formatAmount(ctx.raw as number, cur)}` }
           }
         },
         scales: {
           x: {
             grid: { color: chartGridColor, drawTicks: false },
             border: { display: false },
-            ticks: { color: chartTextColor, callback: v => sym + formatAmountValue(Number(v), cur), font: { size: 11, weight: 500 }, padding: 8 }
+            ticks: { color: chartTextColor, callback: v => formatAmount(Number(v), cur), font: { size: 11, weight: 500 }, padding: 8 }
           },
           y: {
             grid: { display: false },
@@ -243,7 +240,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
       }
     })
     return () => { locChartInstance.current?.destroy() }
-  }, [byLocation, chartGridColor, chartTextColor, cur, sym])
+  }, [byLocation, chartGridColor, chartTextColor, cur])
 
   // Big number = local cur, small grey = home cur equivalent
   const fmt = (n: number) => formatAmount(Math.abs(n), cur)

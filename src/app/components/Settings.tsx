@@ -6,6 +6,7 @@ import {
   CURRENCIES,
   Context,
   EXPENSE_CATEGORIES,
+  formatAmount,
   formatAmountValue,
   formatLocaleTime,
   formatMonthYear,
@@ -15,7 +16,6 @@ import {
   getCurrencySymbol,
   normalizeAmountInputValue,
   parseCurrencyInput,
-  usesZeroDecimalCurrency,
 } from '../types'
 import { RecurringItem } from '../useRecurring'
 import { Category } from '../useCategories'
@@ -386,7 +386,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                   <div>
                     <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{item.summary}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-                      <span>{getCurrencySymbol(item.currency)}{formatAmountValue(item.amount, item.currency)} {item.currency}</span>
+                      <span>{formatAmount(item.amount, item.currency)} {item.currency}</span>
                       <span aria-hidden="true">·</span>
                       <span className="inline-flex rounded-full px-2 py-0.5 font-medium" style={getCategoryBadgeStyle(item.category, 'expense', 0.16)}>
                         {item.category}
@@ -452,7 +452,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                   <span className="text-sm text-slate-800 dark:text-zinc-100">{cat}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="app-accent text-sm font-semibold">{activeContext?.currency} {formatAmountValue(b, activeContext?.currency || 'USD')}</span>
+                  <span className="app-accent text-sm font-semibold">{formatAmount(b, activeContext?.currency || 'USD')}</span>
                   <button onClick={() => activeContext && setBudget(activeContext.id, cat, 0)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
                 </div>
               </div>
@@ -490,10 +490,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           </div>
           {rateFrom !== rateTo && (
             <div className="text-lg font-semibold text-slate-800 dark:text-zinc-100">
-              1 {rateFrom} = {convert(1, rateFrom, rateTo).toLocaleString(undefined, {
-                minimumFractionDigits: usesZeroDecimalCurrency(rateTo) ? 0 : 2,
-                maximumFractionDigits: usesZeroDecimalCurrency(rateTo) ? 0 : 4,
-              })} {rateTo}
+              1 {rateFrom} = {formatAmountValue(convert(1, rateFrom, rateTo), rateTo)} {rateTo}
             </div>
           )}
         </div>

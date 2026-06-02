@@ -6,7 +6,7 @@ import {
   Context,
   getCurrencySymbol,
   CURRENCIES,
-  formatAmountValue,
+  formatAmount,
   getAmountInputProps,
   getMonthLabels,
   normalizeAmountInputValue,
@@ -177,7 +177,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
                     {r.remarks && <span className="mt-1 block text-xs text-slate-400">{r.remarks}</span>}
                   </div>
                   <span className="ml-3 text-sm font-semibold text-[#3182f6] dark:text-sky-300">
-                    {getCurrencySymbol(r.currency)}{formatAmountValue(r.amount, r.currency)} {r.currency !== contextCur ? r.currency : ''}
+                    {formatAmount(r.amount, r.currency)}{r.currency !== contextCur ? ` ${r.currency}` : ''}
                   </span>
                 </button>
               ))}
