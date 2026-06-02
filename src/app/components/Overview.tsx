@@ -378,13 +378,10 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
                                     <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                                     {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
                                   </div>
-                                  <div className="flex flex-shrink-0 items-center gap-3">
+                                  <div className="flex-shrink-0">
                                     <div className="text-sm font-semibold" style={{ color: col }}>
                                       -{formatAmount(e.amount, entryCurrency)}
                                     </div>
-                                    <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] dark:text-sky-300">
-                                      {t('edit')}
-                                    </span>
                                   </div>
                                 </button>
                               )
@@ -509,15 +506,12 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
                                         {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
                                       </div>
                                     </div>
-                                    <div className="mt-2 flex items-center justify-between gap-3">
+                                    <div className="mt-2">
                                       <span
                                         className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
                                         style={{ background: softenColor(col, 0.18, 0.14), color: col }}
                                       >
                                         {e.category}
-                                      </span>
-                                      <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] dark:text-sky-300">
-                                        {t('edit')}
                                       </span>
                                     </div>
                                   </div>
