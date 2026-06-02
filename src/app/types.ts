@@ -27,13 +27,265 @@ export interface Context {
   startDate: string
 }
 
-export const EXPENSE_CATEGORIES = [
-  'Rent','Utilities','Subscription','Food/Drink','Coffee/Snack',
-  'Grocery','Essentials','Gift','Shopping','Self-care',
-  'Education','Transportation','Laundry','Betting','Other'
+type DefaultExpenseCategoryKey =
+  | 'food_drink'
+  | 'coffee_snack'
+  | 'transportation'
+  | 'travel'
+  | 'essentials'
+  | 'shopping'
+  | 'health_self_care'
+  | 'education'
+  | 'subscriptions'
+  | 'other'
+
+type DefaultIncomeCategoryKey =
+  | 'salary'
+  | 'allowance'
+  | 'refund'
+  | 'other_income'
+
+type DefaultCategoryTranslations = {
+  expense: Record<DefaultExpenseCategoryKey, string>
+  income: Record<DefaultIncomeCategoryKey, string>
+}
+
+const DEFAULT_EXPENSE_CATEGORY_KEYS: DefaultExpenseCategoryKey[] = [
+  'food_drink',
+  'coffee_snack',
+  'transportation',
+  'travel',
+  'essentials',
+  'shopping',
+  'health_self_care',
+  'education',
+  'subscriptions',
+  'other',
 ]
 
-export const INCOME_CATEGORIES = ['Work','Dividend','Other']
+const DEFAULT_INCOME_CATEGORY_KEYS: DefaultIncomeCategoryKey[] = [
+  'salary',
+  'allowance',
+  'refund',
+  'other_income',
+]
+
+const DEFAULT_CATEGORY_TRANSLATIONS: Record<string, DefaultCategoryTranslations> = {
+  en: {
+    expense: {
+      food_drink: 'Food/Drink',
+      coffee_snack: 'Coffee/Snack',
+      transportation: 'Transportation',
+      travel: 'Travel',
+      essentials: 'Essentials',
+      shopping: 'Shopping',
+      health_self_care: 'Health/Self-care',
+      education: 'Education',
+      subscriptions: 'Subscriptions',
+      other: 'Other',
+    },
+    income: {
+      salary: 'Salary',
+      allowance: 'Allowance',
+      refund: 'Refund',
+      other_income: 'Other Income',
+    },
+  },
+  ko: {
+    expense: {
+      food_drink: '음식/음료',
+      coffee_snack: '커피/간식',
+      transportation: '교통',
+      travel: '여행',
+      essentials: '생필품',
+      shopping: '쇼핑',
+      health_self_care: '건강/자기관리',
+      education: '교육',
+      subscriptions: '구독',
+      other: '기타',
+    },
+    income: {
+      salary: '급여',
+      allowance: '용돈',
+      refund: '환불',
+      other_income: '기타 수입',
+    },
+  },
+  ja: {
+    expense: {
+      food_drink: '食事・飲み物',
+      coffee_snack: 'コーヒー・軽食',
+      transportation: '交通',
+      travel: '旅行',
+      essentials: '日用品',
+      shopping: '買い物',
+      health_self_care: '健康・セルフケア',
+      education: '教育',
+      subscriptions: 'サブスクリプション',
+      other: 'その他',
+    },
+    income: {
+      salary: '給与',
+      allowance: 'お小遣い',
+      refund: '返金',
+      other_income: 'その他の収入',
+    },
+  },
+  zh: {
+    expense: {
+      food_drink: '餐饮',
+      coffee_snack: '咖啡/零食',
+      transportation: '交通',
+      travel: '旅行',
+      essentials: '日用品',
+      shopping: '购物',
+      health_self_care: '健康/自我照护',
+      education: '教育',
+      subscriptions: '订阅',
+      other: '其他',
+    },
+    income: {
+      salary: '工资',
+      allowance: '零花钱',
+      refund: '退款',
+      other_income: '其他收入',
+    },
+  },
+  es: {
+    expense: {
+      food_drink: 'Comida y bebida',
+      coffee_snack: 'Café y snacks',
+      transportation: 'Transporte',
+      travel: 'Viajes',
+      essentials: 'Esenciales',
+      shopping: 'Compras',
+      health_self_care: 'Salud y autocuidado',
+      education: 'Educación',
+      subscriptions: 'Suscripciones',
+      other: 'Otros',
+    },
+    income: {
+      salary: 'Salario',
+      allowance: 'Asignación',
+      refund: 'Reembolso',
+      other_income: 'Otros ingresos',
+    },
+  },
+  fr: {
+    expense: {
+      food_drink: 'Alimentation',
+      coffee_snack: 'Café & snacks',
+      transportation: 'Transport',
+      travel: 'Voyages',
+      essentials: 'Essentiels',
+      shopping: 'Achats',
+      health_self_care: 'Santé & soins',
+      education: 'Éducation',
+      subscriptions: 'Abonnements',
+      other: 'Autres',
+    },
+    income: {
+      salary: 'Salaire',
+      allowance: 'Allocation',
+      refund: 'Remboursement',
+      other_income: 'Autres revenus',
+    },
+  },
+  de: {
+    expense: {
+      food_drink: 'Essen & Trinken',
+      coffee_snack: 'Kaffee & Snacks',
+      transportation: 'Transport',
+      travel: 'Reisen',
+      essentials: 'Notwendiges',
+      shopping: 'Einkäufe',
+      health_self_care: 'Gesundheit & Selbstpflege',
+      education: 'Bildung',
+      subscriptions: 'Abonnements',
+      other: 'Sonstiges',
+    },
+    income: {
+      salary: 'Gehalt',
+      allowance: 'Zulage',
+      refund: 'Rückerstattung',
+      other_income: 'Sonstige Einnahmen',
+    },
+  },
+}
+
+function normalizeCategoryAliasName(categoryName: string): string {
+  return categoryName
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+function resolveDefaultCategoryLanguage(language?: string): string {
+  const base = (language || 'en').trim().toLowerCase().split('-')[0]
+  return DEFAULT_CATEGORY_TRANSLATIONS[base] ? base : 'en'
+}
+
+export function getDefaultCategoriesForLanguage(language?: string): { expense: string[]; income: string[] } {
+  const locale = resolveDefaultCategoryLanguage(language)
+  const labels = DEFAULT_CATEGORY_TRANSLATIONS[locale] || DEFAULT_CATEGORY_TRANSLATIONS.en
+  const fallback = DEFAULT_CATEGORY_TRANSLATIONS.en
+
+  return {
+    expense: DEFAULT_EXPENSE_CATEGORY_KEYS.map(key => labels.expense[key] || fallback.expense[key]),
+    income: DEFAULT_INCOME_CATEGORY_KEYS.map(key => labels.income[key] || fallback.income[key]),
+  }
+}
+
+export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORY_KEYS.map(
+  key => DEFAULT_CATEGORY_TRANSLATIONS.en.expense[key],
+)
+
+export const INCOME_CATEGORIES = DEFAULT_INCOME_CATEGORY_KEYS.map(
+  key => DEFAULT_CATEGORY_TRANSLATIONS.en.income[key],
+)
+
+export function getDefaultCategoryDefinitions(language?: string): Array<{
+  id: string
+  name: string
+  type: EntryType
+}> {
+  const localized = getDefaultCategoriesForLanguage(language)
+
+  return [
+    ...DEFAULT_EXPENSE_CATEGORY_KEYS.map((key, index) => ({
+      id: `exp_${key}`,
+      name: localized.expense[index],
+      type: 'expense' as const,
+    })),
+    ...DEFAULT_INCOME_CATEGORY_KEYS.map((key, index) => ({
+      id: `inc_${key}`,
+      name: localized.income[index],
+      type: 'income' as const,
+    })),
+  ]
+}
+
+const CATEGORY_CANONICAL_KEY_ALIASES: Record<string, string> = (() => {
+  const aliases: Record<string, string> = {
+    necessities: 'essentials',
+    subscription: 'subscriptions',
+    subscriptions: 'subscriptions',
+    'self-care': 'health_self_care',
+    'health/self-care': 'health_self_care',
+  }
+
+  for (const labels of Object.values(DEFAULT_CATEGORY_TRANSLATIONS)) {
+    for (const [key, label] of Object.entries(labels.expense)) {
+      aliases[normalizeCategoryAliasName(label)] = key
+    }
+    for (const [key, label] of Object.entries(labels.income)) {
+      aliases[normalizeCategoryAliasName(label)] = key
+    }
+  }
+
+  return aliases
+})()
 
 export const CURRENCIES: { code: string; symbol: string; name: string }[] = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -189,16 +441,17 @@ export const CATEGORY_COLOR_OVERRIDES: Record<string, string> = {
 }
 
 export function normalizeCategoryName(categoryName: string): string {
-  return categoryName
-    .normalize('NFKC')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
+  return normalizeCategoryAliasName(categoryName)
+}
+
+export function isOtherCategoryName(categoryName: string): boolean {
+  const canonical = CATEGORY_CANONICAL_KEY_ALIASES[normalizeCategoryName(categoryName)] || normalizeCategoryName(categoryName)
+  return canonical === 'other' || canonical === 'other_income'
 }
 
 function resolveCategoryColorKey(categoryName: string): string {
   const normalized = normalizeCategoryName(categoryName)
-  return normalized === 'necessities' ? 'essentials' : normalized
+  return CATEGORY_CANONICAL_KEY_ALIASES[normalized] || normalized
 }
 
 function hashCategoryName(categoryName: string): number {

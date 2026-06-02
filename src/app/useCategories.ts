@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './types'
+import { getDefaultCategoryDefinitions, isOtherCategoryName } from './types'
 import { useUserId } from './UserContext'
 
 export interface Category {
@@ -10,31 +10,63 @@ export interface Category {
   type: 'expense' | 'income'
 }
 
-export function useCategories() {
+export function useCategories({
+  language,
+  canSeedDefaults = true,
+}: {
+  language?: string
+  canSeedDefaults?: boolean
+} = {}) {
   const userId = useUserId()
   const [categories, setCategories] = useState<Category[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (!userId) { setLoaded(true); return }
+    let cancelled = false
+
+    if (!userId) {
+      setCategories([])
+      setLoaded(true)
+      return () => {
+        cancelled = true
+      }
+    }
 
     supabase.from('categories').select('*').eq('user_id', userId)
       .then(async ({ data }) => {
+        if (cancelled) return
+
         if (data && data.length > 0) {
           setCategories(data.map(r => ({ id: r.id, name: r.name, type: r.type })))
-        } else {
-          const defaults: Category[] = [
-            ...EXPENSE_CATEGORIES.map(name => ({ id: `exp_${name.toLowerCase().replace(/[\s\/]+/g, '_')}`, name, type: 'expense' as const })),
-            ...INCOME_CATEGORIES.map(name => ({ id: `inc_${name.toLowerCase().replace(/[\s\/]+/g, '_')}`, name, type: 'income' as const })),
-          ]
-          for (const c of defaults) {
-            await supabase.from('categories').upsert({ id: c.id, user_id: userId, name: c.name, type: c.type }, { onConflict: 'id,user_id' })
-          }
-          setCategories(defaults)
+          setLoaded(true)
+          return
         }
+
+        if (!canSeedDefaults) {
+          setCategories([])
+          setLoaded(true)
+          return
+        }
+
+        const defaults: Category[] = getDefaultCategoryDefinitions(language)
+        await Promise.all(
+          defaults.map(category =>
+            supabase.from('categories').upsert(
+              { id: category.id, user_id: userId, name: category.name, type: category.type },
+              { onConflict: 'id,user_id' },
+            ),
+          ),
+        )
+
+        if (cancelled) return
+        setCategories(defaults)
         setLoaded(true)
       })
-  }, [userId])
+
+    return () => {
+      cancelled = true
+    }
+  }, [canSeedDefaults, language, userId])
 
   const addCategory = useCallback(async (name: string, type: 'expense' | 'income') => {
     if (!userId || !name.trim()) return
@@ -51,8 +83,8 @@ export function useCategories() {
   }, [userId])
 
   const sortWithOtherLast = (arr: string[]) => {
-    const others = arr.filter(c => c.toLowerCase() === 'other')
-    const rest = arr.filter(c => c.toLowerCase() !== 'other').sort()
+    const others = arr.filter(isOtherCategoryName)
+    const rest = arr.filter(c => !isOtherCategoryName(c)).sort((a, b) => a.localeCompare(b, language))
     return [...rest, ...others]
   }
   const expenseCategories = sortWithOtherLast(categories.filter(c => c.type === 'expense').map(c => c.name))

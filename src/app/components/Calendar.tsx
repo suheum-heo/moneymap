@@ -133,7 +133,14 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
             </div>
             <div className="mt-4 flex gap-2">
               {(['expense', 'income'] as const).map(tp => (
-                <button key={tp} onClick={() => { setEditType(tp); setEditCategory(tp === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0]) }}
+                <button key={tp} onClick={() => {
+                  setEditType(tp)
+                  setEditCategory(
+                    tp === 'expense'
+                      ? (expenseCategories[0] || EXPENSE_CATEGORIES[0])
+                      : (incomeCategories[0] || INCOME_CATEGORIES[0]),
+                  )
+                }}
                   className={`app-segment flex-1 ${editType === tp ? 'app-segment-active' : ''}`}>
                   {tp === 'expense' ? t('expense') : t('income2')}
                 </button>

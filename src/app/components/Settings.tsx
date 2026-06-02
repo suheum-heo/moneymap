@@ -39,13 +39,15 @@ interface Props {
   updateItem: (item: RecurringItem) => void
   deleteItem: (id: string) => void
   categories: Category[]
+  expenseCategories: string[]
   addCategory: (name: string, type: 'expense' | 'income') => void
   removeCategory: (id: string) => void
 }
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, addCategory, removeCategory }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, expenseCategories, addCategory, removeCategory }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
+  const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
 
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -76,10 +78,10 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [rateFrom, setRateFrom] = useState('USD')
   const [rateTo, setRateTo] = useState('KRW')
 
-  const [budgetCat, setBudgetCat] = useState(EXPENSE_CATEGORIES[0])
+  const [budgetCat, setBudgetCat] = useState(expenseCategoryOptions[0] || EXPENSE_CATEGORIES[0])
   const [budgetAmt, setBudgetAmt] = useState('')
 
-  const [recCategory, setRecCategory] = useState(EXPENSE_CATEGORIES[3])
+  const [recCategory, setRecCategory] = useState(expenseCategoryOptions[0] || EXPENSE_CATEGORIES[0])
   const [recAmount, setRecAmount] = useState('')
   const [recCurrency, setRecCurrency] = useState(activeContext?.currency || 'USD')
   const [recSummary, setRecSummary] = useState('')
@@ -105,6 +107,12 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   useEffect(() => {
     if (activeContext?.currency) setRecCurrency(activeContext.currency)
   }, [activeContext?.currency])
+
+  useEffect(() => {
+    if (!expenseCategoryOptions.length) return
+    if (!expenseCategoryOptions.includes(budgetCat)) setBudgetCat(expenseCategoryOptions[0])
+    if (!expenseCategoryOptions.includes(recCategory)) setRecCategory(expenseCategoryOptions[0])
+  }, [budgetCat, expenseCategoryOptions, recCategory])
 
   const inputCls = "app-input py-3 text-sm"
   const selCls = "app-select px-3 py-2.5 text-sm"
@@ -360,7 +368,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                     <div>
                       <label className="app-kicker block mb-2">{t('category')}</label>
                       <select value={editRec.category} onChange={e => setEditRec({ ...editRec, category: e.target.value })} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
-                        {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                        {expenseCategoryOptions.map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
                   </div>
@@ -418,7 +426,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             <div>
               <label className="app-kicker block mb-2">{t('category')}</label>
               <select value={recCategory} onChange={e => setRecCategory(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
-                {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                {expenseCategoryOptions.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
@@ -435,7 +443,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         <div className="app-kicker mb-3">{t('monthlyBudgets')}</div>
         <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
-          {EXPENSE_CATEGORIES.map(cat => {
+          {expenseCategoryOptions.map(cat => {
             const b = activeContext ? getBudget(activeContext.id, cat) : null
             return b ? (
               <div key={cat} className="app-list-row flex items-center justify-between !py-3">
@@ -453,7 +461,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         </div>
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
-            {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            {expenseCategoryOptions.map(c => <option key={c}>{c}</option>)}
           </select>
           <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(normalizeAmountInputValue(e.target.value, activeContext?.currency || 'USD'))} placeholder={t('monthlyLimitPlaceholder')} step={budgetAmountProps.step} inputMode={budgetAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
           <button onClick={() => {

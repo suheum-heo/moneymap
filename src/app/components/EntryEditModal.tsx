@@ -126,7 +126,11 @@ export default function EntryEditModal({
               key={type}
               onClick={() => {
                 setEditType(type)
-                setEditCategory(type === 'expense' ? EXPENSE_CATEGORIES[3] : INCOME_CATEGORIES[0])
+                setEditCategory(
+                  type === 'expense'
+                    ? (expenseCategories[0] || EXPENSE_CATEGORIES[0])
+                    : (incomeCategories[0] || INCOME_CATEGORIES[0]),
+                )
               }}
               className={`app-segment flex-1 ${editType === type ? 'app-segment-active' : ''}`}
             >
