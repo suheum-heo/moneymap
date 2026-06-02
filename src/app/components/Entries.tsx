@@ -10,6 +10,7 @@ interface Props {
   onDelete: (id: string) => void
   onUpdate: (entry: Entry) => void
   initialTypeFilter?: string
+  initialCategoryFilter?: string
   activeContext?: Context
   convert: (amount: number, from: string, to: string) => number
   expenseCategories: string[]
@@ -28,10 +29,10 @@ function getWeekRange() {
   return { start: mon.toISOString().slice(0,10), end: sun.toISOString().slice(0,10) }
 }
 
-export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all', activeContext, convert, expenseCategories, incomeCategories }: Props) {
+export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', activeContext, convert, expenseCategories, incomeCategories }: Props) {
   const { t } = useTranslation()
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
-  const [catFilter, setCatFilter] = useState('all')
+  const [catFilter, setCatFilter] = useState(initialCategoryFilter)
   const [search, setSearch] = useState('')
   const [weekOnly, setWeekOnly] = useState(false)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)

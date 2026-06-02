@@ -9,7 +9,7 @@ Chart.register(...registerables)
 interface Props {
   entries: Entry[]
   month: string
-  onNavigate: (tab: string, filter?: string) => void
+  onNavigate: (tab: string, filter?: string, categoryFilter?: string) => void
   onUpdate: (entry: Entry) => void
   activeContext?: Context
   convert: (amount: number, from: string, to: string) => number
@@ -360,16 +360,17 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
                     {expandedInRow && (() => {
                       const [cat, amt] = expandedInRow
                       const col = getCategoryColor(cat, 'expense')
-                      const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => a.date.localeCompare(b.date))
+                      const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => b.date.localeCompare(a.date))
                       return (
                         <div className="rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
                           <div className="space-y-2">
                             {catEntriesForCat.map(e => {
                               const entryCurrency = getEntryCurrency(e, cur, homeCur)
                               return (
-                                <div
+                                <button
                                   key={e.id}
-                                  className="app-list-row flex items-center gap-3 !rounded-[20px] !px-3 !py-3"
+                                  onClick={() => setEditEntry(e)}
+                                  className="app-list-row flex w-full cursor-pointer items-center gap-3 !rounded-[20px] !px-3 !py-3 text-left transition-all hover:border-slate-300/85 hover:bg-white/92 dark:hover:border-white/15 dark:hover:bg-slate-900/80"
                                 >
                                   <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
                                   <div className="w-10 flex-shrink-0 text-xs text-slate-400">{e.date.slice(5)}</div>
@@ -377,15 +378,28 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
                                     <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                                     {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
                                   </div>
-                                  <div className="flex-shrink-0 text-sm font-semibold" style={{ color: col }}>
-                                    -{formatAmount(e.amount, entryCurrency)}
+                                  <div className="flex flex-shrink-0 items-center gap-3">
+                                    <div className="text-sm font-semibold" style={{ color: col }}>
+                                      -{formatAmount(e.amount, entryCurrency)}
+                                    </div>
+                                    <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] dark:text-sky-300">
+                                      {t('edit')}
+                                    </span>
                                   </div>
-                                </div>
+                                </button>
                               )
                             })}
                           </div>
-                          <div className="px-2 pt-3 text-xs text-slate-400">
-                            {catEntriesForCat.length} {catEntriesForCat.length === 1 ? 'entry' : 'entries'} · total {formatAmount(amt, cur)}
+                          <div className="flex items-center justify-between gap-3 px-2 pt-3">
+                            <div className="text-xs text-slate-400">
+                              {catEntriesForCat.length} {catEntriesForCat.length === 1 ? 'entry' : 'entries'} · total {formatAmount(amt, cur)}
+                            </div>
+                            <button
+                              onClick={() => onNavigate('entries', 'expense', cat)}
+                              className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] transition-colors hover:text-[#255fcb] dark:text-sky-300 dark:hover:text-sky-200"
+                            >
+                              View all in Entries
+                            </button>
                           </div>
                         </div>
                       )

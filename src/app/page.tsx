@@ -41,6 +41,7 @@ function AppContent({ user }: { user: User }) {
   const { categories, expenseCategories, incomeCategories, addCategory, removeCategory, loaded: categoriesLoaded } = useCategories()
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
+  const [entriesCategoryFilter, setEntriesCategoryFilter] = useState<string>('all')
   const [dark, setDark] = useState<boolean | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const wheelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -54,9 +55,10 @@ function AppContent({ user }: { user: User }) {
   const month = monthStr(selMonth, selYear)
   const monthLabel = new Date(selYear, selMonth, 1).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' })
 
-  const navigateTo = (newTab: string, filter?: string) => {
+  const navigateTo = (newTab: string, filter?: string, categoryFilter?: string) => {
     setTab(newTab as Tab)
-    if (filter) setEntriesFilter(filter)
+    setEntriesFilter(filter || 'all')
+    setEntriesCategoryFilter(categoryFilter || 'all')
   }
 
   const goNextMonth = useCallback(() => {
@@ -208,7 +210,7 @@ function AppContent({ user }: { user: User }) {
   const TabContent = () => (
     <>
       {tab === 'overview' && <Overview entries={entries} month={month} onNavigate={navigateTo} onUpdate={updateEntry} activeContext={activeContext} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={(date) => { setCalendarAddDate(date); setTab('add') }} activeContext={activeContext} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'settings' && <Settings contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} addCategory={addCategory} removeCategory={removeCategory} />}
