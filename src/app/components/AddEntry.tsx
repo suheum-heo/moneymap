@@ -1,7 +1,17 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, getCurrencySymbol, CURRENCIES, formatAmountValue, getAmountInputProps, normalizeAmountInputValue, parseCurrencyInput } from '../types'
+import {
+  Entry,
+  Context,
+  getCurrencySymbol,
+  CURRENCIES,
+  formatAmountValue,
+  getAmountInputProps,
+  getMonthLabels,
+  normalizeAmountInputValue,
+  parseCurrencyInput,
+} from '../types'
 import { RecurringItem } from '../useRecurring'
 
 interface Props {
@@ -15,8 +25,6 @@ interface Props {
   incomeCategories: string[]
 }
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
 function toDateStr(m: number, day: number, y: number) {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
@@ -26,7 +34,8 @@ function daysInMonth(m: number, y: number) {
 }
 
 export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, items, expenseCategories, incomeCategories }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage || i18n.language
   const contextCur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || contextCur
   const sym = getCurrencySymbol(contextCur)
@@ -64,6 +73,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const maxDay = daysInMonth(month, year)
   const days = Array.from({ length: maxDay }, (_, i) => i + 1)
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
+  const monthLabels = getMonthLabels(language)
   const primaryAmountCurrency = showCurrencyOverride ? currency : contextCur
   const primaryAmountProps = getAmountInputProps(primaryAmountCurrency)
   const actualChargedProps = getAmountInputProps(homeCur)
@@ -102,10 +112,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   }
 
   const handleSubmit = () => {
-    if (!amount || !summary.trim()) { setError(t('amount') + ' & ' + t('summary') + ' required'); return }
+    if (!amount || !summary.trim()) {
+      setError(t('amountSummaryRequired', { amountLabel: t('amount'), summaryLabel: t('summary') }))
+      return
+    }
     const parsed = parseCurrencyInput(amount, primaryAmountCurrency)
-    if (isNaN(parsed) || parsed <= 0) { setError('Invalid amount'); return }
-    if (!category) { setError('Please select a category'); return }
+    if (isNaN(parsed) || parsed <= 0) { setError(t('invalidAmount')); return }
+    if (!category) { setError(t('selectCategoryError')); return }
     setError('')
 
     const parsedActual = actualCharged.trim() ? parseCurrencyInput(actualCharged.trim(), homeCur) : undefined
@@ -179,7 +192,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
           <label className="app-kicker mb-2 block">{t('date')}</label>
           <div className="grid grid-cols-3 gap-2">
             <select value={month} onChange={e => setMonth(Number(e.target.value))} className={selCls} style={{ fontSize: '16px' }}>
-              {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+              {monthLabels.map((monthLabel, i) => <option key={`${monthLabel}-${i}`} value={i}>{monthLabel}</option>)}
             </select>
             <select value={day} onChange={e => setDay(Number(e.target.value))} className={selCls} style={{ fontSize: '16px' }}>
               {days.map(d => <option key={d} value={d}>{d}</option>)}
@@ -234,7 +247,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
         <div>
           <label className="app-kicker mb-2 block">{t('summary')}</label>
           <input type="text" value={summary} onChange={e => setSummary(e.target.value)}
-            placeholder="e.g. Chipotle before class" className={inputCls} style={{ fontSize: '16px' }} />
+            placeholder={t('summaryExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
         </div>
 
         {entryType === 'expense' && (
@@ -242,12 +255,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
             <div>
               <label className="app-kicker mb-2 block">{t('venue')}</label>
               <input type="text" value={venue} onChange={e => setVenue(e.target.value)}
-                placeholder="e.g. Chipotle" className={inputCls} style={{ fontSize: '16px' }} list="venue-list" />
+                placeholder={t('venueExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="venue-list" />
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('location')}</label>
               <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-                placeholder="e.g. Madison, WI" className={inputCls} style={{ fontSize: '16px' }} list="location-list" />
+                placeholder={t('locationExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="location-list" />
             </div>
           </div>
         )}
@@ -263,7 +276,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
           <div>
             <label className="app-kicker mb-2 block">{t('remarks')}</label>
             <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
-              placeholder="e.g. Uber, Amazon…" className={inputCls} style={{ fontSize: '16px' }} />
+              placeholder={t('remarksExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
         </div>
 

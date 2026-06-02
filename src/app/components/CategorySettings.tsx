@@ -23,7 +23,7 @@ export default function CategorySettings({ categories, addCategory, removeCatego
 
   return (
     <div className="app-panel p-4 sm:p-5">
-      <div className="app-kicker mb-3">Categories</div>
+      <div className="app-kicker mb-3">{t('categoriesLabel')}</div>
 
       {/* Expense categories */}
       <div className="mb-3">
@@ -75,7 +75,7 @@ export default function CategorySettings({ categories, addCategory, removeCatego
 
       {/* Add new */}
       <div className="app-panel-soft flex flex-col gap-3 p-4">
-        <div className="app-kicker">Add category</div>
+        <div className="app-kicker">{t('addCategory')}</div>
         <div className="flex gap-2">
           <select value={newType} onChange={e => setNewType(e.target.value as 'expense' | 'income')}
             className="app-select flex-shrink-0 px-3 py-2.5 text-sm"
@@ -84,7 +84,7 @@ export default function CategorySettings({ categories, addCategory, removeCatego
             <option value="income">{t('income2')}</option>
           </select>
           <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-            placeholder="Category name" className={inputCls} style={{ fontSize: '16px' }}
+            placeholder={t('categoryNamePlaceholder')} className={inputCls} style={{ fontSize: '16px' }}
             onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) { addCategory(newName, newType); setNewName('') } }} />
         </div>
         <button onClick={() => { if (newName.trim()) { addCategory(newName, newType); setNewName('') } }}

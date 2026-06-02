@@ -1,7 +1,21 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CURRENCIES, Context, EXPENSE_CATEGORIES, formatAmountValue, getAmountInputProps, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, normalizeAmountInputValue, parseCurrencyInput, usesZeroDecimalCurrency } from '../types'
+import {
+  CURRENCIES,
+  Context,
+  EXPENSE_CATEGORIES,
+  formatAmountValue,
+  formatLocaleTime,
+  formatMonthYear,
+  getAmountInputProps,
+  getCategoryBadgeStyle,
+  getCategoryColor,
+  getCurrencySymbol,
+  normalizeAmountInputValue,
+  parseCurrencyInput,
+  usesZeroDecimalCurrency,
+} from '../types'
 import { RecurringItem } from '../useRecurring'
 import { Category } from '../useCategories'
 import LanguageSelector from './LanguageSelector'
@@ -27,7 +41,8 @@ interface Props {
 }
 
 export default function Settings({ contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, addCategory, removeCategory }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage || i18n.language
 
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -167,7 +182,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{c.name}</div>
-                  <div className="text-xs text-slate-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {c.startDate}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {formatMonthYear(c.startDate, language)}</div>
                 </div>
                 <div className="flex gap-3 ml-3">
                   <button onClick={() => openEditCtx(c)} className="app-accent text-xs font-medium">{t('edit')}</button>
@@ -180,7 +195,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">{t('newContext')}</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
-            placeholder="e.g. Europe Trip 2027" className={inputCls} style={{ fontSize: '16px' }} />
+            placeholder={t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="app-kicker block mb-2">{t('localCurrency')}</label>
@@ -224,7 +239,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="app-kicker block mb-2">Currency</label>
+                      <label className="app-kicker block mb-2">{t('currency')}</label>
                       <select value={editRec.currency} onChange={e => setEditRec({ ...editRec, currency: e.target.value })} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                         {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
                       </select>
@@ -269,10 +284,10 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
           {contextRecurring.length === 0 && <div className="app-panel-soft py-8 text-center text-xs text-slate-400">—</div>}
         </div>
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
-          <div className="app-kicker">Add recurring</div>
+          <div className="app-kicker">{t('addRecurring')}</div>
           <div>
             <label className="app-kicker block mb-2">{t('summary')}</label>
-            <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder="e.g. Monthly Rent" className={inputCls} style={{ fontSize: '16px' }} />
+            <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder={t('recurringSummaryPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -280,7 +295,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
               <input type="number" value={recAmount} onChange={e => setRecAmount(normalizeAmountInputValue(e.target.value, recCurrency))} placeholder={recurringAmountProps.placeholder} step={recurringAmountProps.step} inputMode={recurringAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
             </div>
             <div>
-              <label className="app-kicker block mb-2">Currency</label>
+              <label className="app-kicker block mb-2">{t('currency')}</label>
               <select value={recCurrency} onChange={e => setRecCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                 {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
               </select>
@@ -295,7 +310,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
             </div>
             <div>
               <label className="app-kicker block mb-2">{t('remarks')}</label>
-              <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder="e.g. Spectrum" className={inputCls} style={{ fontSize: '16px' }} />
+              <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder={t('recurringRemarksPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
             </div>
           </div>
           <button onClick={handleAddRecurring} className="app-button-primary w-full">{t('addEntry')}</button>
@@ -327,7 +342,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
           <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
             {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
-          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(normalizeAmountInputValue(e.target.value, activeContext?.currency || 'USD'))} placeholder="Monthly limit" step={budgetAmountProps.step} inputMode={budgetAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
+          <input type="number" value={budgetAmt} onChange={e => setBudgetAmt(normalizeAmountInputValue(e.target.value, activeContext?.currency || 'USD'))} placeholder={t('monthlyLimitPlaceholder')} step={budgetAmountProps.step} inputMode={budgetAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
           <button onClick={() => {
             if (!activeContext) return
             const amt = parseCurrencyInput(budgetAmt, activeContext.currency)
@@ -340,7 +355,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
       <div className="app-panel p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="app-kicker">{t('exchangeRates')}</div>
-          {ratesUpdated && <div className="text-xs text-slate-400">Updated {ratesUpdated.toLocaleTimeString()}</div>}
+          {ratesUpdated && <div className="text-xs text-slate-400">{t('updatedAt', { time: formatLocaleTime(ratesUpdated, language) })}</div>}
         </div>
         <div className="app-panel-soft p-3.5">
           <div className="flex items-center gap-2 mb-3">
@@ -367,7 +382,7 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('reset')}</div>
         <div className="app-panel-soft p-3.5">
-          <p className="text-xs text-slate-400 mb-3">Clear local settings (exchange rates, theme). Your data in Supabase is not affected.</p>
+          <p className="text-xs text-slate-400 mb-3">{t('resetLocalSettingsDescription')}</p>
           <button onClick={() => {
             if (confirm(t('reset') + '?')) {
               localStorage.removeItem('gagyebu-active-context')

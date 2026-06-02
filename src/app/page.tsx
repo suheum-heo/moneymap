@@ -14,7 +14,7 @@ import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
 import { UserContext } from './UserContext'
-import { getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
+import { formatFullDate, getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
 import type { User } from '@supabase/supabase-js'
 
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
@@ -35,6 +35,7 @@ function monthStr(month: number, year: number) {
 
 function AppContent({ user }: { user: User }) {
   const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage || i18n.language
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, deleteEntry } = useEntries()
   const { contexts, activeContext, activeContextId, switchContext, addContext, removeContext, updateContext: saveContext, convert, loaded: settingsLoaded, ratesUpdated } = useSettings()
   const { items, loaded: recurringLoaded, addItem, updateItem, deleteItem: deleteRecurringItem } = useRecurring()
@@ -51,11 +52,12 @@ function AppContent({ user }: { user: User }) {
   const [calendarAddDate, setCalendarAddDate] = useState<string | null>(null)
 
   const now = new Date()
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const [selMonth, setSelMonth] = useState(now.getMonth())
   const [selYear, setSelYear] = useState(now.getFullYear())
 
   const month = monthStr(selMonth, selYear)
-  const monthLabel = new Date(selYear, selMonth, 1).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' })
+  const monthLabel = new Date(selYear, selMonth, 1).toLocaleDateString(language, { month: 'long', year: 'numeric' })
 
   const navigateTo = (newTab: string, filter?: string, categoryFilter?: string) => {
     setTab(newTab as Tab)
@@ -143,11 +145,11 @@ function AppContent({ user }: { user: User }) {
   const pickerCls = "app-select w-full min-w-0 py-2.5 text-sm"
 
   const MonthYearPicker = ({ col = false }: { col?: boolean }) => (
-    <div className={`flex gap-2 ${col ? 'flex-col' : 'flex-1'}`}>
+          <div className={`flex gap-2 ${col ? 'flex-col' : 'flex-1'}`}>
       <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
         className={pickerCls}>
         {Array.from({ length: 12 }, (_, i) => (
-          <option key={i} value={i}>{new Date(2000, i, 1).toLocaleDateString(i18n.language, { month: 'long' })}</option>
+          <option key={i} value={i}>{new Date(2000, i, 1).toLocaleDateString(language, { month: 'long' })}</option>
         ))}
       </select>
       <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
@@ -211,7 +213,7 @@ function AppContent({ user }: { user: User }) {
         </button>
         <button onClick={() => document.getElementById('sign-out-btn')?.click()}
           className="rounded-[18px] px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10 dark:hover:text-rose-300">
-          Sign out
+          {t('signOut')}
         </button>
       </div>
     </div>
@@ -241,7 +243,7 @@ function AppContent({ user }: { user: User }) {
                 <div>
                   <h2 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{activeContext?.name}</h2>
                   <p className="mt-2 text-base font-medium text-[#3182f6] dark:text-sky-300">{monthLabel}</p>
-                  <p className="mt-1 text-sm text-slate-400">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                  <p className="mt-1 text-sm text-slate-400">{formatFullDate(todayKey, language)}</p>
                 </div>
                 <div className="hidden rounded-[22px] border border-slate-200/75 bg-slate-50/80 px-4 py-3 text-right lg:block dark:border-white/10 dark:bg-slate-900/70">
                   <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{t('settings')}</div>
@@ -275,7 +277,7 @@ function AppContent({ user }: { user: User }) {
           <div className="mt-4 flex items-center gap-2">
             <button onClick={goPrevMonth} className={arrowCls}>‹</button>
             <div className="flex-1 text-center">
-              <p className="text-sm text-slate-500 dark:text-zinc-300">{new Date().toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+              <p className="text-sm text-slate-500 dark:text-zinc-300">{formatFullDate(todayKey, language)}</p>
             </div>
             <button onClick={goNextMonth} className={arrowCls}>›</button>
           </div>
@@ -306,7 +308,7 @@ function AppContent({ user }: { user: User }) {
               })}
               <button onClick={() => document.getElementById('sign-out-btn')?.click()}
                 className="mt-3 w-full rounded-[18px] border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-400 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">
-                Sign out
+                {t('signOut')}
               </button>
             </div>
           </div>

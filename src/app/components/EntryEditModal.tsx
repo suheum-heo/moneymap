@@ -8,6 +8,7 @@ import {
   getAmountInputProps,
   getCurrencySymbol,
   getEntryCurrency,
+  getMonthLabels,
   INCOME_CATEGORIES,
   normalizeAmountInputValue,
   parseCurrencyInput,
@@ -23,8 +24,6 @@ interface Props {
   onUpdate: (entry: Entry) => void
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
 function daysInMonth(month: number, year: number) {
   return new Date(year, month + 1, 0).getDate()
 }
@@ -38,7 +37,8 @@ export default function EntryEditModal({
   onClose,
   onUpdate,
 }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage || i18n.language
   const [editMonth, setEditMonth] = useState(0)
   const [editDay, setEditDay] = useState(1)
   const [editYear, setEditYear] = useState(2026)
@@ -84,6 +84,7 @@ export default function EntryEditModal({
   const editCats = editType === 'expense' ? expenseCategories : incomeCategories
   const editCurrency = getEntryCurrency(entry, cur, homeCur)
   const editAmountProps = getAmountInputProps(editCurrency)
+  const monthLabels = getMonthLabels(language)
   const inputCls = 'app-input py-3 text-sm'
   const miniSelCls = 'app-select w-full px-3 py-2.5 text-sm'
 
@@ -137,7 +138,7 @@ export default function EntryEditModal({
           <label className="app-kicker mb-2 block">{t('date')}</label>
           <div className="grid grid-cols-3 gap-2">
             <select value={editMonth} onChange={event => setEditMonth(Number(event.target.value))} className={miniSelCls} style={{ fontSize: '16px' }}>
-              {MONTHS.map((monthName, index) => <option key={monthName} value={index}>{monthName}</option>)}
+              {monthLabels.map((monthName, index) => <option key={`${monthName}-${index}`} value={index}>{monthName}</option>)}
             </select>
             <select value={editDay} onChange={event => setEditDay(Number(event.target.value))} className={miniSelCls} style={{ fontSize: '16px' }}>
               {editDays.map(day => <option key={day} value={day}>{day}</option>)}

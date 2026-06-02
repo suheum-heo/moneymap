@@ -1,7 +1,25 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, EntrySortOrder, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput, sortEntriesForDisplay } from '../types'
+import {
+  Entry,
+  Context,
+  EntrySortOrder,
+  EXPENSE_CATEGORIES,
+  formatAmount,
+  formatFullDate,
+  getAmountInputProps,
+  getCategoryBadgeStyle,
+  getCategoryColor,
+  getCurrencySymbol,
+  getEntryCurrency,
+  getMonthLabels,
+  getWeekdayLabels,
+  INCOME_CATEGORIES,
+  normalizeAmountInputValue,
+  parseCurrencyInput,
+  sortEntriesForDisplay,
+} from '../types'
 
 interface Props {
   entries: Entry[]
@@ -15,13 +33,11 @@ interface Props {
   incomeCategories: string[]
 }
 
-const DAYS_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
 export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate, sortOrder, activeContext, expenseCategories, incomeCategories }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage || i18n.language
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -97,6 +113,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
   const editCurrency = editEntry ? getEntryCurrency(editEntry, cur, homeCur) : cur
   const editAmountProps = getAmountInputProps(editCurrency)
+  const monthLabels = getMonthLabels(language)
+  const weekdayLabels = getWeekdayLabels(language)
 
   const inputCls = "app-input py-3 text-sm"
   const miniSelCls = "app-select w-full px-3 py-2.5 text-sm"
@@ -125,7 +143,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               <label className="app-kicker mb-2 block">{t('date')}</label>
               <div className="grid grid-cols-3 gap-2">
                 <select value={editMonth} onChange={e => setEditMonth(Number(e.target.value))} className={miniSelCls} style={{fontSize:'16px'}}>
-                  {MONTHS.map((mo, i) => <option key={mo} value={i}>{mo}</option>)}
+                  {monthLabels.map((monthLabel, i) => <option key={`${monthLabel}-${i}`} value={i}>{monthLabel}</option>)}
                 </select>
                 <select value={editDay} onChange={e => setEditDay(Number(e.target.value))} className={miniSelCls} style={{fontSize:'16px'}}>
                   {editDays.map(d => <option key={d} value={d}>{d}</option>)}
@@ -173,8 +191,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('calendar')}</div>
         <div className="mb-2 grid grid-cols-7">
-          {DAYS_EN.map(day => (
-            <div key={day} className="py-2 text-center text-[11px] font-medium tracking-[0.08em] text-slate-400/90">{day}</div>
+          {weekdayLabels.map((day, index) => (
+            <div key={`${day}-${index}`} className="py-2 text-center text-[11px] font-medium tracking-[0.08em] text-slate-400/90">{day}</div>
           ))}
         </div>
 
@@ -218,12 +236,12 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
         <div className="app-panel p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">
-              {new Date(selectedDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              {formatFullDate(selectedDay, language)}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => onAddForDate(selectedDay)}
                 className="app-button-primary px-4 py-2.5 text-xs">
-                + Add entry
+                + {t('addEntry')}
               </button>
               <button onClick={() => setSelectedDay(null)} className="text-slate-400 text-sm">✕</button>
             </div>

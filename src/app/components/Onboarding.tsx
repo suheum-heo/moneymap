@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CURRENCIES } from '../types'
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function Onboarding({ onDone }: Props) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [homeCurrency, setHomeCurrency] = useState('USD')
@@ -14,7 +16,7 @@ export default function Onboarding({ onDone }: Props) {
   const [error, setError] = useState('')
 
   const handleSubmit = () => {
-    if (!name.trim()) { setError('Please enter a name for your budget'); return }
+    if (!name.trim()) { setError(t('budgetNameRequired')); return }
     onDone({ name: name.trim(), currency, homeCurrency, startDate })
   }
 
@@ -27,38 +29,38 @@ export default function Onboarding({ onDone }: Props) {
         <div className="app-panel px-6 py-8 sm:px-7">
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#edf4ff] text-lg font-semibold text-[#3182f6] dark:bg-[#3182f6]/15 dark:text-sky-300">MM</div>
-            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">가계부</h1>
-            <p className="text-sm text-slate-400">Set up your first budget space.</p>
+            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{t('appName')}</h1>
+            <p className="text-sm text-slate-400">{t('onboardingSubtitle')}</p>
           </div>
 
           <div className="flex flex-col gap-4">
             <div>
-              <label className="app-kicker mb-2 block">Budget name</label>
+              <label className="app-kicker mb-2 block">{t('budgetName')}</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)}
-                placeholder="e.g. Seoul 2026, NYC Life, Student Budget"
+                placeholder={t('onboardingExamplePlaceholder')}
                 className={inputCls} style={{ fontSize: '16px' }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
-              <p className="text-xs text-slate-400 mt-1">You can add more budgets later in Settings</p>
+              <p className="text-xs text-slate-400 mt-1">{t('onboardingLaterHint')}</p>
             </div>
 
             <div>
-              <label className="app-kicker mb-2 block">Local currency</label>
+              <label className="app-kicker mb-2 block">{t('localCurrency')}</label>
               <select value={currency} onChange={e => setCurrency(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
                 {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
               </select>
-              <p className="text-xs text-slate-400 mt-1">The currency you spend in day-to-day</p>
+              <p className="text-xs text-slate-400 mt-1">{t('onboardingLocalCurrencyHint')}</p>
             </div>
 
             <div>
-              <label className="app-kicker mb-2 block">Home currency</label>
+              <label className="app-kicker mb-2 block">{t('homeCurrency')}</label>
               <select value={homeCurrency} onChange={e => setHomeCurrency(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
                 {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
               </select>
-              <p className="text-xs text-slate-400 mt-1">Used to show converted totals (can be same as local)</p>
+              <p className="text-xs text-slate-400 mt-1">{t('onboardingHomeCurrencyHint')}</p>
             </div>
 
             <div>
-              <label className="app-kicker mb-2 block">Start from</label>
+              <label className="app-kicker mb-2 block">{t('startFrom')}</label>
               <input type="month" value={startDate} onChange={e => setStartDate(e.target.value)}
                 className={inputCls} style={{ fontSize: '16px' }} />
             </div>
@@ -67,7 +69,7 @@ export default function Onboarding({ onDone }: Props) {
 
             <button onClick={handleSubmit}
               className="app-button-primary mt-2 w-full">
-              Get started
+              {t('getStarted')}
             </button>
           </div>
         </div>

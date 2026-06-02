@@ -1,7 +1,18 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, EntrySortOrder, getCategoryColor, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency, sortEntriesForDisplay } from '../types'
+import {
+  Entry,
+  Context,
+  EntrySortOrder,
+  formatAmount,
+  formatAmountValue,
+  formatEntryDate,
+  getCategoryColor,
+  getCurrencySymbol,
+  getEntryCurrency,
+  sortEntriesForDisplay,
+} from '../types'
 import EntryEditModal from './EntryEditModal'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
@@ -29,7 +40,8 @@ function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
 }
 
 export default function Overview({ entries, month, onNavigate, onUpdate, sortOrder, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage || i18n.language
   const catChartRef = useRef<HTMLCanvasElement>(null)
   const locChartRef = useRef<HTMLCanvasElement>(null)
   const catChartInstance = useRef<Chart | null>(null)
@@ -307,7 +319,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                 <div className="app-kicker mb-2">{t('byCategory')}</div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('expenses')}</h3>
               </div>
-              <div className="text-right text-xs text-slate-400">{byCategory.length} {byCategory.length === 1 ? 'category' : 'categories'}</div>
+              <div className="text-right text-xs text-slate-400">{t('categoryCount', { count: byCategory.length })}</div>
             </div>
 
             <div className="space-y-3">
@@ -335,10 +347,10 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                                 <div className="flex items-center gap-2">
                                   <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: col }} />
                                   <span className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{cat}</span>
-                                  {isDanger && <span className="app-negative text-xs font-medium">Over!</span>}
+                                  {isDanger && <span className="app-negative text-xs font-medium">{t('overBudget')}</span>}
                                   {isWarning && <span className="text-xs font-medium text-amber-500">80%</span>}
                                 </div>
-                                <div className="mt-2 text-xs text-slate-400">{pct}% of spending</div>
+                                <div className="mt-2 text-xs text-slate-400">{t('ofSpending', { value: `${pct}%` })}</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
@@ -378,7 +390,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                                   className="app-list-row flex w-full cursor-pointer items-center gap-3 !rounded-[20px] !px-3 !py-3 text-left transition-all hover:border-slate-300/85 hover:bg-white/92 dark:hover:border-white/15 dark:hover:bg-slate-900/80"
                                 >
                                   <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
-                                  <div className="w-10 flex-shrink-0 text-xs text-slate-400">{e.date.slice(5)}</div>
+                                  <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
                                   <div className="min-w-0 flex-1">
                                     <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                                     {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
@@ -394,13 +406,13 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                           </div>
                           <div className="flex items-center justify-between gap-3 px-2 pt-3">
                             <div className="text-xs text-slate-400">
-                              {catEntriesForCat.length} {catEntriesForCat.length === 1 ? 'entry' : 'entries'} · total {formatAmount(amt, cur)}
+                              {t('entryCount', { count: catEntriesForCat.length })} · {t('total')} {formatAmount(amt, cur)}
                             </div>
                             <button
                               onClick={() => onNavigate('entries', 'expense', cat)}
                               className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] transition-colors hover:text-[#255fcb] dark:text-sky-300 dark:hover:text-sky-200"
                             >
-                              View all in Entries
+                              {t('viewAllInEntries')}
                             </button>
                           </div>
                         </div>
@@ -446,7 +458,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{loc}</div>
-                          <div className="mt-1 text-xs text-slate-400">{pct}% of spending</div>
+                          <div className="mt-1 text-xs text-slate-400">{t('ofSpending', { value: `${pct}%` })}</div>
                         </div>
                         <div className="flex-shrink-0 text-right">
                           <div className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">{isExpanded ? '▲' : '▼'}</div>
@@ -464,19 +476,19 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                           <div className="min-w-0">
                             <div className="app-kicker mb-1">{loc}</div>
                             <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">
-                              {locationEntries.length} {locationEntries.length === 1 ? 'entry' : 'entries'}
+                              {t('entryCount', { count: locationEntries.length })}
                             </div>
                           </div>
                           <button
                             onClick={() => setExpandedLocation(null)}
                             className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-zinc-200"
                           >
-                            Close
+                            {t('close')}
                           </button>
                         </div>
 
                         {locationEntries.length === 0 ? (
-                          <div className="app-panel-soft py-5 text-center text-sm text-slate-400">No entries found for this location.</div>
+                          <div className="app-panel-soft py-5 text-center text-sm text-slate-400">{t('noEntriesForLocation')}</div>
                         ) : (
                           <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
                             {locationEntries.map(e => {
@@ -494,7 +506,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                                       <div className="min-w-0">
                                         <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                                         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-                                          <span>{e.date}</span>
+                                          <span>{formatEntryDate(e.date, language)}</span>
                                           <span aria-hidden="true">·</span>
                                           <span className="truncate">{e.location}</span>
                                           {e.venue ? (

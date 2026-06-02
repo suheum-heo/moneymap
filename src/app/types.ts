@@ -236,6 +236,67 @@ export function getCategoryBadgeStyle(categoryName: string, type: EntryType = 'e
   } as const
 }
 
+const UI_LOCALE_MAP: Record<string, string> = {
+  en: 'en-US',
+  ko: 'ko-KR',
+  ja: 'ja-JP',
+  zh: 'zh-CN',
+  es: 'es-ES',
+  fr: 'fr-FR',
+  de: 'de-DE',
+}
+
+function parseDateOnly(value: string): Date {
+  return new Date(`${value}T12:00:00`)
+}
+
+function parseMonthKey(value: string): Date {
+  return new Date(`${value}-01T12:00:00`)
+}
+
+export function getUiLocale(language?: string): string {
+  const base = (language || 'en').trim().toLowerCase().split('-')[0]
+  return UI_LOCALE_MAP[base] || language || 'en-US'
+}
+
+export function formatEntryDate(date: string, language?: string): string {
+  return new Intl.DateTimeFormat(getUiLocale(language), {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(parseDateOnly(date))
+}
+
+export function formatFullDate(date: string, language?: string): string {
+  return new Intl.DateTimeFormat(getUiLocale(language), {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(parseDateOnly(date))
+}
+
+export function formatMonthYear(value: string, language?: string): string {
+  return new Intl.DateTimeFormat(getUiLocale(language), {
+    month: 'long',
+    year: 'numeric',
+  }).format(parseMonthKey(value))
+}
+
+export function formatLocaleTime(value: Date, language?: string): string {
+  return new Intl.DateTimeFormat(getUiLocale(language), {
+    timeStyle: 'short',
+  }).format(value)
+}
+
+export function getMonthLabels(language?: string): string[] {
+  const formatter = new Intl.DateTimeFormat(getUiLocale(language), { month: 'short' })
+  return Array.from({ length: 12 }, (_, index) => formatter.format(new Date(2024, index, 1)))
+}
+
+export function getWeekdayLabels(language?: string): string[] {
+  const formatter = new Intl.DateTimeFormat(getUiLocale(language), { weekday: 'short' })
+  return Array.from({ length: 7 }, (_, index) => formatter.format(new Date(2024, 0, 7 + index)))
+}
+
 function parseTimeForSort(value?: string): number | null {
   if (!value) return null
   const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)

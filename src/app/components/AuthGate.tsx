@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
 interface Props { children: (user: User) => React.ReactNode }
 
 export default function AuthGate({ children }: Props) {
+  const { t } = useTranslation()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
@@ -50,7 +52,7 @@ export default function AuthGate({ children }: Props) {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen text-slate-400 text-sm">Loading…</div>
+    <div className="flex items-center justify-center min-h-screen text-slate-400 text-sm">{t('loading')}</div>
   )
 
   if (!user) return (
@@ -59,16 +61,16 @@ export default function AuthGate({ children }: Props) {
         <div className="app-panel px-6 py-8 sm:px-7">
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#edf4ff] text-lg font-semibold text-[#3182f6] dark:bg-[#3182f6]/15 dark:text-sky-300">MM</div>
-            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">MoneyMap</h1>
-            <p className="text-sm text-slate-400">Simple personal finance, organized clearly.</p>
+            <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{t('appName')}</h1>
+            <p className="text-sm text-slate-400">{t('authSubtitle')}</p>
           </div>
 
           {sent ? (
             <div className="app-panel-soft p-6 text-center">
               <div className="text-2xl mb-3">📧</div>
-              <div className="text-sm font-medium text-slate-800 dark:text-zinc-100 mb-2">Check your email</div>
-              <div className="text-xs text-slate-400">We sent a magic link to <span className="font-medium text-slate-600 dark:text-zinc-300">{email}</span></div>
-              <button onClick={() => { setSent(false); setShowEmail(false) }} className="mt-4 text-xs font-medium text-[#3182f6] dark:text-sky-300">Use a different method</button>
+              <div className="text-sm font-medium text-slate-800 dark:text-zinc-100 mb-2">{t('checkYourEmail')}</div>
+              <div className="text-xs text-slate-400">{t('magicLinkSent', { email })}</div>
+              <button onClick={() => { setSent(false); setShowEmail(false) }} className="mt-4 text-xs font-medium text-[#3182f6] dark:text-sky-300">{t('useDifferentMethod')}</button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -81,12 +83,12 @@ export default function AuthGate({ children }: Props) {
                   <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
                   <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
                 </svg>
-                Continue with Google
+                {t('continueWithGoogle')}
               </button>
 
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
-                <span className="text-xs text-slate-400">or</span>
+                <span className="text-xs text-slate-400">{t('or')}</span>
                 <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
               </div>
 
@@ -97,7 +99,7 @@ export default function AuthGate({ children }: Props) {
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder={t('emailPlaceholder')}
                     className="app-input py-3 text-sm"
                     style={{ fontSize: '16px' }}
                     onKeyDown={e => e.key === 'Enter' && signInWithEmail()}
@@ -105,14 +107,14 @@ export default function AuthGate({ children }: Props) {
                   {error && <div className="px-1 text-xs text-rose-500">{error}</div>}
                   <button onClick={signInWithEmail}
                     className="app-button-primary w-full">
-                    Send magic link
+                    {t('sendMagicLink')}
                   </button>
-                  <button onClick={() => setShowEmail(false)} className="text-center text-xs text-slate-400">Cancel</button>
+                  <button onClick={() => setShowEmail(false)} className="text-center text-xs text-slate-400">{t('cancel')}</button>
                 </>
               ) : (
                 <button onClick={() => setShowEmail(true)}
                   className="app-button-secondary w-full">
-                  Continue with email
+                  {t('continueWithEmail')}
                 </button>
               )}
             </div>

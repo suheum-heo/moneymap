@@ -1,7 +1,17 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, EntrySortOrder, getCategoryBadgeStyle, getCategoryColor, formatAmount, getEntryCurrency, sortEntriesForDisplay } from '../types'
+import {
+  Entry,
+  Context,
+  EntrySortOrder,
+  formatAmount,
+  formatEntryDate,
+  getCategoryBadgeStyle,
+  getCategoryColor,
+  getEntryCurrency,
+  sortEntriesForDisplay,
+} from '../types'
 import EntryEditModal from './EntryEditModal'
 
 interface Props {
@@ -32,7 +42,8 @@ function getWeekRange() {
 }
 
 export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, convert, expenseCategories, incomeCategories }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.resolvedLanguage || i18n.language
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
   const [catFilter, setCatFilter] = useState(initialCategoryFilter)
   const [search, setSearch] = useState('')
@@ -73,7 +84,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
   const openEdit = (e: Entry) => setEditEntry(e)
 
   const exportCSV = () => {
-    const headers = [t('date'), t('expense') + '/' + t('income2'), t('summary'), t('venue'), t('location'), t('category'), t('amount'), 'Currency', t('remarks')]
+    const headers = [t('date'), t('expense') + '/' + t('income2'), t('summary'), t('venue'), t('location'), t('category'), t('amount'), t('currency'), t('remarks')]
     const rows = filtered.map(e => [e.date, e.type, e.summary, e.venue || '', e.location || '', e.category, e.amount, getEntryCurrency(e, cur, homeCur), e.remarks || ''])
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -107,8 +118,8 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
           <div className="app-kicker">{t('entries')}</div>
           <div className="inline-flex rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
             {([
-              ['newest', 'Newest'],
-              ['oldest', 'Oldest'],
+              ['newest', t('newest')],
+              ['oldest', t('oldest')],
             ] as const).map(([value, label]) => (
               <button
                 key={value}
@@ -147,7 +158,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
 
       {weekOnly && weekTotal !== null && (
         <div className="app-panel flex items-center justify-between gap-3 px-4 py-3">
-          <span className="app-accent text-xs font-medium">{t('thisWeek')} ({weekRange.start.slice(5)} – {weekRange.end.slice(5)})</span>
+          <span className="app-accent text-xs font-medium">{t('thisWeek')} ({formatEntryDate(weekRange.start, language)} – {formatEntryDate(weekRange.end, language)})</span>
           <span className="app-negative text-sm font-semibold">-{formatAmount(weekTotal, cur)}</span>
         </div>
       )}
@@ -165,7 +176,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
             return (
               <div key={e.id} className="app-list-row flex items-start gap-3">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-xs font-medium text-slate-500 dark:bg-slate-900/80 dark:text-slate-300">
-                  {e.date.slice(5)}
+                  {formatEntryDate(e.date, language)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
