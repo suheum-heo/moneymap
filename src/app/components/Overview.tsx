@@ -350,7 +350,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                                   {isDanger && <span className="app-negative text-xs font-medium">{t('overBudget')}</span>}
                                   {isWarning && <span className="text-xs font-medium text-amber-500">80%</span>}
                                 </div>
-                                <div className="mt-2 text-xs text-slate-400">{t('ofSpending', { value: `${pct}%` })}</div>
+                                <div className="mt-2 text-xs text-slate-400">{pct}%</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
@@ -458,7 +458,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{loc}</div>
-                          <div className="mt-1 text-xs text-slate-400">{t('ofSpending', { value: `${pct}%` })}</div>
+                          <div className="mt-1 text-xs text-slate-400">{pct}%</div>
                         </div>
                         <div className="flex-shrink-0 text-right">
                           <div className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">{isExpanded ? '▲' : '▼'}</div>
