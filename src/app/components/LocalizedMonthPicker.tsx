@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatMonthYear, getMonthLabels } from '../types'
+import ChevronDownIcon from './ChevronDownIcon'
 
 interface Props {
   value: string
@@ -83,7 +84,7 @@ export default function LocalizedMonthPicker({ value, onChange, placeholder }: P
         <span className={value ? 'text-slate-900 dark:text-zinc-50' : 'text-slate-400'}>
           {value ? formatMonthYear(value, language) : placeholder}
         </span>
-        <span className="text-slate-400">▾</span>
+        <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform dark:text-slate-500 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -97,17 +98,22 @@ export default function LocalizedMonthPicker({ value, onChange, placeholder }: P
             >
               ‹
             </button>
-            <select
-              value={displayYear}
-              onChange={e => setDisplayYear(Number(e.target.value))}
-              className="app-select flex-1 px-3 py-2 text-sm"
-              style={{ fontSize: '16px' }}
-              aria-label={t('year')}
-            >
-              {yearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
+            <div className="relative flex-1">
+              <select
+                value={displayYear}
+                onChange={e => setDisplayYear(Number(e.target.value))}
+                className="app-select flex-1 w-full appearance-none px-3 py-2 pr-10 text-sm"
+                style={{ fontSize: '16px' }}
+                aria-label={t('year')}
+              >
+                {yearOptions.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <ChevronDownIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setDisplayYear(year => year + 1)}

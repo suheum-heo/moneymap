@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { CURRENCIES } from '../types'
 import LanguageSelector from './LanguageSelector'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
+import ChevronDownIcon from './ChevronDownIcon'
 
 interface Props {
   onDone: (ctx: { name: string; currency: string; homeCurrency: string; startDate: string }) => void
@@ -22,7 +23,7 @@ export default function Onboarding({ onDone }: Props) {
     onDone({ name: name.trim(), currency, homeCurrency, startDate })
   }
 
-  const selCls = "app-select w-full px-3 py-2.5 text-sm"
+  const selCls = "app-select w-full appearance-none px-3 py-2.5 pr-10 text-sm"
   const inputCls = "app-input py-3 text-sm"
 
   return (
@@ -51,17 +52,27 @@ export default function Onboarding({ onDone }: Props) {
 
             <div>
               <label className="app-kicker mb-2 block">{t('localCurrency')}</label>
-              <select value={currency} onChange={e => setCurrency(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
-                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
-              </select>
+              <div className="relative">
+                <select value={currency} onChange={e => setCurrency(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
+                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                </select>
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                  <ChevronDownIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                </span>
+              </div>
               <p className="text-xs text-slate-400 mt-1">{t('onboardingLocalCurrencyHint')}</p>
             </div>
 
             <div>
               <label className="app-kicker mb-2 block">{t('homeCurrency')}</label>
-              <select value={homeCurrency} onChange={e => setHomeCurrency(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
-                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
-              </select>
+              <div className="relative">
+                <select value={homeCurrency} onChange={e => setHomeCurrency(e.target.value)} className={selCls} style={{ fontSize: '16px' }}>
+                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                </select>
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                  <ChevronDownIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                </span>
+              </div>
               <p className="text-xs text-slate-400 mt-1">{t('onboardingHomeCurrencyHint')}</p>
             </div>
 

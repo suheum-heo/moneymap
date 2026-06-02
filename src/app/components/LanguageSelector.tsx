@@ -1,6 +1,7 @@
 'use client'
 import { useTranslation } from 'react-i18next'
 import { LANGUAGES } from '../i18n'
+import ChevronDownIcon from './ChevronDownIcon'
 
 interface Props {
   variant?: 'panel' | 'inline'
@@ -22,7 +23,7 @@ export default function LanguageSelector({ variant = 'panel' }: Props) {
         <div className="pointer-events-none inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-200/85 bg-white/88 px-3 py-2 text-sm text-slate-600 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.28)] dark:border-white/10 dark:bg-slate-900/75 dark:text-zinc-300">
           <span className="text-[13px] opacity-70" aria-hidden="true">🌐</span>
           <span className="max-w-[96px] truncate font-medium">{activeLabel}</span>
-          <span className="text-[11px] opacity-60" aria-hidden="true">▾</span>
+          <ChevronDownIcon className="h-3.5 w-3.5 flex-shrink-0 text-slate-400 dark:text-slate-500" />
         </div>
         <select
           value={activeLanguage}
