@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { supabase } from '../lib/supabase'
 import {
   CURRENCIES,
   Context,
@@ -22,6 +23,7 @@ import LanguageSelector from './LanguageSelector'
 import CategorySettings from './CategorySettings'
 
 interface Props {
+  userEmail: string
   contexts: Context[]
   addContext: (ctx: Context) => void
   removeContext: (id: string) => void
@@ -40,7 +42,7 @@ interface Props {
   removeCategory: (id: string) => void
 }
 
-export default function Settings({ contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, addCategory, removeCategory }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, addCategory, removeCategory }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
 
@@ -83,11 +85,21 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
   const [recRemarks, setRecRemarks] = useState('')
   const [editingRecId, setEditingRecId] = useState<string | null>(null)
   const [editRec, setEditRec] = useState<RecurringItem | null>(null)
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+  const [deleteConfirmWord, setDeleteConfirmWord] = useState('')
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
+  const [deleteAccountError, setDeleteAccountError] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
   const recurringAmountProps = getAmountInputProps(recCurrency)
   const budgetAmountProps = getAmountInputProps(activeContext?.currency || 'USD')
   const editRecurringAmountProps = getAmountInputProps(editRec?.currency || activeContext?.currency || 'USD')
+  const deleteKeyword = t('deleteAccountKeyword')
+  const requiresEmailConfirmation = Boolean(userEmail)
+  const deleteWordMatches = deleteConfirmWord.trim().toUpperCase() === deleteKeyword.toUpperCase()
+  const deleteEmailMatches = !requiresEmailConfirmation || deleteConfirmEmail.trim().toLowerCase() === userEmail.trim().toLowerCase()
+  const canDeleteAccount = deleteWordMatches && deleteEmailMatches && !deletingAccount
 
   useEffect(() => {
     if (activeContext?.currency) setRecCurrency(activeContext.currency)
@@ -128,8 +140,108 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
     setEditingRecId(null); setEditRec(null)
   }
 
+  const handleDeleteAccount = async () => {
+    if (!canDeleteAccount) return
+
+    setDeletingAccount(true)
+    setDeleteAccountError('')
+
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      const accessToken = data.session?.access_token
+      if (error || !accessToken) {
+        setDeleteAccountError(t('deleteAccountMissingSession'))
+        setDeletingAccount(false)
+        return
+      }
+
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      if (!res.ok) {
+        setDeleteAccountError(t('deleteAccountFailed'))
+        setDeletingAccount(false)
+        return
+      }
+
+      try {
+        localStorage.removeItem('gagyebu-active-context')
+        localStorage.removeItem('gagyebu-rates')
+        localStorage.removeItem('gagyebu-rates-timestamp')
+        localStorage.removeItem('gagyebu-entry-sort-order')
+        localStorage.removeItem('theme')
+        localStorage.removeItem('gagyebu-lang')
+        sessionStorage.removeItem('addentry-draft')
+      } catch {}
+
+      await supabase.auth.signOut()
+      window.location.href = '/'
+    } catch {
+      setDeleteAccountError(t('deleteAccountFailed'))
+      setDeletingAccount(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3 px-4 pb-6">
+
+      {deleteAccountOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-4 backdrop-blur-sm md:items-center" onClick={() => !deletingAccount && setDeleteAccountOpen(false)}>
+          <div className="app-panel w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
+            <div className="mb-1 flex items-center justify-between">
+              <div>
+                <div className="app-kicker mb-2 text-rose-400 dark:text-rose-300">{t('dangerZone')}</div>
+                <span className="text-base font-semibold text-slate-900 dark:text-zinc-50">{t('deleteAccountModalTitle')}</span>
+              </div>
+              <button onClick={() => !deletingAccount && setDeleteAccountOpen(false)} className="text-slate-400 text-lg">✕</button>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-zinc-300">{t('deleteAccountModalDescription')}</p>
+            <div className="mt-4 rounded-[22px] border border-rose-200/75 bg-rose-50/80 p-4 dark:border-rose-400/20 dark:bg-rose-500/10">
+              <div className="text-sm font-medium text-rose-500 dark:text-rose-300">{t('deleteAccountWarning')}</div>
+              <div className="mt-2 text-xs leading-5 text-rose-400 dark:text-rose-200/80">{t('deleteAccountWarningBody')}</div>
+            </div>
+            <div className="mt-4 flex flex-col gap-3">
+              <div>
+                <label className="app-kicker mb-2 block">{t('deleteAccountTypeDeleteLabel', { keyword: deleteKeyword })}</label>
+                <input
+                  value={deleteConfirmWord}
+                  onChange={e => setDeleteConfirmWord(e.target.value)}
+                  placeholder={deleteKeyword}
+                  className={inputCls}
+                  style={{ fontSize: '16px' }}
+                  autoFocus
+                />
+              </div>
+              {requiresEmailConfirmation && (
+                <div>
+                  <label className="app-kicker mb-2 block">{t('deleteAccountTypeEmailLabel', { email: userEmail })}</label>
+                  <input
+                    value={deleteConfirmEmail}
+                    onChange={e => setDeleteConfirmEmail(e.target.value)}
+                    placeholder={userEmail}
+                    className={inputCls}
+                    style={{ fontSize: '16px' }}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </div>
+              )}
+              {deleteAccountError ? <div className="text-xs text-rose-500">{deleteAccountError}</div> : null}
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button onClick={() => setDeleteAccountOpen(false)} className="app-button-secondary flex-1" disabled={deletingAccount}>{t('cancel')}</button>
+              <button onClick={handleDeleteAccount} className="app-button-danger flex-1 disabled:cursor-not-allowed disabled:opacity-60" disabled={!canDeleteAccount}>
+                {deletingAccount ? t('deleteAccountDeleting') : t('deleteAccountAction')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Context edit modal */}
       {editingCtx && (
@@ -393,6 +505,26 @@ export default function Settings({ contexts, addContext, removeContext, updateCo
               window.location.reload()
             }
           }} className="app-button-danger w-full">{t('resetLocalSettings')}</button>
+        </div>
+      </div>
+
+      <div className="app-panel p-4">
+        <div className="app-kicker mb-3 text-rose-400 dark:text-rose-300">{t('dangerZone')}</div>
+        <div className="app-panel-soft border border-rose-200/70 bg-rose-50/70 p-3.5 dark:border-rose-400/15 dark:bg-rose-500/10">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">{t('deleteAccountTitle')}</div>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-300">{t('deleteAccountDescription')}</p>
+            </div>
+            <button onClick={() => {
+              setDeleteConfirmWord('')
+              setDeleteConfirmEmail('')
+              setDeleteAccountError('')
+              setDeleteAccountOpen(true)
+            }} className="app-button-danger w-full sm:w-auto">
+              {t('deleteAccountAction')}
+            </button>
+          </div>
         </div>
       </div>
 
