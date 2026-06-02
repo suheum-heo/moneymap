@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, getCategoryColor, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency } from '../types'
+import { Entry, Context, getCategoryColor, getCurrencySymbol, formatAmount, formatAmountValue, getEntryCurrency, sortEntriesForDisplay } from '../types'
 import EntryEditModal from './EntryEditModal'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
@@ -120,9 +120,9 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
 
   const locationEntries = useMemo(() => {
     if (!expandedLocation) return []
-    return monthEntries
-      .filter(e => e.type === 'expense' && e.location?.trim() === expandedLocation)
-      .sort((a, b) => b.date.localeCompare(a.date))
+    return sortEntriesForDisplay(
+      monthEntries.filter(e => e.type === 'expense' && e.location?.trim() === expandedLocation),
+    )
   }, [expandedLocation, monthEntries])
 
   useEffect(() => {
@@ -360,7 +360,9 @@ export default function Overview({ entries, month, onNavigate, onUpdate, activeC
                     {expandedInRow && (() => {
                       const [cat, amt] = expandedInRow
                       const col = getCategoryColor(cat, 'expense')
-                      const catEntriesForCat = monthEntries.filter(e => e.type === 'expense' && e.category === cat).sort((a, b) => b.date.localeCompare(a.date))
+                      const catEntriesForCat = sortEntriesForDisplay(
+                        monthEntries.filter(e => e.type === 'expense' && e.category === cat),
+                      )
                       return (
                         <div className="rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
                           <div className="space-y-2">

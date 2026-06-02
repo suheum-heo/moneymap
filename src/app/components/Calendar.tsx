@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput } from '../types'
+import { Entry, Context, formatAmount, EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryBadgeStyle, getCategoryColor, getCurrencySymbol, getAmountInputProps, getEntryCurrency, normalizeAmountInputValue, parseCurrencyInput, sortEntriesForDisplay } from '../types'
 
 interface Props {
   entries: Entry[]
@@ -66,7 +66,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   }
 
   const selectedEntries = useMemo(() =>
-    selectedDay ? monthEntries.filter(e => e.date === selectedDay).sort((a, b) => a.type.localeCompare(b.type)) : [],
+    selectedDay ? sortEntriesForDisplay(monthEntries.filter(e => e.date === selectedDay)) : [],
     [selectedDay, monthEntries])
 
   const selectedExpense = selectedEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)

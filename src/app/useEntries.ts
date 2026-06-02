@@ -15,9 +15,12 @@ export function useEntries() {
       .then(({ data }) => {
         setEntries((data || []).map(r => ({
           id: r.id, type: r.type, date: r.date, summary: r.summary,
+          time: typeof r.time === 'string' ? r.time : undefined,
           venue: r.venue || '', location: r.location || '', category: r.category,
           amount: coerceAmount(r.amount), remarks: r.remarks || '', currency: normalizeCurrencyCode(r.currency || 'USD'),
-          context: r.context, homeAmount: r.home_amount == null ? undefined : coerceAmount(r.home_amount),
+          context: r.context,
+          createdAt: typeof r.created_at === 'string' ? r.created_at : undefined,
+          homeAmount: r.home_amount == null ? undefined : coerceAmount(r.home_amount),
         })))
         setLoaded(true)
       })
@@ -25,7 +28,8 @@ export function useEntries() {
 
   const addEntry = useCallback(async (entry: Entry) => {
     if (!userId) return
-    setEntries(prev => [...prev, entry])
+    const optimisticEntry = { ...entry, createdAt: entry.createdAt || new Date().toISOString() }
+    setEntries(prev => [...prev, optimisticEntry])
     const { error } = await supabase.from('entries').insert({
       id: entry.id, user_id: userId, type: entry.type, date: entry.date,
       summary: entry.summary, venue: entry.venue, location: entry.location,
@@ -33,12 +37,12 @@ export function useEntries() {
       currency: entry.currency, context: entry.context,
       home_amount: entry.homeAmount ?? null,
     })
-    if (error) setEntries(prev => prev.filter(e => e.id !== entry.id))
+    if (error) setEntries(prev => prev.filter(e => e.id !== optimisticEntry.id))
   }, [userId])
 
   const updateEntry = useCallback(async (updated: Entry) => {
     if (!userId) return
-    setEntries(prev => prev.map(e => e.id === updated.id ? updated : e))
+    setEntries(prev => prev.map(e => e.id === updated.id ? { ...updated, createdAt: updated.createdAt || e.createdAt, time: updated.time || e.time } : e))
     await supabase.from('entries').update({
       type: updated.type, date: updated.date, summary: updated.summary,
       venue: updated.venue, location: updated.location, category: updated.category,

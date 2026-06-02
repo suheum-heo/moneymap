@@ -5,6 +5,7 @@ export interface Entry {
   id: string
   type: EntryType
   date: string
+  time?: string
   summary: string
   venue: string
   location: string
@@ -13,6 +14,7 @@ export interface Entry {
   remarks: string
   currency: string
   context: string
+  createdAt?: string
   homeAmount?: number
 }
 
@@ -231,6 +233,72 @@ export function getCategoryBadgeStyle(categoryName: string, type: EntryType = 'e
     color,
     backgroundColor: hexToRgba(color, alpha),
   } as const
+}
+
+function parseTimeForSort(value?: string): number | null {
+  if (!value) return null
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  const seconds = Number(match[3] || '0')
+  if (
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes) ||
+    !Number.isFinite(seconds) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59 ||
+    seconds < 0 ||
+    seconds > 59
+  ) {
+    return null
+  }
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+function parseTimestampForSort(value?: string): number | null {
+  if (!value) return null
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function compareNullableDesc(a: number | null, b: number | null): number {
+  if (a !== null && b !== null) return b - a
+  if (a !== null) return -1
+  if (b !== null) return 1
+  return 0
+}
+
+export function sortEntriesForDisplay(entries: Entry[]): Entry[] {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const dateComparison = b.entry.date.localeCompare(a.entry.date)
+      if (dateComparison !== 0) return dateComparison
+
+      const timeComparison = compareNullableDesc(
+        parseTimeForSort(a.entry.time),
+        parseTimeForSort(b.entry.time),
+      )
+      if (timeComparison !== 0) return timeComparison
+
+      const createdAtComparison = compareNullableDesc(
+        parseTimestampForSort(a.entry.createdAt),
+        parseTimestampForSort(b.entry.createdAt),
+      )
+      if (createdAtComparison !== 0) return createdAtComparison
+
+      const idComparison = String(b.entry.id).localeCompare(String(a.entry.id), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      })
+      if (idComparison !== 0) return idComparison
+
+      return a.index - b.index
+    })
+    .map(({ entry }) => entry)
 }
 
 export const DEFAULT_CONTEXTS: Context[] = [

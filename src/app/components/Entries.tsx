@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Entry, Context, getCategoryBadgeStyle, getCategoryColor, formatAmount, getEntryCurrency } from '../types'
+import { Entry, Context, getCategoryBadgeStyle, getCategoryColor, formatAmount, getEntryCurrency, sortEntriesForDisplay } from '../types'
 import EntryEditModal from './EntryEditModal'
 
 interface Props {
@@ -65,7 +65,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
         (e.remarks || '').toLowerCase().includes(q)
       )
     }
-    return [...f].sort((a, b) => a.date.localeCompare(b.date))
+    return sortEntriesForDisplay(f)
   }, [monthEntries, typeFilter, catFilter, search, weekOnly, weekRange])
 
   const openEdit = (e: Entry) => setEditEntry(e)
