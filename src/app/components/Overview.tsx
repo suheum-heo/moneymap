@@ -449,8 +449,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                           <div className="mt-1 text-xs text-slate-400">{pct}% of spending</div>
                         </div>
                         <div className="flex-shrink-0 text-right">
-                          <div className="text-xs font-medium text-[#5b8ef0] dark:text-sky-300">{isExpanded ? 'Hide entries' : 'View entries'}</div>
-                          <div className="mt-1 text-xs text-slate-400">{isExpanded ? '▲' : '▼'}</div>
+                          <div className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">{isExpanded ? '▲' : '▼'}</div>
                         </div>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
