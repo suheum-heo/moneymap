@@ -21,6 +21,7 @@ import { RecurringItem } from '../useRecurring'
 import { Category } from '../useCategories'
 import LanguageSelector from './LanguageSelector'
 import CategorySettings from './CategorySettings'
+import LocalizedMonthPicker from './LocalizedMonthPicker'
 
 interface Props {
   userEmail: string
@@ -275,7 +276,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             </div>
             <div>
               <label className="app-kicker block mb-2">{t('startDate')}</label>
-              <input type="month" value={editCtxStartDate} onChange={e => setEditCtxStartDate(e.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
+              <LocalizedMonthPicker value={editCtxStartDate} onChange={setEditCtxStartDate} placeholder={t('startDate')} />
             </div>
             <button onClick={handleSaveCtx} className="app-button-primary w-full">{t('saveChanges')}</button>
           </div>
@@ -324,7 +325,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           </div>
           <div>
             <label className="app-kicker block mb-2">{t('startDate')}</label>
-            <input type="month" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
+            <LocalizedMonthPicker value={startDate} onChange={setStartDate} placeholder={t('startDate')} />
           </div>
           <button onClick={handleAddContext} className="app-button-primary w-full">{t('addContext')}</button>
         </div>

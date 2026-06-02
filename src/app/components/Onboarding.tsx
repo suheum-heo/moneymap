@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CURRENCIES } from '../types'
 import LanguageSelector from './LanguageSelector'
+import LocalizedMonthPicker from './LocalizedMonthPicker'
 
 interface Props {
   onDone: (ctx: { name: string; currency: string; homeCurrency: string; startDate: string }) => void
@@ -66,8 +67,7 @@ export default function Onboarding({ onDone }: Props) {
 
             <div>
               <label className="app-kicker mb-2 block">{t('startFrom')}</label>
-              <input type="month" value={startDate} onChange={e => setStartDate(e.target.value)}
-                className={inputCls} style={{ fontSize: '16px' }} />
+              <LocalizedMonthPicker value={startDate} onChange={setStartDate} placeholder={t('startFrom')} />
             </div>
 
             {error && <div className="text-xs text-rose-500">{error}</div>}
