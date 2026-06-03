@@ -238,12 +238,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
               type="text"
               value={actualCharged}
               onChange={e => setActualCharged(normalizeAmountInputValue(e.target.value, homeCur))}
-              placeholder={t('actualChargedHint')}
+              placeholder={actualChargedProps.placeholder}
               className={inputCls}
               step={actualChargedProps.step}
               inputMode={actualChargedProps.inputMode}
               style={{ fontSize: '16px' }}
             />
+            <p className="mt-1 text-xs text-slate-400">{t('actualChargedHint')}</p>
           </div>
         )}
 
