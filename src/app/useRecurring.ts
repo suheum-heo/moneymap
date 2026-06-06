@@ -45,11 +45,23 @@ export function useRecurring() {
     }).eq('id', updated.id).eq('user_id', userId)
   }, [userId])
 
+  const renameCategory = useCallback(async (from: string, to: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const source = from.trim()
+    const target = to.trim()
+    if (source === target) return
+    setItems(prev => prev.map(item => item.category === source ? { ...item, category: target } : item))
+    await supabase.from('recurring')
+      .update({ category: target })
+      .eq('user_id', userId)
+      .eq('category', source)
+  }, [userId])
+
   const deleteItem = useCallback(async (id: string) => {
     if (!userId) return
     setItems(prev => prev.filter(i => i.id !== id))
     await supabase.from('recurring').delete().eq('id', id).eq('user_id', userId)
   }, [userId])
 
-  return { items, loaded, addItem, updateItem, deleteItem }
+  return { items, loaded, addItem, updateItem, renameCategory, deleteItem }
 }

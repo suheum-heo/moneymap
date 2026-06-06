@@ -34,10 +34,22 @@ export function useBudgets() {
     }
   }, [userId])
 
+  const renameCategory = useCallback(async (from: string, to: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const source = from.trim()
+    const target = to.trim()
+    if (source === target) return
+    setBudgets(prev => prev.map(budget => budget.category === source ? { ...budget, category: target } : budget))
+    await supabase.from('budgets')
+      .update({ category: target })
+      .eq('user_id', userId)
+      .eq('category', source)
+  }, [userId])
+
   const getBudget = useCallback((context: string, category: string): number | null => {
     const b = budgets.find(b => b.context === context && b.category === category)
     return b ? b.amount : null
   }, [budgets])
 
-  return { budgets, setBudget, getBudget, loaded }
+  return { budgets, setBudget, renameCategory, getBudget, loaded }
 }

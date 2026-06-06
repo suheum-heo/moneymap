@@ -41,10 +41,11 @@ interface Props {
   categories: Category[]
   expenseCategories: string[]
   addCategory: (name: string, type: 'expense' | 'income') => void
+  updateCategory: (id: string, name: string) => void | Promise<void>
   removeCategory: (id: string) => void
 }
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, expenseCategories, addCategory, removeCategory }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, expenseCategories, addCategory, updateCategory, removeCategory }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -292,7 +293,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       )}
 
       <LanguageSelector />
-      <CategorySettings categories={categories} addCategory={addCategory} removeCategory={removeCategory} />
+      <CategorySettings categories={categories} addCategory={addCategory} updateCategory={updateCategory} removeCategory={removeCategory} />
 
       {/* Contexts */}
       <div className="app-panel p-4">

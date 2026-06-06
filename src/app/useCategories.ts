@@ -76,6 +76,13 @@ export function useCategories({
     await supabase.from('categories').insert({ id, user_id: userId, name: name.trim(), type })
   }, [userId])
 
+  const updateCategory = useCallback(async (id: string, name: string) => {
+    if (!userId || !name.trim()) return
+    const trimmed = name.trim()
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, name: trimmed } : c))
+    await supabase.from('categories').update({ name: trimmed }).eq('id', id).eq('user_id', userId)
+  }, [userId])
+
   const removeCategory = useCallback(async (id: string) => {
     if (!userId) return
     setCategories(prev => prev.filter(c => c.id !== id))
@@ -90,5 +97,5 @@ export function useCategories({
   const expenseCategories = sortWithOtherLast(categories.filter(c => c.type === 'expense').map(c => c.name))
   const incomeCategories = sortWithOtherLast(categories.filter(c => c.type === 'income').map(c => c.name))
 
-  return { categories, expenseCategories, incomeCategories, addCategory, removeCategory, loaded }
+  return { categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, loaded }
 }

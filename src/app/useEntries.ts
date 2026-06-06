@@ -51,11 +51,24 @@ export function useEntries() {
     }).eq('id', updated.id).eq('user_id', userId)
   }, [userId])
 
+  const renameCategory = useCallback(async (from: string, to: string, type: 'expense' | 'income') => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const source = from.trim()
+    const target = to.trim()
+    if (source === target) return
+    setEntries(prev => prev.map(e => e.type === type && e.category === source ? { ...e, category: target } : e))
+    await supabase.from('entries')
+      .update({ category: target })
+      .eq('user_id', userId)
+      .eq('type', type)
+      .eq('category', source)
+  }, [userId])
+
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) return
     setEntries(prev => prev.filter(e => e.id !== id))
     await supabase.from('entries').delete().eq('id', id).eq('user_id', userId)
   }, [userId])
 
-  return { entries, loaded, addEntry, updateEntry, deleteEntry }
+  return { entries, loaded, addEntry, updateEntry, renameCategory, deleteEntry }
 }
