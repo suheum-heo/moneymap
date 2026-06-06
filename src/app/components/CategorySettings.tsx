@@ -85,25 +85,29 @@ export default function CategorySettings({ categories, addCategory, updateCatego
                   <button onClick={stopEditing} className="text-xs text-slate-400">{t('cancel')}</button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full" style={{ background: getCategoryColor(category.name, category.type) }} />
                   <span className="text-sm text-slate-700 dark:text-zinc-300">{category.name}</span>
                   <button
                     onClick={() => startEditing(category)}
-                    className="app-accent ml-1 text-xs font-medium"
+                    aria-label={t('edit')}
+                    className="ml-0.5 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/80 hover:text-[#255fcb] dark:text-zinc-500 dark:hover:bg-slate-800 dark:hover:text-sky-200"
                   >
-                    {t('edit')}
+                    <svg viewBox="0 0 16 16" aria-hidden="true" className="h-3 w-3 fill-none stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3.5 12.5l2.1-.4 6-6a1.4 1.4 0 0 0-2-2l-6 6-.4 2.4z" />
+                      <path d="M8.8 3.8l2.4 2.4" />
+                    </svg>
                   </button>
                   {confirmId === category.id ? (
                     <>
                       <button onClick={() => { removeCategory(category.id); setConfirmId(null) }}
-                        className="ml-1 text-xs text-red-500">✓</button>
+                        className="ml-0.5 text-xs text-red-500">✓</button>
                       <button onClick={() => setConfirmId(null)}
                         className="text-xs text-slate-400">✕</button>
                     </>
                   ) : (
                     <button onClick={() => { setEditingId(null); setConfirmId(category.id) }}
-                      className="ml-1 text-xs text-slate-300 hover:text-red-400 dark:text-zinc-600">✕</button>
+                      className="text-xs text-slate-300 hover:text-red-400 dark:text-zinc-600">✕</button>
                   )}
                 </div>
               )}
