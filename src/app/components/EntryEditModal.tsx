@@ -8,6 +8,7 @@ import {
   getAmountInputProps,
   getCurrencySymbol,
   getEntryCurrency,
+  getEntryFormPlaceholders,
   getMonthLabels,
   INCOME_CATEGORIES,
   normalizeAmountInputValue,
@@ -85,6 +86,7 @@ export default function EntryEditModal({
   const editCurrency = getEntryCurrency(entry, cur, homeCur)
   const editAmountProps = getAmountInputProps(editCurrency)
   const monthLabels = getMonthLabels(language)
+  const placeholders = getEntryFormPlaceholders(language, activeContext?.currency || editCurrency, editType)
   const inputCls = 'app-input py-3 text-sm'
   const miniSelCls = 'app-select w-full px-3 py-2.5 text-sm'
 
@@ -167,16 +169,16 @@ export default function EntryEditModal({
         </div>
         <div>
           <label className="app-kicker mb-2 block">{t('summary')}</label>
-          <input type="text" value={editSummary} onChange={event => setEditSummary(event.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
+          <input type="text" value={editSummary} onChange={event => setEditSummary(event.target.value)} placeholder={placeholders.summary} className={inputCls} style={{ fontSize: '16px' }} />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="app-kicker mb-2 block">{t('venue')}</label>
-            <input type="text" value={editVenue} onChange={event => setEditVenue(event.target.value)} className={inputCls} style={{ fontSize: '16px' }} list="edit-venue-list" />
+            <input type="text" value={editVenue} onChange={event => setEditVenue(event.target.value)} placeholder={placeholders.venue} className={inputCls} style={{ fontSize: '16px' }} list="edit-venue-list" />
           </div>
           <div>
             <label className="app-kicker mb-2 block">{t('location')}</label>
-            <input type="text" value={editLocation} onChange={event => setEditLocation(event.target.value)} className={inputCls} style={{ fontSize: '16px' }} list="edit-location-list" />
+            <input type="text" value={editLocation} onChange={event => setEditLocation(event.target.value)} placeholder={placeholders.location} className={inputCls} style={{ fontSize: '16px' }} list="edit-location-list" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -188,7 +190,7 @@ export default function EntryEditModal({
           </div>
           <div>
             <label className="app-kicker mb-2 block">{t('remarks')}</label>
-            <input type="text" value={editRemarks} onChange={event => setEditRemarks(event.target.value)} className={inputCls} style={{ fontSize: '16px' }} />
+            <input type="text" value={editRemarks} onChange={event => setEditRemarks(event.target.value)} placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
         </div>
         <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>

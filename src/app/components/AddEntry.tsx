@@ -8,6 +8,7 @@ import {
   CURRENCIES,
   formatAmount,
   getAmountInputProps,
+  getEntryFormPlaceholders,
   getMonthLabels,
   normalizeAmountInputValue,
   parseCurrencyInput,
@@ -77,6 +78,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const primaryAmountCurrency = showCurrencyOverride ? currency : contextCur
   const primaryAmountProps = getAmountInputProps(primaryAmountCurrency)
   const actualChargedProps = getAmountInputProps(homeCur)
+  const placeholders = getEntryFormPlaceholders(language, contextCur, entryType)
 
   useEffect(() => {
     if (!showCurrencyOverride) setCurrency(contextCur)
@@ -251,7 +253,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
         <div>
           <label className="app-kicker mb-2 block">{t('summary')}</label>
           <input type="text" value={summary} onChange={e => setSummary(e.target.value)}
-            placeholder={t('summaryExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+            placeholder={placeholders.summary} className={inputCls} style={{ fontSize: '16px' }} />
         </div>
 
         {entryType === 'expense' && (
@@ -259,12 +261,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
             <div>
               <label className="app-kicker mb-2 block">{t('venue')}</label>
               <input type="text" value={venue} onChange={e => setVenue(e.target.value)}
-                placeholder={t('venueExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="venue-list" />
+                placeholder={placeholders.venue} className={inputCls} style={{ fontSize: '16px' }} list="venue-list" />
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('location')}</label>
               <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-                placeholder={t('locationExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="location-list" />
+                placeholder={placeholders.location} className={inputCls} style={{ fontSize: '16px' }} list="location-list" />
             </div>
           </div>
         )}
@@ -280,7 +282,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
           <div>
             <label className="app-kicker mb-2 block">{t('remarks')}</label>
             <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
-              placeholder={t('remarksExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+              placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
         </div>
 

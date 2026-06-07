@@ -13,6 +13,7 @@ import {
   getCategoryColor,
   getCurrencySymbol,
   getEntryCurrency,
+  getEntryFormPlaceholders,
   getMonthLabels,
   getWeekdayLabels,
   INCOME_CATEGORIES,
@@ -115,6 +116,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const editAmountProps = getAmountInputProps(editCurrency)
   const monthLabels = getMonthLabels(language)
   const weekdayLabels = getWeekdayLabels(language)
+  const editPlaceholders = getEntryFormPlaceholders(language, activeContext?.currency || editCurrency, editType)
 
   const inputCls = "app-input py-3 text-sm"
   const miniSelCls = "app-select w-full px-3 py-2.5 text-sm"
@@ -166,16 +168,16 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
             </div>
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>
-              <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
+              <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)} placeholder={editPlaceholders.summary} className={inputCls} style={{fontSize:'16px'}} />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="app-kicker mb-2 block">{t('venue')}</label>
-                <input type="text" value={editVenue} onChange={e => setEditVenue(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
+                <input type="text" value={editVenue} onChange={e => setEditVenue(e.target.value)} placeholder={editPlaceholders.venue} className={inputCls} style={{fontSize:'16px'}} />
               </div>
               <div>
                 <label className="app-kicker mb-2 block">{t('location')}</label>
-                <input type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
+                <input type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} placeholder={editPlaceholders.location} className={inputCls} style={{fontSize:'16px'}} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -187,7 +189,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               </div>
               <div>
                 <label className="app-kicker mb-2 block">{t('remarks')}</label>
-                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} className={inputCls} style={{fontSize:'16px'}} />
+                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} placeholder={editPlaceholders.remarks} className={inputCls} style={{fontSize:'16px'}} />
               </div>
             </div>
             <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>

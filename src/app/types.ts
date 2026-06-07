@@ -624,6 +624,114 @@ export function getUiLocale(language?: string): string {
   return UI_LOCALE_MAP[base] || language || 'en-US'
 }
 
+type EntryPlaceholderRegion = 'default' | 'USD' | 'KRW' | 'EUR' | 'JPY'
+
+export interface EntryFormPlaceholders {
+  summary: string
+  venue: string
+  location: string
+  remarks: string
+}
+
+const ENTRY_FORM_PLACEHOLDER_SETS: Record<string, {
+  expense: Record<EntryPlaceholderRegion, EntryFormPlaceholders>
+  income: EntryFormPlaceholders
+}> = {
+  en: {
+    expense: {
+      default: { summary: 'e.g. lunch', venue: 'e.g. cafe', location: 'e.g. city center', remarks: 'e.g. card, takeaway…' },
+      USD: { summary: 'e.g. Chipotle before class', venue: 'e.g. Chipotle', location: 'e.g. Madison, WI', remarks: 'e.g. Uber, Amazon…' },
+      KRW: { summary: 'e.g. lunch', venue: 'e.g. Daiso', location: 'e.g. Seoul, Korea', remarks: 'e.g. Kakao T, Coupang…' },
+      EUR: { summary: 'e.g. coffee', venue: 'e.g. cafe', location: 'e.g. Paris, France', remarks: 'e.g. metro ticket, Monoprix…' },
+      JPY: { summary: 'e.g. ramen', venue: 'e.g. convenience store', location: 'e.g. Tokyo, Japan', remarks: 'e.g. Suica, 7-Eleven…' },
+    },
+    income: { summary: 'e.g. paycheck', venue: 'e.g. employer', location: 'e.g. bank transfer', remarks: 'e.g. bonus, refund…' },
+  },
+  ko: {
+    expense: {
+      default: { summary: '예: 점심', venue: '예: 카페', location: '예: 시내', remarks: '예: 카드, 포장…' },
+      USD: { summary: '예: 수업 전 Chipotle', venue: '예: Chipotle', location: '예: Madison, WI', remarks: '예: Uber, Amazon…' },
+      KRW: { summary: '예: 점심', venue: '예: 카페', location: '예: 서울, 부산', remarks: '예: 다이소, 쿠팡…' },
+      EUR: { summary: '예: 커피', venue: '예: 카페', location: '예: 파리, 프랑스', remarks: '예: 지하철 티켓, Monoprix…' },
+      JPY: { summary: '예: 라멘', venue: '예: 편의점', location: '예: 도쿄, 일본', remarks: '예: Suica, 7-Eleven…' },
+    },
+    income: { summary: '예: 월급', venue: '예: 회사', location: '예: 계좌이체', remarks: '예: 보너스, 환급…' },
+  },
+  ja: {
+    expense: {
+      default: { summary: '例: 昼ごはん', venue: '例: カフェ', location: '例: 街中', remarks: '例: カード、持ち帰り…' },
+      USD: { summary: '例: 授業前のChipotle', venue: '例: Chipotle', location: '例: Madison, WI', remarks: '例: Uber、Amazon…' },
+      KRW: { summary: '例: 昼ごはん', venue: '例: ダイソー', location: '例: ソウル、韓国', remarks: '例: Kakao T、Coupang…' },
+      EUR: { summary: '例: コーヒー', venue: '例: カフェ', location: '例: パリ、フランス', remarks: '例: 地下鉄チケット、Monoprix…' },
+      JPY: { summary: '例: ラーメン', venue: '例: コンビニ', location: '例: 東京、日本', remarks: '例: Suica、7-Eleven…' },
+    },
+    income: { summary: '例: 給与', venue: '例: 勤務先', location: '例: 銀行振込', remarks: '例: ボーナス、返金…' },
+  },
+  zh: {
+    expense: {
+      default: { summary: '例如：午餐', venue: '例如：咖啡店', location: '例如：市中心', remarks: '例如：刷卡、外带…' },
+      USD: { summary: '例如：上课前吃 Chipotle', venue: '例如：Chipotle', location: '例如：Madison, WI', remarks: '例如：Uber、Amazon…' },
+      KRW: { summary: '例如：午餐', venue: '例如：大创', location: '例如：首尔、釜山', remarks: '例如：Kakao T、Coupang…' },
+      EUR: { summary: '例如：咖啡', venue: '例如：咖啡馆', location: '例如：巴黎，法国', remarks: '例如：地铁票、Monoprix…' },
+      JPY: { summary: '例如：拉面', venue: '例如：便利店', location: '例如：东京，日本', remarks: '例如：Suica、7-Eleven…' },
+    },
+    income: { summary: '例如：工资', venue: '例如：公司', location: '例如：银行转账', remarks: '例如：奖金、退款…' },
+  },
+  es: {
+    expense: {
+      default: { summary: 'p. ej. almuerzo', venue: 'p. ej. cafetería', location: 'p. ej. centro', remarks: 'p. ej. tarjeta, para llevar…' },
+      USD: { summary: 'p. ej. Chipotle antes de clase', venue: 'p. ej. Chipotle', location: 'p. ej. Madison, WI', remarks: 'p. ej. Uber, Amazon…' },
+      KRW: { summary: 'p. ej. almuerzo', venue: 'p. ej. Daiso', location: 'p. ej. Seúl, Corea', remarks: 'p. ej. Kakao T, Coupang…' },
+      EUR: { summary: 'p. ej. café', venue: 'p. ej. cafetería', location: 'p. ej. París, Francia', remarks: 'p. ej. billete de metro, Monoprix…' },
+      JPY: { summary: 'p. ej. ramen', venue: 'p. ej. tienda de conveniencia', location: 'p. ej. Tokio, Japón', remarks: 'p. ej. Suica, 7-Eleven…' },
+    },
+    income: { summary: 'p. ej. salario', venue: 'p. ej. empresa', location: 'p. ej. transferencia bancaria', remarks: 'p. ej. bono, reembolso…' },
+  },
+  fr: {
+    expense: {
+      default: { summary: 'ex. déjeuner', venue: 'ex. café', location: 'ex. centre-ville', remarks: 'ex. carte, à emporter…' },
+      USD: { summary: 'ex. Chipotle avant les cours', venue: 'ex. Chipotle', location: 'ex. Madison, WI', remarks: 'ex. Uber, Amazon…' },
+      KRW: { summary: 'ex. déjeuner', venue: 'ex. Daiso', location: 'ex. Séoul, Corée', remarks: 'ex. Kakao T, Coupang…' },
+      EUR: { summary: 'ex. café', venue: 'ex. café', location: 'ex. Paris, France', remarks: 'ex. ticket de métro, Monoprix…' },
+      JPY: { summary: 'ex. ramen', venue: 'ex. supérette', location: 'ex. Tokyo, Japon', remarks: 'ex. Suica, 7-Eleven…' },
+    },
+    income: { summary: 'ex. salaire', venue: 'ex. employeur', location: 'ex. virement bancaire', remarks: 'ex. prime, remboursement…' },
+  },
+  de: {
+    expense: {
+      default: { summary: 'z. B. Mittagessen', venue: 'z. B. Café', location: 'z. B. Innenstadt', remarks: 'z. B. Karte, zum Mitnehmen…' },
+      USD: { summary: 'z. B. Chipotle vor der Vorlesung', venue: 'z. B. Chipotle', location: 'z. B. Madison, WI', remarks: 'z. B. Uber, Amazon…' },
+      KRW: { summary: 'z. B. Mittagessen', venue: 'z. B. Daiso', location: 'z. B. Seoul, Korea', remarks: 'z. B. Kakao T, Coupang…' },
+      EUR: { summary: 'z. B. Kaffee', venue: 'z. B. Café', location: 'z. B. Paris, Frankreich', remarks: 'z. B. Metroticket, Monoprix…' },
+      JPY: { summary: 'z. B. Ramen', venue: 'z. B. Konbini', location: 'z. B. Tokio, Japan', remarks: 'z. B. Suica, 7-Eleven…' },
+    },
+    income: { summary: 'z. B. Gehalt', venue: 'z. B. Arbeitgeber', location: 'z. B. Banküberweisung', remarks: 'z. B. Bonus, Rückerstattung…' },
+  },
+}
+
+function resolveEntryPlaceholderLanguage(language?: string): string {
+  const base = (language || 'en').trim().toLowerCase().split('-')[0]
+  return ENTRY_FORM_PLACEHOLDER_SETS[base] ? base : 'en'
+}
+
+function resolveEntryPlaceholderRegion(currency?: string): EntryPlaceholderRegion {
+  const normalized = normalizeCurrencyCode(currency || 'USD')
+  if (normalized === 'USD' || normalized === 'KRW' || normalized === 'EUR' || normalized === 'JPY') return normalized
+  return 'default'
+}
+
+export function getEntryFormPlaceholders(
+  language?: string,
+  currency?: string,
+  type: EntryType = 'expense',
+): EntryFormPlaceholders {
+  const locale = resolveEntryPlaceholderLanguage(language)
+  const languageSet = ENTRY_FORM_PLACEHOLDER_SETS[locale] || ENTRY_FORM_PLACEHOLDER_SETS.en
+  if (type === 'income') return languageSet.income
+  const region = resolveEntryPlaceholderRegion(currency)
+  return languageSet.expense[region] || languageSet.expense.default
+}
+
 export function formatEntryDate(date: string, language?: string): string {
   return new Intl.DateTimeFormat(getUiLocale(language), {
     month: '2-digit',
