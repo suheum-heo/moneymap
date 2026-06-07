@@ -668,7 +668,7 @@ const ENTRY_FORM_PLACEHOLDER_SETS: Record<string, {
     expense: {
       default: { summary: '예: 점심', venue: '예: 카페', location: '예: 시내', remarks: '예: 카드, 포장…' },
       USD: { summary: '예: 수업 전 Chipotle', venue: '예: Chipotle', location: '예: Madison, WI', remarks: '예: Uber, Amazon…' },
-      KRW: { summary: '예: 점심', venue: '예: 카페', location: '예: 서울 용산구', remarks: '예: 다이소, 쿠팡…' },
+      KRW: { summary: '예: 점심', venue: '예: 스타벅스 신용산역점', location: '예: 서울 용산구', remarks: '예: 다이소, 쿠팡…' },
       EUR: { summary: '예: 커피', venue: '예: 카페', location: '예: 프랑스 파리', remarks: '예: 지하철 티켓, Monoprix…' },
       JPY: { summary: '예: 라멘', venue: '예: 편의점', location: '예: 일본 도쿄', remarks: '예: Suica, 7-Eleven…' },
     },
