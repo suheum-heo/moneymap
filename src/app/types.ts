@@ -534,35 +534,6 @@ export function convertEntryAmount(
   return convert(amount, entryCurrency, target)
 }
 
-export const CATEGORY_COLOR_PALETTE = [
-  '#5B8EF0', // muted blue
-  '#6F7DE8', // indigo
-  '#8A79E0', // violet
-  '#D472A0', // pink
-  '#DE7B64', // coral
-  '#D5A04A', // amber
-  '#3B9A91', // teal
-  '#66AF8E', // mint
-  '#79A95E', // green
-  '#4FA5C7', // cyan
-  '#D8894F', // orange
-  '#6B86A6', // slate
-  '#7A9EDB', // sky
-  '#9A86D4', // lavender
-  '#5FA392', // seafoam
-  '#B88E63', // sand
-] as const
-
-export const INCOME_CATEGORY_COLOR_PALETTE = [
-  '#3F8FDE',
-  '#4E98CB',
-  '#389A84',
-  '#58AA8B',
-  '#6DA55A',
-  '#4AA2BD',
-  '#6C93CE',
-] as const
-
 export const CATEGORY_NEUTRAL_COLOR = '#7B8794'
 
 export const CATEGORY_COLOR_OVERRIDES: Record<string, string> = {
@@ -591,6 +562,45 @@ function hashCategoryName(categoryName: string): number {
   return hash
 }
 
+function normalizeCategoryHue(hue: number): number {
+  const wrapped = ((hue % 360) + 360) % 360
+  // Skip harsh error-red territory so generated colors stay softer.
+  if (wrapped < 18) return wrapped + 18
+  if (wrapped > 342) return wrapped - 18
+  return wrapped
+}
+
+function hslToHex(hue: number, saturation: number, lightness: number): string {
+  const s = saturation / 100
+  const l = lightness / 100
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const h = hue / 60
+  const x = c * (1 - Math.abs((h % 2) - 1))
+
+  let r = 0
+  let g = 0
+  let b = 0
+
+  if (h >= 0 && h < 1) [r, g, b] = [c, x, 0]
+  else if (h >= 1 && h < 2) [r, g, b] = [x, c, 0]
+  else if (h >= 2 && h < 3) [r, g, b] = [0, c, x]
+  else if (h >= 3 && h < 4) [r, g, b] = [0, x, c]
+  else if (h >= 4 && h < 5) [r, g, b] = [x, 0, c]
+  else [r, g, b] = [c, 0, x]
+
+  const m = l - c / 2
+  const toHex = (channel: number) => Math.round((channel + m) * 255).toString(16).padStart(2, '0')
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+function generateCategoryColor(categoryKey: string): string {
+  const hash = hashCategoryName(categoryKey)
+  const hue = normalizeCategoryHue(hash % 360)
+  const saturation = 48 + ((hash >>> 9) % 14)
+  const lightness = 50 + ((hash >>> 17) % 8)
+  return hslToHex(hue, saturation, lightness)
+}
+
 export function getCategoryColor(categoryName: string, type: EntryType = 'expense'): string {
   const key = resolveCategoryColorKey(categoryName)
   if (!key) return CATEGORY_NEUTRAL_COLOR
@@ -598,8 +608,7 @@ export function getCategoryColor(categoryName: string, type: EntryType = 'expens
   const override = CATEGORY_COLOR_OVERRIDES[key]
   if (override) return override
 
-  const palette = type === 'income' ? INCOME_CATEGORY_COLOR_PALETTE : CATEGORY_COLOR_PALETTE
-  return palette[hashCategoryName(key) % palette.length]
+  return generateCategoryColor(key)
 }
 
 export function hexToRgba(hex: string, alpha: number): string {
