@@ -5,6 +5,7 @@ import {
   Entry,
   Context,
   EntrySortOrder,
+  convertEntryAmount,
   EXPENSE_CATEGORIES,
   formatAmount,
   formatFullDate,
@@ -30,13 +31,14 @@ interface Props {
   onAddForDate: (date: string) => void
   sortOrder: EntrySortOrder
   activeContext?: Context
+  convert: (amount: number, from: string, to: string) => number
   expenseCategories: string[]
   incomeCategories: string[]
 }
 
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
-export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate, sortOrder, activeContext, expenseCategories, incomeCategories }: Props) {
+export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate, sortOrder, activeContext, convert, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
@@ -65,11 +67,12 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
     const totals: Record<string, { expense: number; income: number }> = {}
     monthEntries.forEach(e => {
       if (!totals[e.date]) totals[e.date] = { expense: 0, income: 0 }
-      if (e.type === 'expense') totals[e.date].expense += e.amount
-      else totals[e.date].income += e.amount
+      const localAmount = convertEntryAmount(e, cur, homeCur, cur, convert)
+      if (e.type === 'expense') totals[e.date].expense += localAmount
+      else totals[e.date].income += localAmount
     })
     return totals
-  }, [monthEntries])
+  }, [monthEntries, cur, homeCur, convert])
 
   const [year, m] = month.split('-').map(Number)
   const firstDay = new Date(year, m - 1, 1).getDay()
@@ -87,8 +90,12 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
     selectedDay ? sortEntriesForDisplay(monthEntries.filter(e => e.date === selectedDay), sortOrder) : [],
     [selectedDay, monthEntries, sortOrder])
 
-  const selectedExpense = selectedEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-  const selectedIncome = selectedEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+  const selectedExpense = selectedEntries
+    .filter(e => e.type === 'expense')
+    .reduce((s, e) => s + convertEntryAmount(e, cur, homeCur, cur, convert), 0)
+  const selectedIncome = selectedEntries
+    .filter(e => e.type === 'income')
+    .reduce((s, e) => s + convertEntryAmount(e, cur, homeCur, cur, convert), 0)
   const maxExpense = Math.max(...Object.values(dayTotals).map(d => d.expense), 1)
 
   const openEdit = (e: Entry) => {

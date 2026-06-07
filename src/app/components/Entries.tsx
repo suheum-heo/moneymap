@@ -5,6 +5,7 @@ import {
   Entry,
   Context,
   EntrySortOrder,
+  convertEntryAmount,
   formatAmount,
   formatEntryDate,
   getCategoryBadgeStyle,
@@ -96,8 +97,10 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
 
   const weekTotal = useMemo(() => {
     if (!weekOnly) return null
-    return filtered.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-  }, [filtered, weekOnly])
+    return filtered
+      .filter(e => e.type === 'expense')
+      .reduce((s, e) => s + convertEntryAmount(e, cur, homeCur, cur, convert), 0)
+  }, [filtered, weekOnly, cur, homeCur, convert])
 
   const selCls = "app-select px-3 py-2.5 text-sm"
   const inputCls = "app-input py-3 text-sm"
@@ -172,7 +175,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
             const col = getCategoryColor(e.category, e.type)
             const badgeStyle = getCategoryBadgeStyle(e.category, e.type)
             const isIncome = e.type === 'income'
-            const converted = showConversion ? (e.homeAmount ?? convert(e.amount, entryCurrency, homeCur)) : null
+            const converted = showConversion ? convertEntryAmount(e, cur, homeCur, homeCur, convert) : null
             return (
               <div key={e.id} className="app-list-row flex items-start gap-3">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-xs font-medium text-slate-500 dark:bg-slate-900/80 dark:text-slate-300">

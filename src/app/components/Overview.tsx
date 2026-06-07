@@ -5,6 +5,7 @@ import {
   Entry,
   Context,
   EntrySortOrder,
+  convertEntryAmount,
   formatAmount,
   formatEntryDate,
   getCategoryColor,
@@ -64,27 +65,29 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
     [entries, month, activeContext])
 
+  const toLocal = (e: Entry) => convertEntryAmount(e, cur, homeCur, cur, convert)
+
   // Sum in local currency (cur) for display
   const expenses = useMemo(() =>
-    monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
-    [monthEntries])
+    monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toLocal(e), 0),
+    [monthEntries, cur, homeCur, convert])
 
   const income = useMemo(() =>
-    monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0),
-    [monthEntries])
+    monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + toLocal(e), 0),
+    [monthEntries, cur, homeCur, convert])
 
   const net = income - expenses
 
   // Sum in home currency: use homeAmount if set, otherwise convert via live rate
-  const toHome = (e: Entry) => e.homeAmount ?? convert(e.amount, getEntryCurrency(e, cur, homeCur), homeCur)
+  const toHome = (e: Entry) => convertEntryAmount(e, cur, homeCur, homeCur, convert)
 
   const expensesHome = useMemo(() =>
     monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
-    [monthEntries, showConversion])
+    [monthEntries, showConversion, cur, homeCur, convert])
 
   const incomeHome = useMemo(() =>
     monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + toHome(e), 0),
-    [monthEntries, showConversion])
+    [monthEntries, showConversion, cur, homeCur, convert])
 
   const netHome = incomeHome - expensesHome
 
@@ -98,14 +101,14 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
     [entries, lastMonth, activeContext])
 
   const lastMonthExpenses = useMemo(() =>
-    lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0),
-    [lastMonthEntries])
+    lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toLocal(e), 0),
+    [lastMonthEntries, cur, homeCur, convert])
 
   const sameDayLastMonth = useMemo(() => {
     const today = new Date()
     const cutoff = `${lastMonth}-${String(today.getDate()).padStart(2, '0')}`
-    return lastMonthEntries.filter(e => e.type === 'expense' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0)
-  }, [lastMonthEntries, lastMonth])
+    return lastMonthEntries.filter(e => e.type === 'expense' && e.date <= cutoff).reduce((s, e) => s + toLocal(e), 0)
+  }, [lastMonthEntries, lastMonth, cur, homeCur, convert])
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date()
@@ -115,18 +118,18 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const byCategory = useMemo(() => {
     const cats: Record<string, number> = {}
     monthEntries.filter(e => e.type === 'expense').forEach(e => {
-      cats[e.category] = (cats[e.category] || 0) + e.amount
+      cats[e.category] = (cats[e.category] || 0) + toLocal(e)
     })
     return Object.entries(cats).sort((a, b) => b[1] - a[1])
-  }, [monthEntries])
+  }, [monthEntries, cur, homeCur, convert])
 
   const byLocation = useMemo(() => {
     const locs: Record<string, number> = {}
     monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
-      locs[e.location.trim()] = (locs[e.location.trim()] || 0) + e.amount
+      locs[e.location.trim()] = (locs[e.location.trim()] || 0) + toLocal(e)
     })
     return Object.entries(locs).sort((a, b) => b[1] - a[1])
-  }, [monthEntries])
+  }, [monthEntries, cur, homeCur, convert])
 
   const locationEntries = useMemo(() => {
     if (!expandedLocation) return []

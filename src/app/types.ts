@@ -517,6 +517,23 @@ export function shouldRepairLegacyEntryCurrency(
   return getEntryCurrency(entry, contextCurrency, homeCurrency) !== normalizeCurrencyCode(entry.currency || contextCurrency)
 }
 
+export function convertEntryAmount(
+  entry: Pick<Entry, 'amount' | 'currency' | 'homeAmount'>,
+  contextCurrency: string,
+  homeCurrency: string,
+  targetCurrency: string,
+  convert: (amount: number, from: string, to: string) => number,
+): number {
+  const entryCurrency = getEntryCurrency(entry, contextCurrency, homeCurrency)
+  const target = normalizeCurrencyCode(targetCurrency)
+  const home = normalizeCurrencyCode(homeCurrency || contextCurrency)
+  const amount = coerceAmount(entry.amount)
+
+  if (entryCurrency === target) return amount
+  if (target === home && entry.homeAmount != null) return coerceAmount(entry.homeAmount)
+  return convert(amount, entryCurrency, target)
+}
+
 export const CATEGORY_COLOR_PALETTE = [
   '#5B8EF0', // muted blue
   '#6F7DE8', // indigo
