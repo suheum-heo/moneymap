@@ -125,7 +125,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
     setName('')
   }
 
-  const handleAddRecurring = () => {
+  const handleAddRecurring = async () => {
     if (!recSummary.trim() || !recAmount || !activeContext) return
     const amt = parseCurrencyInput(recAmount, recCurrency)
     if (isNaN(amt) || amt <= 0) return
@@ -138,16 +138,20 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       summary: recSummary.trim(),
       remarks: recRemarks.trim(),
     }
-    addItem(item)
-    setRecAmount(''); setRecSummary(''); setRecRemarks('')
+    try {
+      await addItem(item)
+      setRecAmount(''); setRecSummary(''); setRecRemarks('')
+    } catch {}
   }
 
-  const handleSaveRec = () => {
+  const handleSaveRec = async () => {
     if (!editRec) return
     const amt = parseCurrencyInput(editRec.amount.toString(), editRec.currency)
     if (isNaN(amt) || amt <= 0) return
-    updateItem({ ...editRec, amount: amt })
-    setEditingRecId(null); setEditRec(null)
+    try {
+      await updateItem({ ...editRec, amount: amt })
+      setEditingRecId(null); setEditRec(null)
+    } catch {}
   }
 
   const handleDeleteAccount = async () => {
