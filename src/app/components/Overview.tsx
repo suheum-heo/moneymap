@@ -116,8 +116,10 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const language = i18n.resolvedLanguage || i18n.language
   const catChartRef = useRef<HTMLCanvasElement>(null)
   const locChartRef = useRef<HTMLCanvasElement>(null)
+  const regionChartRef = useRef<HTMLCanvasElement>(null)
   const catChartInstance = useRef<Chart | null>(null)
   const locChartInstance = useRef<Chart | null>(null)
+  const regionChartInstance = useRef<Chart | null>(null)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
@@ -129,6 +131,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const chartGridColor = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(203,213,225,0.62)'
   const chartTextColor = isDark ? '#95a2b3' : '#7b8794'
   const accentBarColor = isDark ? 'rgba(112, 167, 250, 0.8)' : 'rgba(91, 142, 240, 0.86)'
+  const regionBarColor = isDark ? 'rgba(45, 212, 191, 0.66)' : 'rgba(20, 184, 166, 0.72)'
   const tooltipBackground = isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.97)'
   const tooltipBorder = isDark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(203, 213, 225, 0.9)'
   const tooltipTitle = isDark ? '#f8fafc' : '#0f172a'
@@ -327,6 +330,60 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
     })
     return () => { locChartInstance.current?.destroy() }
   }, [byLocation, chartGridColor, chartTextColor, cur])
+
+  useEffect(() => {
+    if (!regionChartRef.current || byLocationRegion.length === 0) {
+      regionChartInstance.current?.destroy()
+      regionChartInstance.current = null
+      return
+    }
+    if (regionChartInstance.current) regionChartInstance.current.destroy()
+    regionChartInstance.current = new Chart(regionChartRef.current, {
+      type: 'bar',
+      data: {
+        labels: byLocationRegion.map(([region]) => region),
+        datasets: [{
+          data: byLocationRegion.map(([, v]) => parseFloat(v.toFixed(2))),
+          backgroundColor: regionBarColor,
+          borderRadius: 12,
+          borderSkipped: false,
+          maxBarThickness: 22,
+          categoryPercentage: 0.76,
+          barPercentage: 0.88,
+        }]
+      },
+      options: {
+        indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: tooltipBackground,
+            borderColor: tooltipBorder,
+            borderWidth: 1,
+            displayColors: false,
+            cornerRadius: 14,
+            padding: 12,
+            titleColor: tooltipTitle,
+            bodyColor: tooltipBody,
+            callbacks: { label: ctx => ` ${formatAmount(ctx.raw as number, cur)}` }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: chartGridColor, drawTicks: false },
+            border: { display: false },
+            ticks: { color: chartTextColor, callback: v => formatAmount(Number(v), cur), font: { size: 11, weight: 500 }, padding: 8 }
+          },
+          y: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: chartTextColor, font: { size: 11, weight: 500 } }
+          }
+        }
+      }
+    })
+    return () => { regionChartInstance.current?.destroy() }
+  }, [byLocationRegion, chartGridColor, chartTextColor, cur])
 
   // Big number = local cur, small grey = home cur equivalent
   const fmt = (n: number) => formatAmount(Math.abs(n), cur)
@@ -653,14 +710,28 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
             </div>
           </div>
 
-          <div className="app-panel p-4 sm:p-5">
+          <div className="space-y-3">
+            <div className="app-panel p-4 sm:p-5">
               <div className="mb-4">
                 <div className="app-kicker mb-2">{t('spendingChart')}</div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('byLocation')}</h3>
               </div>
-            <div className="relative w-full" style={{ height: Math.max(180, byLocation.length * 42) }}>
-              <canvas ref={locChartRef} />
+              <div className="relative w-full" style={{ height: Math.max(180, byLocation.length * 42) }}>
+                <canvas ref={locChartRef} />
+              </div>
             </div>
+
+            {byLocationRegion.length > 0 && (
+              <div className="app-panel p-4 sm:p-5">
+                <div className="mb-4">
+                  <div className="app-kicker mb-2">{t('spendingChart')}</div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('byRegion')}</h3>
+                </div>
+                <div className="relative w-full" style={{ height: Math.max(160, byLocationRegion.length * 44) }}>
+                  <canvas ref={regionChartRef} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
