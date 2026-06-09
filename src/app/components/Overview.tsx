@@ -13,6 +13,7 @@ import {
   sortEntriesForDisplay,
 } from '../types'
 import EntryEditModal from './EntryEditModal'
+import ChevronDownIcon from './ChevronDownIcon'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -130,6 +131,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
   const chartGridColor = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(203,213,225,0.62)'
   const chartTextColor = isDark ? '#95a2b3' : '#7b8794'
+  const locationChartTextColor = isDark ? '#cbd5e1' : '#475569'
   const accentBarColor = isDark ? 'rgba(112, 167, 250, 0.8)' : 'rgba(91, 142, 240, 0.86)'
   const regionBarColor = isDark ? 'rgba(45, 212, 191, 0.66)' : 'rgba(20, 184, 166, 0.72)'
   const tooltipBackground = isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.97)'
@@ -206,6 +208,15 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
     })
     return Object.entries(locs).sort((a, b) => b[1] - a[1])
   }, [monthEntries, cur, homeCur, convert])
+
+  const locationEntryCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
+      const loc = e.location.trim()
+      counts[loc] = (counts[loc] || 0) + 1
+    })
+    return counts
+  }, [monthEntries])
 
   const byLocationRegion = useMemo(() => {
     const regions: Record<string, number> = {}
@@ -323,13 +334,13 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
           y: {
             grid: { display: false },
             border: { display: false },
-            ticks: { color: chartTextColor, font: { size: 11, weight: 500 } }
+            ticks: { color: locationChartTextColor, font: { size: 12, weight: 600 }, padding: 8, autoSkip: false }
           }
         }
       }
     })
     return () => { locChartInstance.current?.destroy() }
-  }, [byLocation, chartGridColor, chartTextColor, cur])
+  }, [byLocation, chartGridColor, chartTextColor, locationChartTextColor, accentBarColor, cur])
 
   useEffect(() => {
     if (!regionChartRef.current || byLocationRegion.length === 0) {
@@ -383,7 +394,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
       }
     })
     return () => { regionChartInstance.current?.destroy() }
-  }, [byLocationRegion, chartGridColor, chartTextColor, cur])
+  }, [byLocationRegion, chartGridColor, chartTextColor, regionBarColor, cur])
 
   // Big number = local cur, small grey = home cur equivalent
   const fmt = (n: number) => formatAmount(Math.abs(n), cur)
@@ -582,27 +593,27 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
         <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,1.05fr)]">
           <div className="app-panel p-4 sm:p-5">
             <div className="mb-4">
-              <div className="app-kicker mb-2">{t('byLocation')}</div>
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t('byLocation')}</h3>
+              <div className="app-kicker mb-2">{t('location')}</div>
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t('locationBreakdown')}</h3>
             </div>
 
             {byLocationRegion.length > 0 && (
-              <div className="mb-4 rounded-[22px] border border-slate-200/75 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-slate-950/45">
-                <div className="app-kicker mb-3">{t('byRegion')}</div>
-                <div className="space-y-2">
+              <div className="mb-3 rounded-[22px] border border-slate-200/75 bg-slate-50/70 p-2.5 dark:border-white/10 dark:bg-slate-950/50">
+                <div className="app-kicker mb-2.5 px-1">{t('byRegion')}</div>
+                <div className="space-y-1.5">
                   {byLocationRegion.map(([region, amt]) => {
                     const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                     return (
-                      <div key={region} className="rounded-[18px] border border-white/70 bg-white/72 px-3 py-3 dark:border-white/10 dark:bg-slate-900/45">
-                        <div className="mb-2 flex items-start justify-between gap-3">
+                      <div key={region} className="rounded-[18px] border border-white/70 bg-white/75 px-3 py-2.5 dark:border-white/10 dark:bg-slate-900/50">
+                        <div className="mb-1.5 flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{region}</div>
                             <div className="mt-1 text-xs text-slate-400">{pct}%</div>
                           </div>
                           <div className="flex-shrink-0 text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
                         </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
-                          <div className="h-full rounded-full bg-[#5b8ef0]" style={{ width: `${pct}%` }} />
+                        <div className="h-1 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: regionBarColor }} />
                         </div>
                       </div>
                     )
@@ -626,8 +637,9 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                           <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{loc}</div>
                           <div className="mt-1 text-xs text-slate-400">{pct}%</div>
                         </div>
-                        <div className="flex-shrink-0 text-right">
-                          <div className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">{isExpanded ? '▲' : '▼'}</div>
+                        <div className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200/75 bg-slate-50/80 px-2 py-1 text-[11px] font-medium text-slate-500 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                          <span>{t('entryCount', { count: locationEntryCounts[loc] || 0 })}</span>
+                          <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180 text-[#5b8ef0]' : 'text-slate-400 dark:text-slate-500'}`} />
                         </div>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
@@ -714,7 +726,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
             <div className="app-panel p-4 sm:p-5">
               <div className="mb-4">
                 <div className="app-kicker mb-2">{t('spendingChart')}</div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('byLocation')}</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('topLocations')}</h3>
               </div>
               <div className="relative w-full" style={{ height: Math.max(180, byLocation.length * 42) }}>
                 <canvas ref={locChartRef} />
