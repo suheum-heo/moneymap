@@ -38,6 +38,79 @@ function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
   return `rgba(${softened[0]}, ${softened[1]}, ${softened[2]}, ${alpha})`
 }
 
+const US_STATE_NAMES: Record<string, string> = {
+  AL: 'Alabama',
+  AK: 'Alaska',
+  AZ: 'Arizona',
+  AR: 'Arkansas',
+  CA: 'California',
+  CO: 'Colorado',
+  CT: 'Connecticut',
+  DE: 'Delaware',
+  FL: 'Florida',
+  GA: 'Georgia',
+  HI: 'Hawaii',
+  ID: 'Idaho',
+  IL: 'Illinois',
+  IN: 'Indiana',
+  IA: 'Iowa',
+  KS: 'Kansas',
+  KY: 'Kentucky',
+  LA: 'Louisiana',
+  ME: 'Maine',
+  MD: 'Maryland',
+  MA: 'Massachusetts',
+  MI: 'Michigan',
+  MN: 'Minnesota',
+  MS: 'Mississippi',
+  MO: 'Missouri',
+  MT: 'Montana',
+  NE: 'Nebraska',
+  NV: 'Nevada',
+  NH: 'New Hampshire',
+  NJ: 'New Jersey',
+  NM: 'New Mexico',
+  NY: 'New York',
+  NC: 'North Carolina',
+  ND: 'North Dakota',
+  OH: 'Ohio',
+  OK: 'Oklahoma',
+  OR: 'Oregon',
+  PA: 'Pennsylvania',
+  RI: 'Rhode Island',
+  SC: 'South Carolina',
+  SD: 'South Dakota',
+  TN: 'Tennessee',
+  TX: 'Texas',
+  UT: 'Utah',
+  VT: 'Vermont',
+  VA: 'Virginia',
+  WA: 'Washington',
+  WV: 'West Virginia',
+  WI: 'Wisconsin',
+  WY: 'Wyoming',
+  DC: 'District of Columbia',
+}
+
+function getLocationRegion(location: string) {
+  const trimmed = location.trim()
+  if (!trimmed) return null
+
+  const commaParts = trimmed.split(',').map(part => part.trim()).filter(Boolean)
+  if (commaParts.length > 1) {
+    const lastPart = commaParts[commaParts.length - 1]
+    const stateCode = lastPart.replace(/[^A-Za-z]/g, '').toUpperCase()
+    return US_STATE_NAMES[stateCode] || lastPart
+  }
+
+  const spaceParts = trimmed.split(/\s+/).filter(Boolean)
+  if (spaceParts.length > 1) {
+    return spaceParts[0]
+  }
+
+  return null
+}
+
 export default function Overview({ entries, month, onNavigate, onUpdate, sortOrder, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
@@ -129,6 +202,16 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
       locs[e.location.trim()] = (locs[e.location.trim()] || 0) + toLocal(e)
     })
     return Object.entries(locs).sort((a, b) => b[1] - a[1])
+  }, [monthEntries, cur, homeCur, convert])
+
+  const byLocationRegion = useMemo(() => {
+    const regions: Record<string, number> = {}
+    monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
+      const region = getLocationRegion(e.location)
+      if (!region) return
+      regions[region] = (regions[region] || 0) + toLocal(e)
+    })
+    return Object.entries(regions).sort((a, b) => b[1] - a[1])
   }, [monthEntries, cur, homeCur, convert])
 
   const locationEntries = useMemo(() => {
@@ -445,6 +528,32 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
               <div className="app-kicker mb-2">{t('byLocation')}</div>
               <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t('byLocation')}</h3>
             </div>
+
+            {byLocationRegion.length > 0 && (
+              <div className="mb-4 rounded-[22px] border border-slate-200/75 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-slate-950/45">
+                <div className="app-kicker mb-3">{t('byRegion')}</div>
+                <div className="space-y-2">
+                  {byLocationRegion.map(([region, amt]) => {
+                    const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
+                    return (
+                      <div key={region} className="rounded-[18px] border border-white/70 bg-white/72 px-3 py-3 dark:border-white/10 dark:bg-slate-900/45">
+                        <div className="mb-2 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{region}</div>
+                            <div className="mt-1 text-xs text-slate-400">{pct}%</div>
+                          </div>
+                          <div className="flex-shrink-0 text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                          <div className="h-full rounded-full bg-[#5b8ef0]" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               {byLocation.map(([loc, amt]) => {
                 const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
