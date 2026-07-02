@@ -5,7 +5,9 @@ import { supabase } from '../lib/supabase'
 import {
   CURRENCIES,
   Context,
+  EntryType,
   EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
   formatAmount,
   formatAmountValue,
   formatLocaleTime,
@@ -13,7 +15,6 @@ import {
   getAmountInputProps,
   getCategoryBadgeStyle,
   getCategoryColor,
-  getCurrencySymbol,
   normalizeAmountInputValue,
   parseCurrencyInput,
 } from '../types'
@@ -40,15 +41,24 @@ interface Props {
   deleteItem: (id: string) => void
   categories: Category[]
   expenseCategories: string[]
+  incomeCategories: string[]
   addCategory: (name: string, type: 'expense' | 'income') => void
   updateCategory: (id: string, name: string) => void | Promise<void>
   removeCategory: (id: string) => void
 }
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, expenseCategories, addCategory, updateCategory, removeCategory }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
+  const incomeCategoryOptions = incomeCategories.length > 0 ? incomeCategories : INCOME_CATEGORIES
+  const getRecurringCategoryOptions = (type: EntryType, currentCategory?: string) => {
+    const options = type === 'expense' ? expenseCategoryOptions : incomeCategoryOptions
+    return currentCategory && !options.includes(currentCategory) ? [currentCategory, ...options] : options
+  }
+  const getDefaultRecurringCategory = (type: EntryType) => (
+    getRecurringCategoryOptions(type)[0] || (type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0])
+  )
 
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -82,7 +92,8 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [budgetCat, setBudgetCat] = useState(expenseCategoryOptions[0] || EXPENSE_CATEGORIES[0])
   const [budgetAmt, setBudgetAmt] = useState('')
 
-  const [recCategory, setRecCategory] = useState(expenseCategoryOptions[0] || EXPENSE_CATEGORIES[0])
+  const [recType, setRecType] = useState<EntryType>('expense')
+  const [recCategory, setRecCategory] = useState(getDefaultRecurringCategory('expense'))
   const [recAmount, setRecAmount] = useState('')
   const [recCurrency, setRecCurrency] = useState(activeContext?.currency || 'USD')
   const [recSummary, setRecSummary] = useState('')
@@ -96,6 +107,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [deletingAccount, setDeletingAccount] = useState(false)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
+  const recCategoryOptions = getRecurringCategoryOptions(recType, recCategory)
   const recurringAmountProps = getAmountInputProps(recCurrency)
   const budgetAmountProps = getAmountInputProps(activeContext?.currency || 'USD')
   const editRecurringAmountProps = getAmountInputProps(editRec?.currency || activeContext?.currency || 'USD')
@@ -112,8 +124,13 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   useEffect(() => {
     if (!expenseCategoryOptions.length) return
     if (!expenseCategoryOptions.includes(budgetCat)) setBudgetCat(expenseCategoryOptions[0])
-    if (!expenseCategoryOptions.includes(recCategory)) setRecCategory(expenseCategoryOptions[0])
-  }, [budgetCat, expenseCategoryOptions, recCategory])
+  }, [budgetCat, expenseCategoryOptions])
+
+  useEffect(() => {
+    const options = getRecurringCategoryOptions(recType)
+    if (!options.length) return
+    if (!options.includes(recCategory)) setRecCategory(options[0])
+  }, [expenseCategoryOptions, incomeCategoryOptions, recCategory, recType])
 
   const inputCls = "app-input py-3 text-sm"
   const selCls = "app-select px-3 py-2.5 text-sm"
@@ -125,12 +142,18 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
     setName('')
   }
 
+  const handleRecurringTypeChange = (type: EntryType) => {
+    setRecType(type)
+    setRecCategory(getDefaultRecurringCategory(type))
+  }
+
   const handleAddRecurring = async () => {
-    if (!recSummary.trim() || !recAmount || !activeContext) return
+    if (!recSummary.trim() || !recAmount || !activeContext || !recCategory) return
     const amt = parseCurrencyInput(recAmount, recCurrency)
     if (isNaN(amt) || amt <= 0) return
     const item: RecurringItem = {
-      id: Date.now().toString(),
+      id: `rec_${recType}_${Date.now()}`,
+      type: recType,
       context: activeContext.id,
       category: recCategory,
       amount: amt,
@@ -346,7 +369,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
       {/* Recurring payments */}
       <div className="app-panel p-4">
-        <div className="app-kicker mb-3">{t('recurringPayments').replace('⟳ ', '')}</div>
+        <div className="app-kicker mb-3">{t('recurringTransactions').replace('⟳ ', '')}</div>
         <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {contextRecurring.map(item => (
@@ -373,7 +396,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                     <div>
                       <label className="app-kicker block mb-2">{t('category')}</label>
                       <select value={editRec.category} onChange={e => setEditRec({ ...editRec, category: e.target.value })} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
-                        {expenseCategoryOptions.map(c => <option key={c}>{c}</option>)}
+                        {getRecurringCategoryOptions(editRec.type, editRec.category).map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
                   </div>
@@ -393,7 +416,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
                       <span>{formatAmount(item.amount, item.currency)} {item.currency}</span>
                       <span aria-hidden="true">·</span>
-                      <span className="inline-flex rounded-full px-2 py-0.5 font-medium" style={getCategoryBadgeStyle(item.category, 'expense', 0.16)}>
+                      <span className={`font-medium ${item.type === 'income' ? 'app-positive' : 'app-negative'}`}>
+                        {item.type === 'income' ? t('income2') : t('expense')}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="inline-flex rounded-full px-2 py-0.5 font-medium" style={getCategoryBadgeStyle(item.category, item.type, 0.16)}>
                         {item.category}
                       </span>
                       {item.remarks ? <span>· {item.remarks}</span> : null}
@@ -411,6 +438,14 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         </div>
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">{t('addRecurring')}</div>
+          <div className="flex gap-2">
+            {(['expense', 'income'] as const).map(type => (
+              <button key={type} onClick={() => handleRecurringTypeChange(type)}
+                className={`app-segment flex-1 ${recType === type ? 'app-segment-active' : ''}`}>
+                {type === 'expense' ? t('expense') : t('income2')}
+              </button>
+            ))}
+          </div>
           <div>
             <label className="app-kicker block mb-2">{t('summary')}</label>
             <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder={t('recurringSummaryPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
@@ -431,7 +466,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             <div>
               <label className="app-kicker block mb-2">{t('category')}</label>
               <select value={recCategory} onChange={e => setRecCategory(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
-                {expenseCategoryOptions.map(c => <option key={c}>{c}</option>)}
+                {recCategoryOptions.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>

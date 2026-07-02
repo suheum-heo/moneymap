@@ -42,8 +42,6 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const sym = getCurrencySymbol(contextCur)
   const homeSym = getCurrencySymbol(homeCur)
 
-  const contextRecurring = items.filter(i => i.context === activeContext?.id)
-
   const saved = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('addentry-draft') || '{}') : {}
 
   const initDate = defaultDate ? new Date(defaultDate + 'T12:00:00') : new Date()
@@ -62,6 +60,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const [error, setError] = useState('')
   const [showRecurring, setShowRecurring] = useState(false)
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)
+  const contextRecurring = items.filter(i => i.context === activeContext?.id && i.type === entryType)
 
   useEffect(() => {
     sessionStorage.setItem('addentry-draft', JSON.stringify({
@@ -165,11 +164,11 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       </div>
       </div>
 
-      {entryType === 'expense' && contextRecurring.length > 0 && (
+      {contextRecurring.length > 0 && (
         <div className="app-panel-soft p-4 sm:p-5">
           <button onClick={() => setShowRecurring(v => !v)}
             className="flex w-full items-center justify-between rounded-[20px] border border-[#dbe8ff] bg-[#eef5ff] px-4 py-3 text-left text-sm font-medium text-[#1f5fbf] dark:border-sky-400/15 dark:bg-sky-500/10 dark:text-sky-300">
-            <span>{t('recurringPayments')}</span>
+            <span>{t('recurringTransactions')}</span>
             <span>{showRecurring ? '▲' : '▼'}</span>
           </button>
           {showRecurring && (
@@ -181,7 +180,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
                     <span className="block truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{r.summary}</span>
                     {r.remarks && <span className="mt-1 block text-xs text-slate-400">{r.remarks}</span>}
                   </div>
-                  <span className="ml-3 text-sm font-semibold text-[#3182f6] dark:text-sky-300">
+                  <span className={`ml-3 text-sm font-semibold ${r.type === 'income' ? 'app-positive' : 'text-[#3182f6] dark:text-sky-300'}`}>
                     {formatAmount(r.amount, r.currency)}{r.currency !== contextCur ? ` ${r.currency}` : ''}
                   </span>
                 </button>
