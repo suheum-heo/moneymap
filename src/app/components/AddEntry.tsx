@@ -102,7 +102,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
   const applyRecurring = (r: typeof contextRecurring[0]) => {
     setSummary(r.summary)
-    setAmount(r.amount.toString())
+    setAmount(r.amount == null ? '' : r.amount.toString())
     setCategory(r.category)
     setRemarks(r.remarks || '')
     setCurrency(r.currency)
@@ -181,7 +181,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
                     {r.remarks && <span className="mt-1 block text-xs text-slate-400">{r.remarks}</span>}
                   </div>
                   <span className={`ml-3 text-sm font-semibold ${r.type === 'income' ? 'app-positive' : 'text-[#3182f6] dark:text-sky-300'}`}>
-                    {formatAmount(r.amount, r.currency)}{r.currency !== contextCur ? ` ${r.currency}` : ''}
+                    {r.amount == null ? t('amountNotSet') : `${formatAmount(r.amount, r.currency)}${r.currency !== contextCur ? ` ${r.currency}` : ''}`}
                   </span>
                 </button>
               ))}

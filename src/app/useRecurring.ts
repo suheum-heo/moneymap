@@ -6,7 +6,7 @@ import { useUserId } from './UserContext'
 
 export interface RecurringItem {
   id: string; type: EntryType; context: string; category: string
-  amount: number; currency: string; summary: string; remarks: string
+  amount: number | null; currency: string; summary: string; remarks: string
 }
 
 function normalizeRecurringType(value: unknown, id: unknown): EntryType {
@@ -21,6 +21,15 @@ function isMissingRecurringTypeColumn(error: { code?: string; message?: string; 
   return error.code === 'PGRST204'
     || message.includes("could not find the 'type' column")
     || message.includes('recurring.type')
+}
+
+function normalizeRecurringAmount(value: unknown): number | null {
+  const amount = coerceAmount(value)
+  return amount > 0 ? amount : null
+}
+
+function getStoredRecurringAmount(amount: number | null): number {
+  return amount ?? 0
 }
 
 export function useRecurring() {
@@ -38,7 +47,7 @@ export function useRecurring() {
     const { data } = await supabase.from('recurring').select('*').eq('user_id', userId)
     setItems((data || []).map(r => ({
       id: r.id, type: normalizeRecurringType(r.type, r.id), context: r.context, category: r.category,
-      amount: coerceAmount(r.amount), currency: normalizeCurrencyCode(r.currency || 'USD'),
+      amount: normalizeRecurringAmount(r.amount), currency: normalizeCurrencyCode(r.currency || 'USD'),
       summary: r.summary, remarks: r.remarks || '',
     })))
     setLoaded(true)
@@ -53,12 +62,12 @@ export function useRecurring() {
     setItems(prev => [...prev, item])
     let { error } = await supabase.from('recurring').insert({
       id: item.id, user_id: userId, context: item.context, category: item.category,
-      type: item.type, amount: item.amount, currency: item.currency, summary: item.summary, remarks: item.remarks,
+      type: item.type, amount: getStoredRecurringAmount(item.amount), currency: item.currency, summary: item.summary, remarks: item.remarks,
     })
     if (isMissingRecurringTypeColumn(error)) {
       const fallback = await supabase.from('recurring').insert({
         id: item.id, user_id: userId, context: item.context, category: item.category,
-        amount: item.amount, currency: item.currency, summary: item.summary, remarks: item.remarks,
+        amount: getStoredRecurringAmount(item.amount), currency: item.currency, summary: item.summary, remarks: item.remarks,
       })
       error = fallback.error
     }
@@ -75,12 +84,12 @@ export function useRecurring() {
     setItems(prev => prev.map(i => i.id === updated.id ? updated : i))
     let { error } = await supabase.from('recurring').update({
       summary: updated.summary, category: updated.category,
-      type: updated.type, amount: updated.amount, currency: updated.currency, remarks: updated.remarks,
+      type: updated.type, amount: getStoredRecurringAmount(updated.amount), currency: updated.currency, remarks: updated.remarks,
     }).eq('id', updated.id).eq('user_id', userId)
     if (isMissingRecurringTypeColumn(error)) {
       const fallback = await supabase.from('recurring').update({
         summary: updated.summary, category: updated.category,
-        amount: updated.amount, currency: updated.currency, remarks: updated.remarks,
+        amount: getStoredRecurringAmount(updated.amount), currency: updated.currency, remarks: updated.remarks,
       }).eq('id', updated.id).eq('user_id', userId)
       error = fallback.error
     }

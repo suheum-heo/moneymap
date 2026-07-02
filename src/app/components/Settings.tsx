@@ -100,6 +100,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [recRemarks, setRecRemarks] = useState('')
   const [editingRecId, setEditingRecId] = useState<string | null>(null)
   const [editRec, setEditRec] = useState<RecurringItem | null>(null)
+  const [editRecAmount, setEditRecAmount] = useState('')
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
   const [deleteConfirmWord, setDeleteConfirmWord] = useState('')
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
@@ -148,9 +149,9 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   }
 
   const handleAddRecurring = async () => {
-    if (!recSummary.trim() || !recAmount || !activeContext || !recCategory) return
-    const amt = parseCurrencyInput(recAmount, recCurrency)
-    if (isNaN(amt) || amt <= 0) return
+    if (!recSummary.trim() || !activeContext || !recCategory) return
+    const amt = recAmount.trim() ? parseCurrencyInput(recAmount, recCurrency) : null
+    if (amt != null && (isNaN(amt) || amt <= 0)) return
     const item: RecurringItem = {
       id: `rec_${recType}_${Date.now()}`,
       type: recType,
@@ -169,11 +170,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
   const handleSaveRec = async () => {
     if (!editRec) return
-    const amt = parseCurrencyInput(editRec.amount.toString(), editRec.currency)
-    if (isNaN(amt) || amt <= 0) return
+    const amt = editRecAmount.trim() ? parseCurrencyInput(editRecAmount, editRec.currency) : null
+    if (amt != null && (isNaN(amt) || amt <= 0)) return
     try {
       await updateItem({ ...editRec, amount: amt })
-      setEditingRecId(null); setEditRec(null)
+      setEditingRecId(null); setEditRec(null); setEditRecAmount('')
     } catch {}
   }
 
@@ -382,14 +383,20 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                       <input value={editRec.summary} onChange={e => setEditRec({ ...editRec, summary: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} />
                     </div>
                     <div>
-                      <label className="app-kicker block mb-2">{t('amount')}</label>
-                      <input type="number" value={editRec.amount} onChange={e => setEditRec({ ...editRec, amount: parseCurrencyInput(normalizeAmountInputValue(e.target.value, editRec.currency), editRec.currency) })} className={inputCls} step={editRecurringAmountProps.step} inputMode={editRecurringAmountProps.inputMode} placeholder={editRecurringAmountProps.placeholder} style={{ fontSize: '16px' }} />
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <label className="app-kicker">{t('amount')}</label>
+                        <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
+                      </div>
+                      <input type="text" value={editRecAmount} onChange={e => setEditRecAmount(normalizeAmountInputValue(e.target.value, editRec.currency))} className={inputCls} step={editRecurringAmountProps.step} inputMode={editRecurringAmountProps.inputMode} placeholder={editRecurringAmountProps.placeholder} style={{ fontSize: '16px' }} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="app-kicker block mb-2">{t('currency')}</label>
-                      <select value={editRec.currency} onChange={e => setEditRec({ ...editRec, currency: e.target.value })} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                      <select value={editRec.currency} onChange={e => {
+                        setEditRec({ ...editRec, currency: e.target.value })
+                        setEditRecAmount(value => normalizeAmountInputValue(value, e.target.value))
+                      }} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                         {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
                       </select>
                     </div>
@@ -406,7 +413,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                   </div>
                   <div className="flex gap-2">
                     <button onClick={handleSaveRec} className="app-button-primary flex-1">{t('save')}</button>
-                    <button onClick={() => { setEditingRecId(null); setEditRec(null) }} className="app-button-secondary flex-1">{t('cancel')}</button>
+                    <button onClick={() => { setEditingRecId(null); setEditRec(null); setEditRecAmount('') }} className="app-button-secondary flex-1">{t('cancel')}</button>
                   </div>
                 </div>
               ) : (
@@ -414,7 +421,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                   <div>
                     <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{item.summary}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-                      <span>{formatAmount(item.amount, item.currency)} {item.currency}</span>
+                      <span>{item.amount == null ? t('amountNotSet') : `${formatAmount(item.amount, item.currency)} ${item.currency}`}</span>
                       <span aria-hidden="true">·</span>
                       <span className={`font-medium ${item.type === 'income' ? 'app-positive' : 'app-negative'}`}>
                         {item.type === 'income' ? t('income2') : t('expense')}
@@ -427,7 +434,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                     </div>
                   </div>
                   <div className="flex gap-3 ml-3">
-                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }) }} className="app-accent text-xs font-medium">{t('edit')}</button>
+                    <button onClick={() => { setEditingRecId(item.id); setEditRec({ ...item }); setEditRecAmount(item.amount == null ? '' : item.amount.toString()) }} className="app-accent text-xs font-medium">{t('edit')}</button>
                     <button onClick={() => deleteItem(item.id)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
                   </div>
                 </div>
@@ -452,8 +459,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="app-kicker block mb-2">{t('amount')}</label>
-              <input type="number" value={recAmount} onChange={e => setRecAmount(normalizeAmountInputValue(e.target.value, recCurrency))} placeholder={recurringAmountProps.placeholder} step={recurringAmountProps.step} inputMode={recurringAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
+              <div className="mb-2 flex items-center gap-1.5">
+                <label className="app-kicker">{t('amount')}</label>
+                <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
+              </div>
+              <input type="text" value={recAmount} onChange={e => setRecAmount(normalizeAmountInputValue(e.target.value, recCurrency))} placeholder={recurringAmountProps.placeholder} step={recurringAmountProps.step} inputMode={recurringAmountProps.inputMode} className={inputCls} style={{ fontSize: '16px' }} />
             </div>
             <div>
               <label className="app-kicker block mb-2">{t('currency')}</label>
