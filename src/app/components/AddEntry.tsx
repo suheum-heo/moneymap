@@ -14,6 +14,7 @@ import {
   parseCurrencyInput,
 } from '../types'
 import { RecurringItem } from '../useRecurring'
+import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
   onAdd: (e: Entry) => void
@@ -256,18 +257,16 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
         </div>
 
         {entryType === 'expense' && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="app-kicker mb-2 block">{t('venue')}</label>
-              <input type="text" value={venue} onChange={e => setVenue(e.target.value)}
-                placeholder={placeholders.venue} className={inputCls} style={{ fontSize: '16px' }} list="venue-list" />
-            </div>
-            <div>
-              <label className="app-kicker mb-2 block">{t('location')}</label>
-              <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-                placeholder={placeholders.location} className={inputCls} style={{ fontSize: '16px' }} list="location-list" />
-            </div>
-          </div>
+          <VenueLocationFields
+            venue={venue}
+            location={location}
+            onVenueChange={setVenue}
+            onLocationChange={setLocation}
+            placeholders={placeholders}
+            inputCls={inputCls}
+            venueListId="venue-list"
+            locationListId="location-list"
+          />
         )}
 
         <div className="grid grid-cols-2 gap-3">

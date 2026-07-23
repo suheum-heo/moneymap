@@ -14,6 +14,7 @@ import {
   normalizeAmountInputValue,
   parseCurrencyInput,
 } from '../types'
+import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
   entry: Entry | null
@@ -171,16 +172,17 @@ export default function EntryEditModal({
           <label className="app-kicker mb-2 block">{t('summary')}</label>
           <input type="text" value={editSummary} onChange={event => setEditSummary(event.target.value)} placeholder={placeholders.summary} className={inputCls} style={{ fontSize: '16px' }} />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="app-kicker mb-2 block">{t('venue')}</label>
-            <input type="text" value={editVenue} onChange={event => setEditVenue(event.target.value)} placeholder={placeholders.venue} className={inputCls} style={{ fontSize: '16px' }} list="edit-venue-list" />
-          </div>
-          <div>
-            <label className="app-kicker mb-2 block">{t('location')}</label>
-            <input type="text" value={editLocation} onChange={event => setEditLocation(event.target.value)} placeholder={placeholders.location} className={inputCls} style={{ fontSize: '16px' }} list="edit-location-list" />
-          </div>
-        </div>
+        <VenueLocationFields
+          venue={editVenue}
+          location={editLocation}
+          onVenueChange={setEditVenue}
+          onLocationChange={setEditLocation}
+          placeholders={placeholders}
+          inputCls={inputCls}
+          venueListId="edit-venue-list"
+          locationListId="edit-location-list"
+          gridClassName="grid grid-cols-2 gap-2"
+        />
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="app-kicker mb-2 block">{t('category')}</label>

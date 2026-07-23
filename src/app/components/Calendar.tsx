@@ -22,6 +22,7 @@ import {
   parseCurrencyInput,
   sortEntriesForDisplay,
 } from '../types'
+import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
   entries: Entry[]
@@ -177,16 +178,15 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               <label className="app-kicker mb-2 block">{t('summary')}</label>
               <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)} placeholder={editPlaceholders.summary} className={inputCls} style={{fontSize:'16px'}} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="app-kicker mb-2 block">{t('venue')}</label>
-                <input type="text" value={editVenue} onChange={e => setEditVenue(e.target.value)} placeholder={editPlaceholders.venue} className={inputCls} style={{fontSize:'16px'}} />
-              </div>
-              <div>
-                <label className="app-kicker mb-2 block">{t('location')}</label>
-                <input type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} placeholder={editPlaceholders.location} className={inputCls} style={{fontSize:'16px'}} />
-              </div>
-            </div>
+            <VenueLocationFields
+              venue={editVenue}
+              location={editLocation}
+              onVenueChange={setEditVenue}
+              onLocationChange={setEditLocation}
+              placeholders={editPlaceholders}
+              inputCls={inputCls}
+              gridClassName="grid grid-cols-2 gap-2"
+            />
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="app-kicker mb-2 block">{t('category')}</label>
