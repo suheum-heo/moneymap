@@ -302,3 +302,54 @@ textarea {
     box-shadow: 0 16px 28px -28px rgba(0, 0, 0, 0.46);
   }
 }
+
+@keyframes naver-place-boom {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(49, 130, 246, 0);
+  }
+  35% {
+    transform: scale(1.025);
+    border-color: rgba(49, 130, 246, 0.85);
+    box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.18);
+    background-color: rgba(239, 246, 255, 0.98);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(49, 130, 246, 0);
+  }
+}
+
+@keyframes naver-place-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.naver-place-boom {
+  animation: naver-place-boom 0.42s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+.naver-place-loading {
+  animation: naver-place-pulse 0.85s ease-in-out infinite;
+}
+
+html.dark .naver-place-boom {
+  animation-name: naver-place-boom-dark;
+}
+
+@keyframes naver-place-boom-dark {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+  35% {
+    transform: scale(1.025);
+    border-color: rgba(56, 189, 248, 0.7);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+    background-color: rgba(14, 40, 64, 0.95);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+}
