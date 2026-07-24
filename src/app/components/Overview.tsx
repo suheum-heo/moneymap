@@ -598,21 +598,42 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
             </div>
 
             {byLocationRegion.length > 0 && (
-              <div className="mb-3 rounded-[22px] border border-slate-200/75 bg-slate-50/70 p-2.5 dark:border-white/10 dark:bg-slate-950/50">
-                <div className="app-kicker mb-2.5 px-1">{t('byRegion')}</div>
-                <div className="space-y-1.5">
+              <div className="mb-5 overflow-hidden rounded-[24px] border border-teal-200/80 bg-gradient-to-br from-teal-50/95 via-white to-cyan-50/70 shadow-[0_14px_28px_-26px_rgba(13,148,136,0.55)] dark:border-teal-400/20 dark:from-teal-950/40 dark:via-slate-950/70 dark:to-cyan-950/30">
+                <div className="flex items-center justify-between gap-3 border-b border-teal-200/70 px-4 py-3 dark:border-teal-400/15">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700/80 dark:text-teal-300/80">
+                      {t('byRegion')}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-teal-950 dark:text-teal-50">
+                      {t('regionLevelLabel')}
+                    </div>
+                  </div>
+                  <div className="rounded-full border border-teal-300/70 bg-teal-100/80 px-2.5 py-1 text-[11px] font-semibold text-teal-800 dark:border-teal-400/25 dark:bg-teal-500/15 dark:text-teal-200">
+                    {t('regionCount', { count: byLocationRegion.length })}
+                  </div>
+                </div>
+                <div className="grid gap-2 p-3 sm:grid-cols-2">
                   {byLocationRegion.map(([region, amt]) => {
                     const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                     return (
-                      <div key={region} className="rounded-[18px] border border-white/70 bg-white/75 px-3 py-2.5 dark:border-white/10 dark:bg-slate-900/50">
-                        <div className="mb-1.5 flex items-start justify-between gap-3">
+                      <div
+                        key={region}
+                        className="rounded-[18px] border border-teal-200/70 bg-white/85 px-3.5 py-3 dark:border-teal-400/15 dark:bg-slate-950/55"
+                      >
+                        <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{region}</div>
-                            <div className="mt-1 text-xs text-slate-400">{pct}%</div>
+                            <div className="truncate text-[15px] font-semibold tracking-tight text-teal-950 dark:text-teal-50">
+                              {region}
+                            </div>
+                            <div className="mt-1 text-xs font-medium text-teal-700/70 dark:text-teal-300/70">
+                              {pct}%
+                            </div>
                           </div>
-                          <div className="flex-shrink-0 text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
+                          <div className="flex-shrink-0 text-sm font-semibold text-teal-900 dark:text-teal-50">
+                            {formatAmount(amt, cur)}
+                          </div>
                         </div>
-                        <div className="h-1 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-teal-100 dark:bg-teal-500/15">
                           <div className="h-full rounded-full" style={{ width: `${pct}%`, background: regionBarColor }} />
                         </div>
                       </div>
@@ -622,6 +643,18 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
               </div>
             )}
 
+            <div className="mb-3 flex items-end justify-between gap-3 border-t border-slate-200/80 pt-4 dark:border-white/10">
+              <div className="min-w-0">
+                <div className="app-kicker mb-1.5">{t('byLocationDetail')}</div>
+                <div className="text-sm font-semibold text-slate-800 dark:text-zinc-100">
+                  {t('locationLevelLabel')}
+                </div>
+              </div>
+              <div className="rounded-full border border-slate-200/80 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                {t('locationCount', { count: byLocation.length })}
+              </div>
+            </div>
+
             <div className="space-y-3">
               {byLocation.map(([loc, amt]) => {
                 const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
@@ -630,7 +663,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
                   <div key={loc} className="space-y-2">
                     <button
                       onClick={() => setExpandedLocation(prev => prev === loc ? null : loc)}
-                      className={`app-list-row w-full cursor-pointer text-left transition-all hover:-translate-y-0.5 hover:border-slate-300/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3182f6]/10 dark:hover:border-white/15 ${isExpanded ? 'border-[#d7e4fb] bg-[#f8fbff] shadow-[0_16px_28px_-24px_rgba(49,130,246,0.28)] dark:border-sky-400/15 dark:bg-slate-950/70' : ''}`}
+                      className={`app-list-row w-full cursor-pointer border-l-[3px] border-l-[#8eb6f7] text-left transition-all hover:-translate-y-0.5 hover:border-slate-300/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3182f6]/10 dark:border-l-sky-400/50 dark:hover:border-white/15 ${isExpanded ? 'border-[#d7e4fb] border-l-[#5b8ef0] bg-[#f8fbff] shadow-[0_16px_28px_-24px_rgba(49,130,246,0.28)] dark:border-sky-400/15 dark:border-l-sky-300 dark:bg-slate-950/70' : ''}`}
                     >
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -734,10 +767,12 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
             </div>
 
             {byLocationRegion.length > 0 && (
-              <div className="app-panel p-4 sm:p-5">
+              <div className="app-panel border-teal-200/70 p-4 sm:p-5 dark:border-teal-400/20">
                 <div className="mb-4">
-                  <div className="app-kicker mb-2">{t('spendingChart')}</div>
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('byRegion')}</h3>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700/80 dark:text-teal-300/80">
+                    {t('byRegion')}
+                  </div>
+                  <h3 className="text-lg font-semibold text-teal-950 dark:text-teal-50">{t('regionLevelLabel')}</h3>
                 </div>
                 <div className="relative w-full" style={{ height: Math.max(160, byLocationRegion.length * 44) }}>
                   <canvas ref={regionChartRef} />
