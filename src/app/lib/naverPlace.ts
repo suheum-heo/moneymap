@@ -5,11 +5,22 @@ export interface NaverPlaceInfo {
   placeId: string
 }
 
+export interface NaverShareParse {
+  name?: string
+  address?: string
+  url: string
+}
+
 const PLACE_ID_RE =
   /(?:map\.naver\.com\/(?:p|v5)\/entry\/place\/|m\.place\.naver\.com\/place\/|pcmap\.place\.naver\.com\/place\/|place\.naver\.com\/place\/)(\d+)/i
 
 const NAVER_MAP_HOST_RE =
   /(?:^|\.)(?:map\.naver\.com|m\.place\.naver\.com|pcmap\.place\.naver\.com|place\.naver\.com|naver\.me)$/i
+
+const NAVER_URL_IN_TEXT_RE =
+  /https?:\/\/(?:naver\.me\/[A-Za-z0-9_-]+|(?:map|m\.place|pcmap\.place|place)\.naver\.com\/[^\s<>"']+)/i
+
+const SHARE_HEADER_RE = /\[?\s*네이버\s*지도\s*\]?/i
 
 export function looksLikeNaverMapUrl(text: string): boolean {
   const trimmed = text.trim()
@@ -22,14 +33,29 @@ export function looksLikeNaverMapUrl(text: string): boolean {
   }
 }
 
+/** Find a Naver Map / naver.me URL anywhere inside pasted text. */
+export function findNaverMapUrlInText(text: string): string | null {
+  const match = text.match(NAVER_URL_IN_TEXT_RE)
+  if (!match) return null
+  return match[0].replace(/[),.;\]}]+$/g, '')
+}
+
+export function containsNaverMapLink(text: string): boolean {
+  return !!findNaverMapUrlInText(text)
+}
+
 export function extractNaverPlaceId(text: string): string | null {
   const trimmed = text.trim()
   const match = trimmed.match(PLACE_ID_RE)
   if (match?.[1]) return match[1]
 
+  // Short-link redirect targets sometimes use pinId=
+  const pin = trimmed.match(/[?&]pinId=(\d+)/i)
+  if (pin?.[1]) return pin[1]
+
   try {
     const url = new URL(trimmed)
-    const fromQuery = url.searchParams.get('placeId') || url.searchParams.get('id')
+    const fromQuery = url.searchParams.get('placeId') || url.searchParams.get('id') || url.searchParams.get('pinId')
     if (fromQuery && /^\d+$/.test(fromQuery)) return fromQuery
   } catch {
     // ignore
@@ -51,4 +77,60 @@ export function toLocationArea(address: string): string {
 
   // e.g. 서울 강남구 … / 서울특별시 강남구 …
   return `${parts[0]} ${parts[1]}`
+}
+
+function looksLikeKoreanAddress(line: string): boolean {
+  return /^(서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남)/.test(line)
+    || /(특별시|광역시|특별자치시|특별자치도|도)\s/.test(line)
+}
+
+/**
+ * Parse Naver Map app share text, e.g.
+ * [네이버지도]
+ * 학동역고시원 비더스테이 강남학동
+ * 서울 강남구 학동로38길 38 2~5F
+ * https://naver.me/FiPfV7SH
+ */
+export function parseNaverShareText(text: string): NaverShareParse | null {
+  const url = findNaverMapUrlInText(text)
+  if (!url) return null
+
+  const lines = text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .filter(line => !SHARE_HEADER_RE.test(line) && !NAVER_URL_IN_TEXT_RE.test(line))
+
+  if (lines.length >= 2) {
+    // Prefer address-looking line for location; the other is the venue name.
+    const addressIdx = lines.findIndex(looksLikeKoreanAddress)
+    if (addressIdx >= 0) {
+      const address = lines[addressIdx]
+      const name = lines.find((_, i) => i !== addressIdx) || lines[0]
+      return { name, address, url }
+    }
+    return { name: lines[0], address: lines[1], url }
+  }
+
+  if (lines.length === 1) {
+    return { name: lines[0], url }
+  }
+
+  // Newlines may be collapsed inside <input> — try single-line share format.
+  const collapsed = text.replace(/\s+/g, ' ').trim()
+  const withoutUrl = collapsed.replace(NAVER_URL_IN_TEXT_RE, '').replace(SHARE_HEADER_RE, '').trim()
+  if (!withoutUrl) return { url }
+
+  // "... 서울 강남구 ..."
+  const addrMatch = withoutUrl.match(
+    /((?:서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남)[^\n]*)$/,
+  )
+  if (addrMatch) {
+    const address = addrMatch[1].trim()
+    const name = withoutUrl.slice(0, addrMatch.index).trim()
+    if (name) return { name, address, url }
+    return { address, url }
+  }
+
+  return { url }
 }

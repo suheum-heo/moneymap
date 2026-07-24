@@ -1,5 +1,6 @@
 import {
   extractNaverPlaceId,
+  findNaverMapUrlInText,
   looksLikeNaverMapUrl,
   toLocationArea,
   type NaverPlaceInfo,
@@ -74,6 +75,22 @@ async function resolvePlaceIdFromUrl(url: string): Promise<string | null> {
   if (direct) return direct
 
   try {
+    // Prefer reading the first redirect — naver.me puts pinId / title in Location.
+    const head = await fetch(url, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: {
+        'User-Agent': BROWSER_UA,
+        'Accept-Language': 'ko-KR,ko;q=0.9',
+      },
+      signal: AbortSignal.timeout(8000),
+    })
+    const location = head.headers.get('location') || ''
+    if (location) {
+      const fromLocation = extractNaverPlaceId(location)
+      if (fromLocation) return fromLocation
+    }
+
     const res = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
@@ -162,11 +179,12 @@ export async function fetchNaverPlaceById(placeId: string): Promise<NaverPlaceIn
 
 export async function fetchNaverPlaceFromUrl(urlOrText: string): Promise<NaverPlaceInfo> {
   const input = urlOrText.trim()
-  if (!looksLikeNaverMapUrl(input) && !extractNaverPlaceId(input)) {
+  const url = findNaverMapUrlInText(input) || input
+  if (!looksLikeNaverMapUrl(url) && !extractNaverPlaceId(url)) {
     throw new Error('Not a Naver Map URL')
   }
 
-  const placeId = await resolvePlaceIdFromUrl(input)
+  const placeId = await resolvePlaceIdFromUrl(url)
   if (!placeId) {
     throw new Error('Could not find place id')
   }

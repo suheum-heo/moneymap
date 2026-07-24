@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { extractNaverPlaceId, looksLikeNaverMapUrl } from '../../lib/naverPlace'
+import {
+  containsNaverMapLink,
+  extractNaverPlaceId,
+  findNaverMapUrlInText,
+} from '../../lib/naverPlace'
 import { fetchNaverPlaceById, fetchNaverPlaceFromUrl } from '../../lib/naverPlaceServer'
 
 export async function GET(req: NextRequest) {
@@ -17,15 +21,15 @@ export async function GET(req: NextRequest) {
     if (!url) {
       return NextResponse.json({ error: 'Missing url or id' }, { status: 400 })
     }
-    if (!looksLikeNaverMapUrl(url)) {
+    if (!containsNaverMapLink(url)) {
       return NextResponse.json({ error: 'Not a Naver Map URL' }, { status: 400 })
     }
 
-    // Prefer id path when URL already contains a place id (cleaner cache key).
-    const placeId = extractNaverPlaceId(url)
+    const cleaned = findNaverMapUrlInText(url) || url
+    const placeId = extractNaverPlaceId(cleaned)
     const place = placeId
       ? await fetchNaverPlaceById(placeId)
-      : await fetchNaverPlaceFromUrl(url)
+      : await fetchNaverPlaceFromUrl(cleaned)
 
     return NextResponse.json(place, {
       headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' },

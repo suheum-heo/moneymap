@@ -2,7 +2,14 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { extractNaverPlaceId, looksLikeNaverMapUrl, type NaverPlaceInfo } from '../lib/naverPlace'
+import {
+  containsNaverMapLink,
+  extractNaverPlaceId,
+  findNaverMapUrlInText,
+  parseNaverShareText,
+  toLocationArea,
+  type NaverPlaceInfo,
+} from '../lib/naverPlace'
 
 const CLIENT_CACHE_KEY = 'naver-place-cache-v1'
 
@@ -18,6 +25,7 @@ function readClientCache(placeId: string): NaverPlaceInfo | null {
 }
 
 function writeClientCache(place: NaverPlaceInfo) {
+  if (!place.placeId) return
   try {
     const raw = sessionStorage.getItem(CLIENT_CACHE_KEY)
     const map = raw ? (JSON.parse(raw) as Record<string, NaverPlaceInfo>) : {}
@@ -66,6 +74,7 @@ export default function VenueLocationFields({
   const [boom, setBoom] = useState(false)
   const requestId = useRef(0)
   const boomTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastHandled = useRef('')
 
   const triggerBoom = useCallback(() => {
     setBoom(true)
@@ -84,15 +93,10 @@ export default function VenueLocationFields({
     [onLocationChange, onVenueChange, triggerBoom],
   )
 
-  const fillFromNaverUrl = useCallback(
-    async (raw: string) => {
-      const url = raw.trim()
-      if (!looksLikeNaverMapUrl(url)) return false
-
+  const lookupByUrl = useCallback(
+    async (url: string, id: number) => {
       const placeId = extractNaverPlaceId(url)
-      const id = ++requestId.current
 
-      // Instant boom from session cache when possible.
       if (placeId) {
         const cached = readClientCache(placeId)
         if (cached) {
@@ -105,7 +109,6 @@ export default function VenueLocationFields({
       setLookingUp(true)
       setLookupError('')
 
-      // Kick off network immediately; prefer id for faster server cache hits.
       const endpoint = placeId
         ? `/api/naver-place?id=${encodeURIComponent(placeId)}`
         : `/api/naver-place?url=${encodeURIComponent(url)}`
@@ -130,17 +133,63 @@ export default function VenueLocationFields({
     [applyPlace, t],
   )
 
+  const fillFromNaverText = useCallback(
+    async (raw: string) => {
+      const text = raw.trim()
+      if (!containsNaverMapLink(text)) return false
+      if (lookingUp && text === lastHandled.current) return true
+      lastHandled.current = text
+
+      const id = ++requestId.current
+      const share = parseNaverShareText(text)
+      const url = share?.url || findNaverMapUrlInText(text)
+      if (!url) return false
+
+      // Share cards already include name + address — fill instantly, no Enter needed.
+      if (share?.name && share.address) {
+        applyPlace({
+          name: share.name,
+          address: share.address,
+          location: toLocationArea(share.address),
+          placeId: extractNaverPlaceId(url) || '',
+        })
+        setLookingUp(false)
+        return true
+      }
+
+      if (share?.name && !share.address) {
+        onVenueChange(share.name)
+      }
+
+      return lookupByUrl(url, id)
+    },
+    [applyPlace, lookupByUrl, lookingUp, onVenueChange],
+  )
+
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
     const text = event.clipboardData.getData('text')
-    if (!looksLikeNaverMapUrl(text)) return
+    if (!containsNaverMapLink(text)) return
     event.preventDefault()
-    void fillFromNaverUrl(text)
+    void fillFromNaverText(text)
   }
 
   const handleVenueChange = (value: string) => {
     onVenueChange(value)
-    if (looksLikeNaverMapUrl(value)) {
-      void fillFromNaverUrl(value)
+    if (containsNaverMapLink(value)) {
+      void fillFromNaverText(value)
+    }
+  }
+
+  const handleLocationChange = (value: string) => {
+    onLocationChange(value)
+    if (containsNaverMapLink(value)) {
+      void fillFromNaverText(value)
+    }
+  }
+
+  const handleBlur = (value: string) => {
+    if (containsNaverMapLink(value)) {
+      void fillFromNaverText(value)
     }
   }
 
@@ -171,6 +220,7 @@ export default function VenueLocationFields({
               value={venue}
               onChange={e => handleVenueChange(e.target.value)}
               onPaste={handlePaste}
+              onBlur={e => handleBlur(e.target.value)}
               placeholder={lookingUp ? t('naverMapLookingUp') : placeholders.venue}
               className={fieldCls}
               style={{ fontSize: '16px' }}
@@ -191,8 +241,9 @@ export default function VenueLocationFields({
             <input
               type="text"
               value={location}
-              onChange={e => onLocationChange(e.target.value)}
+              onChange={e => handleLocationChange(e.target.value)}
               onPaste={handlePaste}
+              onBlur={e => handleBlur(e.target.value)}
               placeholder={lookingUp ? t('naverMapLookingUp') : placeholders.location}
               className={fieldCls}
               style={{ fontSize: '16px' }}
