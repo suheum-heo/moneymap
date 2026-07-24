@@ -28,6 +28,15 @@ function writeClientCache(place: NaverPlaceInfo) {
   }
 }
 
+function PlaceSpinner({ className = '' }: { className?: string }) {
+  return (
+    <span
+      className={`naver-place-spinner inline-block shrink-0 rounded-full border-2 border-current border-t-transparent ${className}`}
+      aria-hidden
+    />
+  )
+}
+
 interface Props {
   venue: string
   location: string
@@ -137,45 +146,72 @@ export default function VenueLocationFields({
 
   const fieldCls = [
     inputCls,
-    lookingUp ? 'naver-place-loading' : '',
+    lookingUp ? 'naver-place-loading pr-10' : '',
     boom ? 'naver-place-boom' : '',
   ].filter(Boolean).join(' ')
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" aria-busy={lookingUp}>
+      {lookingUp && (
+        <div
+          className="naver-place-status flex items-center gap-2 rounded-[16px] border border-[#cfe0ff] bg-[#eef5ff] px-3 py-2 text-xs font-medium text-[#1f5fbf] dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300"
+          role="status"
+        >
+          <PlaceSpinner className="h-3.5 w-3.5 text-[#3182f6] dark:text-sky-300" />
+          <span>{t('naverMapLookingUp')}</span>
+        </div>
+      )}
+
       <div className={gridClassName}>
         <div>
           <label className="app-kicker mb-2 block">{t('venue')}</label>
-          <input
-            type="text"
-            value={venue}
-            onChange={e => handleVenueChange(e.target.value)}
-            onPaste={handlePaste}
-            placeholder={lookingUp ? t('naverMapLookingUp') : placeholders.venue}
-            className={fieldCls}
-            style={{ fontSize: '16px' }}
-            list={venueListId}
-            autoComplete="off"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={venue}
+              onChange={e => handleVenueChange(e.target.value)}
+              onPaste={handlePaste}
+              placeholder={lookingUp ? t('naverMapLookingUp') : placeholders.venue}
+              className={fieldCls}
+              style={{ fontSize: '16px' }}
+              list={venueListId}
+              autoComplete="off"
+              disabled={lookingUp}
+            />
+            {lookingUp && (
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <PlaceSpinner className="h-4 w-4 text-[#3182f6] dark:text-sky-300" />
+              </span>
+            )}
+          </div>
         </div>
         <div>
           <label className="app-kicker mb-2 block">{t('location')}</label>
-          <input
-            type="text"
-            value={location}
-            onChange={e => onLocationChange(e.target.value)}
-            onPaste={handlePaste}
-            placeholder={lookingUp ? t('naverMapLookingUp') : placeholders.location}
-            className={fieldCls}
-            style={{ fontSize: '16px' }}
-            list={locationListId}
-            autoComplete="off"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={location}
+              onChange={e => onLocationChange(e.target.value)}
+              onPaste={handlePaste}
+              placeholder={lookingUp ? t('naverMapLookingUp') : placeholders.location}
+              className={fieldCls}
+              style={{ fontSize: '16px' }}
+              list={locationListId}
+              autoComplete="off"
+              disabled={lookingUp}
+            />
+            {lookingUp && (
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <PlaceSpinner className="h-4 w-4 text-[#3182f6] dark:text-sky-300" />
+              </span>
+            )}
+          </div>
         </div>
       </div>
-      <p className="text-xs text-slate-400 dark:text-zinc-500">
-        {lookingUp ? t('naverMapLookingUp') : t('naverMapUrlHint')}
-      </p>
+
+      {!lookingUp && (
+        <p className="text-xs text-slate-400 dark:text-zinc-500">{t('naverMapUrlHint')}</p>
+      )}
       {lookupError && <p className="text-xs text-rose-500">{lookupError}</p>}
     </div>
   )

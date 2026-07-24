@@ -322,7 +322,11 @@ textarea {
 
 @keyframes naver-place-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
+  50% { opacity: 0.72; }
+}
+
+@keyframes naver-place-spin {
+  to { transform: rotate(360deg); }
 }
 
 .naver-place-boom {
@@ -330,7 +334,36 @@ textarea {
 }
 
 .naver-place-loading {
-  animation: naver-place-pulse 0.85s ease-in-out infinite;
+  animation: naver-place-pulse 1s ease-in-out infinite;
+  border-color: rgba(49, 130, 246, 0.45) !important;
+  background-color: rgba(238, 245, 255, 0.95) !important;
+  color: #6b7684;
+  cursor: wait;
+}
+
+html.dark .naver-place-loading {
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  background-color: rgba(14, 40, 64, 0.55) !important;
+  color: #94a3b8;
+}
+
+.naver-place-spinner {
+  animation: naver-place-spin 0.7s linear infinite;
+}
+
+.naver-place-status {
+  animation: naver-place-status-in 0.18s ease-out;
+}
+
+@keyframes naver-place-status-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 html.dark .naver-place-boom {
