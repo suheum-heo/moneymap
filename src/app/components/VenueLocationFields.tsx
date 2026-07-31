@@ -3,6 +3,14 @@
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  containsGoogleMapsLink,
+  findGoogleMapsUrlInText,
+  parseGoogleMapsUrl,
+  parseGoogleShareText,
+  toGoogleLocationArea,
+  type GooglePlaceInfo,
+} from '../lib/googlePlace'
+import {
   containsNaverMapLink,
   extractNaverPlaceId,
   findNaverMapUrlInText,
@@ -11,24 +19,27 @@ import {
   type NaverPlaceInfo,
 } from '../lib/naverPlace'
 
-const CLIENT_CACHE_KEY = 'naver-place-cache-v1'
+type PlaceInfo = NaverPlaceInfo | GooglePlaceInfo
 
-function readClientCache(placeId: string): NaverPlaceInfo | null {
+const CLIENT_CACHE_KEY = 'map-place-cache-v1'
+
+function readClientCache(placeId: string): PlaceInfo | null {
+  if (!placeId) return null
   try {
     const raw = sessionStorage.getItem(CLIENT_CACHE_KEY)
     if (!raw) return null
-    const map = JSON.parse(raw) as Record<string, NaverPlaceInfo>
+    const map = JSON.parse(raw) as Record<string, PlaceInfo>
     return map[placeId] || null
   } catch {
     return null
   }
 }
 
-function writeClientCache(place: NaverPlaceInfo) {
+function writeClientCache(place: PlaceInfo) {
   if (!place.placeId) return
   try {
     const raw = sessionStorage.getItem(CLIENT_CACHE_KEY)
-    const map = raw ? (JSON.parse(raw) as Record<string, NaverPlaceInfo>) : {}
+    const map = raw ? (JSON.parse(raw) as Record<string, PlaceInfo>) : {}
     map[place.placeId] = place
     sessionStorage.setItem(CLIENT_CACHE_KEY, JSON.stringify(map))
   } catch {
@@ -43,6 +54,10 @@ function PlaceSpinner({ className = '' }: { className?: string }) {
       aria-hidden
     />
   )
+}
+
+function containsMapLink(text: string): boolean {
+  return containsNaverMapLink(text) || containsGoogleMapsLink(text)
 }
 
 interface Props {
@@ -83,8 +98,8 @@ export default function VenueLocationFields({
   }, [])
 
   const applyPlace = useCallback(
-    (data: NaverPlaceInfo) => {
-      onVenueChange(data.name)
+    (data: PlaceInfo) => {
+      if (data.name) onVenueChange(data.name)
       if (data.location) onLocationChange(data.location)
       triggerBoom()
       writeClientCache(data)
@@ -93,10 +108,9 @@ export default function VenueLocationFields({
     [onLocationChange, onVenueChange, triggerBoom],
   )
 
-  const lookupByUrl = useCallback(
+  const lookupNaverByUrl = useCallback(
     async (url: string, id: number) => {
       const placeId = extractNaverPlaceId(url)
-
       if (placeId) {
         const cached = readClientCache(placeId)
         if (cached) {
@@ -108,7 +122,6 @@ export default function VenueLocationFields({
 
       setLookingUp(true)
       setLookupError('')
-
       const endpoint = placeId
         ? `/api/naver-place?id=${encodeURIComponent(placeId)}`
         : `/api/naver-place?url=${encodeURIComponent(url)}`
@@ -121,7 +134,7 @@ export default function VenueLocationFields({
           setLookupError(t('naverMapLookupFailed'))
           return true
         }
-        applyPlace(data as NaverPlaceInfo)
+        applyPlace(data as PlaceInfo)
         return true
       } catch {
         if (id === requestId.current) setLookupError(t('naverMapLookupFailed'))
@@ -133,64 +146,129 @@ export default function VenueLocationFields({
     [applyPlace, t],
   )
 
-  const fillFromNaverText = useCallback(
+  const lookupGoogleByUrl = useCallback(
+    async (url: string, id: number, hint?: { name?: string; address?: string }) => {
+      const parsed = parseGoogleMapsUrl(url)
+      const cacheKey = parsed.placeId
+      if (cacheKey) {
+        const cached = readClientCache(cacheKey)
+        if (cached) {
+          applyPlace(cached)
+          setLookingUp(false)
+          return true
+        }
+      }
+
+      // Optimistic fill from URL / share text while geocoding runs.
+      if (hint?.name || parsed.name) onVenueChange(hint?.name || parsed.name)
+      if (hint?.address) onLocationChange(toGoogleLocationArea(hint.address))
+
+      setLookingUp(true)
+      setLookupError('')
+
+      try {
+        const res = await fetch(`/api/google-place?url=${encodeURIComponent(url)}`)
+        const data = await res.json()
+        if (id !== requestId.current) return true
+        if (!res.ok || (!data?.name && !data?.location)) {
+          // Keep optimistic values if API fails but we already filled something.
+          if (!(hint?.name || parsed.name || hint?.address)) {
+            setLookupError(t('naverMapLookupFailed'))
+          }
+          return true
+        }
+        applyPlace({
+          name: data.name || hint?.name || parsed.name || '',
+          location: data.location || (hint?.address ? toGoogleLocationArea(hint.address) : ''),
+          address: data.address || hint?.address || '',
+          placeId: data.placeId || cacheKey || '',
+        })
+        return true
+      } catch {
+        if (id === requestId.current && !(hint?.name || parsed.name)) {
+          setLookupError(t('naverMapLookupFailed'))
+        }
+        return true
+      } finally {
+        if (id === requestId.current) setLookingUp(false)
+      }
+    },
+    [applyPlace, onLocationChange, onVenueChange, t],
+  )
+
+  const fillFromMapText = useCallback(
     async (raw: string) => {
       const text = raw.trim()
-      if (!containsNaverMapLink(text)) return false
+      if (!containsMapLink(text)) return false
       if (lookingUp && text === lastHandled.current) return true
       lastHandled.current = text
 
       const id = ++requestId.current
-      const share = parseNaverShareText(text)
-      const url = share?.url || findNaverMapUrlInText(text)
-      if (!url) return false
 
-      // Share cards already include name + address — fill instantly, no Enter needed.
-      if (share?.name && share.address) {
-        applyPlace({
-          name: share.name,
-          address: share.address,
-          location: toLocationArea(share.address),
-          placeId: extractNaverPlaceId(url) || '',
-        })
-        setLookingUp(false)
-        return true
+      if (containsNaverMapLink(text)) {
+        const share = parseNaverShareText(text)
+        const url = share?.url || findNaverMapUrlInText(text)
+        if (!url) return false
+
+        if (share?.name && share.address) {
+          applyPlace({
+            name: share.name,
+            address: share.address,
+            location: toLocationArea(share.address),
+            placeId: extractNaverPlaceId(url) || '',
+          })
+          setLookingUp(false)
+          return true
+        }
+
+        if (share?.name && !share.address) onVenueChange(share.name)
+        return lookupNaverByUrl(url, id)
       }
 
-      if (share?.name && !share.address) {
-        onVenueChange(share.name)
+      if (containsGoogleMapsLink(text)) {
+        const share = parseGoogleShareText(text)
+        const url = share?.url || findGoogleMapsUrlInText(text)
+        if (!url) return false
+
+        if (share?.name && share.address) {
+          applyPlace({
+            name: share.name,
+            address: share.address,
+            location: toGoogleLocationArea(share.address),
+            placeId: parseGoogleMapsUrl(url).placeId || '',
+          })
+          // Still geocode in background if we only had a partial address — but share is enough.
+          setLookingUp(false)
+          return true
+        }
+
+        return lookupGoogleByUrl(url, id, { name: share?.name, address: share?.address })
       }
 
-      return lookupByUrl(url, id)
+      return false
     },
-    [applyPlace, lookupByUrl, lookingUp, onVenueChange],
+    [applyPlace, lookingUp, lookupGoogleByUrl, lookupNaverByUrl, onVenueChange],
   )
 
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
     const text = event.clipboardData.getData('text')
-    if (!containsNaverMapLink(text)) return
+    if (!containsMapLink(text)) return
     event.preventDefault()
-    void fillFromNaverText(text)
+    void fillFromMapText(text)
   }
 
   const handleVenueChange = (value: string) => {
     onVenueChange(value)
-    if (containsNaverMapLink(value)) {
-      void fillFromNaverText(value)
-    }
+    if (containsMapLink(value)) void fillFromMapText(value)
   }
 
   const handleLocationChange = (value: string) => {
     onLocationChange(value)
-    if (containsNaverMapLink(value)) {
-      void fillFromNaverText(value)
-    }
+    if (containsMapLink(value)) void fillFromMapText(value)
   }
 
   const handleBlur = (value: string) => {
-    if (containsNaverMapLink(value)) {
-      void fillFromNaverText(value)
-    }
+    if (containsMapLink(value)) void fillFromMapText(value)
   }
 
   const fieldCls = [
