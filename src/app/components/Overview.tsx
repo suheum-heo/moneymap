@@ -33,6 +33,7 @@ interface Props {
 }
 
 type PeriodMode = 'all' | 'year' | 'custom'
+const PERIOD_TOTALS_EXPANDED_KEY = 'gagyebu-period-totals-expanded'
 
 function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
   const raw = hex.replace('#', '')
@@ -136,6 +137,10 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const [selectedPeriodYear, setSelectedPeriodYear] = useState(() => new Date().getFullYear())
   const [periodStartMonth, setPeriodStartMonth] = useState('')
   const [periodEndMonth, setPeriodEndMonth] = useState('')
+  const [periodExpanded, setPeriodExpanded] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem(PERIOD_TOTALS_EXPANDED_KEY) === 'true'
+  })
   const periodContextRef = useRef<string | undefined>(undefined)
 
   const cur = activeContext?.currency || 'USD'
@@ -186,6 +191,10 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
     if (availableYears.length === 0) return
     if (!availableYears.includes(selectedPeriodYear)) setSelectedPeriodYear(defaultPeriodYear)
   }, [availableYears, defaultPeriodYear, selectedPeriodYear])
+
+  useEffect(() => {
+    localStorage.setItem(PERIOD_TOTALS_EXPANDED_KEY, periodExpanded ? 'true' : 'false')
+  }, [periodExpanded])
 
   const monthEntries = useMemo(() =>
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
@@ -541,85 +550,109 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
       </div>
 
       <div className="app-panel mt-4 p-4 sm:p-5">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
+        <button
+          type="button"
+          onClick={() => setPeriodExpanded(prev => !prev)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+          aria-expanded={periodExpanded}
+        >
+          <div className="min-w-0 flex-1">
             <div className="app-kicker mb-2">{t('periodTotals')}</div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{periodLabel}</h3>
-            <div className="mt-1 text-xs text-slate-400">{t('entriesInPeriod', { count: periodEntries.length })}</div>
-          </div>
-          <div className="inline-flex rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
-            {([
-              ['all', t('allTime')],
-              ['year', t('year')],
-              ['custom', t('customRange')],
-            ] as const).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setPeriodMode(mode)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${periodMode === mode
-                  ? 'bg-white text-slate-900 shadow-[0_8px_18px_-14px_rgba(15,23,42,0.26)] dark:bg-slate-950 dark:text-zinc-100'
-                  : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-zinc-200'}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {availableYears.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {availableYears.map(year => (
-              <button
-                key={year}
-                type="button"
-                onClick={() => {
-                  setPeriodMode('year')
-                  setSelectedPeriodYear(year)
-                }}
-                className={`app-segment px-3 py-2 text-xs ${periodMode === 'year' && selectedPeriodYear === year ? 'app-segment-active' : ''}`}
-              >
-                {year}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {periodMode === 'custom' && (
-          <div className="mb-4 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="app-kicker mb-2 block">{t('startMonth')}</label>
-              <LocalizedMonthPicker
-                value={periodStartMonth}
-                onChange={setPeriodStartMonth}
-                placeholder={t('startMonth')}
-              />
-            </div>
-            <div>
-              <label className="app-kicker mb-2 block">{t('endMonth')}</label>
-              <LocalizedMonthPicker
-                value={periodEndMonth}
-                onChange={setPeriodEndMonth}
-                placeholder={t('endMonth')}
-              />
+            <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:gap-3">
+              <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-zinc-50">{periodLabel}</h3>
+              <span className="text-xs text-slate-400">{t('entriesInPeriod', { count: periodEntries.length })}</span>
             </div>
           </div>
-        )}
-
-        <div className="divide-y divide-slate-200/75 overflow-hidden rounded-[22px] border border-slate-200/80 dark:divide-white/10 dark:border-white/10">
-          {periodMetrics.map(metric => (
-            <div key={metric.label} className="flex items-center justify-between gap-4 px-4 py-3">
-              <div className="app-kicker">{metric.label}</div>
-              <div className="min-w-0 text-right">
-                <div className={`whitespace-nowrap text-[1.2rem] font-semibold tracking-tight sm:text-[1.35rem] ${metric.color}`}>{metric.value}</div>
-                {metric.sub && <div className="mt-1 text-xs text-slate-400">{metric.sub}</div>}
+          <div className="flex flex-shrink-0 items-center gap-3">
+            <div className="text-right">
+              <div className={`whitespace-nowrap text-[1.18rem] font-semibold tracking-tight sm:text-[1.32rem] ${periodNet < 0 ? 'app-negative' : 'app-accent'}`}>
+                {(periodNet < 0 ? '-' : '') + fmt(periodNet)}
               </div>
+              {fmtHome(periodNetHome) && <div className="mt-1 hidden text-xs text-slate-400 sm:block">{fmtHome(periodNetHome)}</div>}
             </div>
-          ))}
-        </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+              <span className="hidden sm:inline">{periodExpanded ? t('hideDetails') : t('showDetails')}</span>
+              <ChevronDownIcon className={`h-4 w-4 transition-transform ${periodExpanded ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+        </button>
 
-        {periodEntries.length === 0 && (
-          <div className="mt-3 text-center text-xs text-slate-400">{t('noEntriesForPeriod')}</div>
+        {periodExpanded && (
+          <div className="mt-4">
+            <div className="mb-4 inline-flex rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
+              {([
+                ['all', t('allTime')],
+                ['year', t('year')],
+                ['custom', t('customRange')],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setPeriodMode(mode)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${periodMode === mode
+                    ? 'bg-white text-slate-900 shadow-[0_8px_18px_-14px_rgba(15,23,42,0.26)] dark:bg-slate-950 dark:text-zinc-100'
+                    : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-zinc-200'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {availableYears.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {availableYears.map(year => (
+                  <button
+                    key={year}
+                    type="button"
+                    onClick={() => {
+                      setPeriodMode('year')
+                      setSelectedPeriodYear(year)
+                    }}
+                    className={`app-segment px-3 py-2 text-xs ${periodMode === 'year' && selectedPeriodYear === year ? 'app-segment-active' : ''}`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {periodMode === 'custom' && (
+              <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="app-kicker mb-2 block">{t('startMonth')}</label>
+                  <LocalizedMonthPicker
+                    value={periodStartMonth}
+                    onChange={setPeriodStartMonth}
+                    placeholder={t('startMonth')}
+                  />
+                </div>
+                <div>
+                  <label className="app-kicker mb-2 block">{t('endMonth')}</label>
+                  <LocalizedMonthPicker
+                    value={periodEndMonth}
+                    onChange={setPeriodEndMonth}
+                    placeholder={t('endMonth')}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="divide-y divide-slate-200/75 overflow-hidden rounded-[22px] border border-slate-200/80 dark:divide-white/10 dark:border-white/10">
+              {periodMetrics.map(metric => (
+                <div key={metric.label} className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="app-kicker">{metric.label}</div>
+                  <div className="min-w-0 text-right">
+                    <div className={`whitespace-nowrap text-[1.2rem] font-semibold tracking-tight sm:text-[1.35rem] ${metric.color}`}>{metric.value}</div>
+                    {metric.sub && <div className="mt-1 text-xs text-slate-400">{metric.sub}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {periodEntries.length === 0 && (
+              <div className="mt-3 text-center text-xs text-slate-400">{t('noEntriesForPeriod')}</div>
+            )}
+          </div>
         )}
       </div>
 
