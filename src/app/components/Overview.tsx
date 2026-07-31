@@ -8,12 +8,14 @@ import {
   convertEntryAmount,
   formatAmount,
   formatEntryDate,
+  formatMonthYear,
   getCategoryColor,
   getEntryCurrency,
   sortEntriesForDisplay,
 } from '../types'
 import EntryEditModal from './EntryEditModal'
 import ChevronDownIcon from './ChevronDownIcon'
+import LocalizedMonthPicker from './LocalizedMonthPicker'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -29,6 +31,8 @@ interface Props {
   expenseCategories: string[]
   incomeCategories: string[]
 }
+
+type PeriodMode = 'all' | 'year' | 'custom'
 
 function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
   const raw = hex.replace('#', '')
@@ -112,6 +116,10 @@ function getLocationRegion(location: string) {
   return null
 }
 
+function getEntryMonth(date: string) {
+  return date.slice(0, 7)
+}
+
 export default function Overview({ entries, month, onNavigate, onUpdate, sortOrder, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
@@ -124,6 +132,11 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('all')
+  const [selectedPeriodYear, setSelectedPeriodYear] = useState(() => new Date().getFullYear())
+  const [periodStartMonth, setPeriodStartMonth] = useState('')
+  const [periodEndMonth, setPeriodEndMonth] = useState('')
+  const periodContextRef = useRef<string | undefined>(undefined)
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -138,6 +151,41 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const tooltipBorder = isDark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(203, 213, 225, 0.9)'
   const tooltipTitle = isDark ? '#f8fafc' : '#0f172a'
   const tooltipBody = isDark ? '#dbe4ef' : '#334155'
+
+  const contextEntries = useMemo(() =>
+    entries.filter(e => e.context === activeContext?.id),
+    [entries, activeContext?.id])
+
+  const availableMonths = useMemo(() =>
+    [...new Set(contextEntries.map(e => getEntryMonth(e.date)).filter(value => /^\d{4}-\d{2}$/.test(value)))].sort(),
+    [contextEntries])
+
+  const minEntryMonth = availableMonths[0] || month
+  const maxEntryMonth = availableMonths[availableMonths.length - 1] || month
+
+  const availableYears = useMemo(() =>
+    [...new Set(availableMonths.map(value => Number(value.slice(0, 4))).filter(Number.isFinite))].sort((a, b) => b - a),
+    [availableMonths])
+
+  const currentMonthYear = Number(month.slice(0, 4))
+  const defaultPeriodYear = availableYears.includes(currentMonthYear)
+    ? currentMonthYear
+    : availableYears[0] || currentMonthYear
+
+  useEffect(() => {
+    const periodContextId = activeContext?.id
+    if (periodContextRef.current === periodContextId) return
+    periodContextRef.current = periodContextId
+    setPeriodMode('all')
+    setSelectedPeriodYear(defaultPeriodYear)
+    setPeriodStartMonth(minEntryMonth)
+    setPeriodEndMonth(maxEntryMonth)
+  }, [activeContext?.id, defaultPeriodYear, minEntryMonth, maxEntryMonth])
+
+  useEffect(() => {
+    if (availableYears.length === 0) return
+    if (!availableYears.includes(selectedPeriodYear)) setSelectedPeriodYear(defaultPeriodYear)
+  }, [availableYears, defaultPeriodYear, selectedPeriodYear])
 
   const monthEntries = useMemo(() =>
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
@@ -158,6 +206,56 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
 
   // Sum in home currency: use homeAmount if set, otherwise convert via live rate
   const toHome = (e: Entry) => convertEntryAmount(e, cur, homeCur, homeCur, convert)
+
+  const periodBounds = useMemo(() => {
+    if (periodMode === 'year') {
+      return { start: `${selectedPeriodYear}-01`, end: `${selectedPeriodYear}-12` }
+    }
+
+    if (periodMode === 'custom') {
+      const customStart = periodStartMonth || minEntryMonth
+      const customEnd = periodEndMonth || maxEntryMonth
+      return customStart <= customEnd
+        ? { start: customStart, end: customEnd }
+        : { start: customEnd, end: customStart }
+    }
+
+    return { start: minEntryMonth, end: maxEntryMonth }
+  }, [maxEntryMonth, minEntryMonth, periodEndMonth, periodMode, periodStartMonth, selectedPeriodYear])
+
+  const periodEntries = useMemo(() =>
+    contextEntries.filter(e => {
+      const entryMonth = getEntryMonth(e.date)
+      return entryMonth >= periodBounds.start && entryMonth <= periodBounds.end
+    }),
+    [contextEntries, periodBounds.end, periodBounds.start])
+
+  const periodExpenses = useMemo(() =>
+    periodEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toLocal(e), 0),
+    [periodEntries, cur, homeCur, convert])
+
+  const periodIncome = useMemo(() =>
+    periodEntries.filter(e => e.type === 'income').reduce((s, e) => s + toLocal(e), 0),
+    [periodEntries, cur, homeCur, convert])
+
+  const periodNet = periodIncome - periodExpenses
+
+  const periodExpensesHome = useMemo(() =>
+    periodEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
+    [periodEntries, cur, homeCur, convert])
+
+  const periodIncomeHome = useMemo(() =>
+    periodEntries.filter(e => e.type === 'income').reduce((s, e) => s + toHome(e), 0),
+    [periodEntries, cur, homeCur, convert])
+
+  const periodNetHome = periodIncomeHome - periodExpensesHome
+
+  const periodLabel = useMemo(() => {
+    if (periodMode === 'all') return t('allTime')
+    if (periodMode === 'year') return String(selectedPeriodYear)
+    if (periodBounds.start === periodBounds.end) return formatMonthYear(periodBounds.start, language)
+    return `${formatMonthYear(periodBounds.start, language)} - ${formatMonthYear(periodBounds.end, language)}`
+  }, [language, periodBounds.end, periodBounds.start, periodMode, selectedPeriodYear, t])
 
   const expensesHome = useMemo(() =>
     monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
@@ -400,6 +498,12 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
   const fmt = (n: number) => formatAmount(Math.abs(n), cur)
   const fmtHome = (n: number) => showConversion ? `(≈${formatAmount(Math.abs(n), homeCur)})` : ''
 
+  const periodMetrics = [
+    { label: t('expenses'), value: fmt(periodExpenses), sub: fmtHome(periodExpensesHome), color: 'app-negative' },
+    { label: t('income'), value: fmt(periodIncome), sub: fmtHome(periodIncomeHome), color: 'app-positive' },
+    { label: t('net'), value: (periodNet < 0 ? '-' : '') + fmt(periodNet), sub: fmtHome(periodNetHome), color: periodNet < 0 ? 'app-negative' : 'app-accent' },
+  ]
+
   const catRows = useMemo(() => {
     const rows = []
     for (let i = 0; i < byCategory.length; i += 2) rows.push(byCategory.slice(i, i + 2))
@@ -434,6 +538,89 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
             {m.sub && <span className="text-sm text-slate-400">{m.sub}</span>}
           </button>
         ))}
+      </div>
+
+      <div className="app-panel mt-4 p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="app-kicker mb-2">{t('periodTotals')}</div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{periodLabel}</h3>
+            <div className="mt-1 text-xs text-slate-400">{t('entriesInPeriod', { count: periodEntries.length })}</div>
+          </div>
+          <div className="inline-flex rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
+            {([
+              ['all', t('allTime')],
+              ['year', t('year')],
+              ['custom', t('customRange')],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setPeriodMode(mode)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${periodMode === mode
+                  ? 'bg-white text-slate-900 shadow-[0_8px_18px_-14px_rgba(15,23,42,0.26)] dark:bg-slate-950 dark:text-zinc-100'
+                  : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-zinc-200'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {availableYears.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {availableYears.map(year => (
+              <button
+                key={year}
+                type="button"
+                onClick={() => {
+                  setPeriodMode('year')
+                  setSelectedPeriodYear(year)
+                }}
+                className={`app-segment px-3 py-2 text-xs ${periodMode === 'year' && selectedPeriodYear === year ? 'app-segment-active' : ''}`}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {periodMode === 'custom' && (
+          <div className="mb-4 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="app-kicker mb-2 block">{t('startMonth')}</label>
+              <LocalizedMonthPicker
+                value={periodStartMonth}
+                onChange={setPeriodStartMonth}
+                placeholder={t('startMonth')}
+              />
+            </div>
+            <div>
+              <label className="app-kicker mb-2 block">{t('endMonth')}</label>
+              <LocalizedMonthPicker
+                value={periodEndMonth}
+                onChange={setPeriodEndMonth}
+                placeholder={t('endMonth')}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="divide-y divide-slate-200/75 overflow-hidden rounded-[22px] border border-slate-200/80 dark:divide-white/10 dark:border-white/10">
+          {periodMetrics.map(metric => (
+            <div key={metric.label} className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="app-kicker">{metric.label}</div>
+              <div className="min-w-0 text-right">
+                <div className={`whitespace-nowrap text-[1.2rem] font-semibold tracking-tight sm:text-[1.35rem] ${metric.color}`}>{metric.value}</div>
+                {metric.sub && <div className="mt-1 text-xs text-slate-400">{metric.sub}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {periodEntries.length === 0 && (
+          <div className="mt-3 text-center text-xs text-slate-400">{t('noEntriesForPeriod')}</div>
+        )}
       </div>
 
       {lastMonthExpenses > 0 && (
