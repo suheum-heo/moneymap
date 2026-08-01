@@ -22,6 +22,7 @@ import {
   parseCurrencyInput,
   sortEntriesForDisplay,
 } from '../types'
+import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
@@ -63,6 +64,10 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const monthEntries = useMemo(() =>
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
     [entries, month, activeContext])
+  const placeSuggestions = useMemo(
+    () => getContextPlaceSuggestions(entries, activeContext?.id),
+    [entries, activeContext?.id],
+  )
 
   const dayTotals = useMemo(() => {
     const totals: Record<string, { expense: number; income: number }> = {}
@@ -185,6 +190,9 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               onLocationChange={setEditLocation}
               placeholders={editPlaceholders}
               inputCls={inputCls}
+              venueListId="calendar-edit-venue-list"
+              locationListId="calendar-edit-location-list"
+              venueLocationOptions={placeSuggestions.venueLocationOptions}
               gridClassName="grid grid-cols-2 gap-2"
             />
             <div className="grid grid-cols-2 gap-2">
@@ -200,6 +208,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               </div>
             </div>
             <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
+            <datalist id="calendar-edit-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
+            <datalist id="calendar-edit-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
           </div>
         </div>
       )}

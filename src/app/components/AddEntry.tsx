@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Entry,
@@ -14,6 +14,7 @@ import {
   parseCurrencyInput,
 } from '../types'
 import { RecurringItem } from '../useRecurring'
+import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
@@ -92,8 +93,10 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setActualCharged((prev: string) => normalizeAmountInputValue(prev, homeCur))
   }, [homeCur])
 
-  const pastVenues = [...new Set(entries.map(e => e.venue).filter(Boolean))].sort()
-  const pastLocations = [...new Set(entries.map(e => e.location).filter(Boolean))].sort()
+  const placeSuggestions = useMemo(
+    () => getContextPlaceSuggestions(entries, activeContext?.id),
+    [entries, activeContext?.id],
+  )
 
   const handleTypeChange = (tp: 'expense' | 'income') => {
     setEntryType(tp)
@@ -266,6 +269,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
             inputCls={inputCls}
             venueListId="venue-list"
             locationListId="location-list"
+            venueLocationOptions={placeSuggestions.venueLocationOptions}
           />
         )}
 
@@ -291,8 +295,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
           {t('addEntry')}
         </button>
 
-        <datalist id="venue-list">{pastVenues.map(v => <option key={v} value={v} />)}</datalist>
-        <datalist id="location-list">{pastLocations.map(l => <option key={l} value={l} />)}</datalist>
+        <datalist id="venue-list">{placeSuggestions.venues.map(v => <option key={v} value={v} />)}</datalist>
+        <datalist id="location-list">{placeSuggestions.locations.map(l => <option key={l} value={l} />)}</datalist>
       </div>
       </div>
     </div>

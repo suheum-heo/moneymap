@@ -18,6 +18,10 @@ import {
   toLocationArea,
   type NaverPlaceInfo,
 } from '../lib/naverPlace'
+import {
+  normalizePlaceSuggestionKey,
+  type VenueLocationOption,
+} from '../lib/placeSuggestions'
 
 type PlaceInfo = NaverPlaceInfo | GooglePlaceInfo
 
@@ -69,6 +73,7 @@ interface Props {
   inputCls: string
   venueListId?: string
   locationListId?: string
+  venueLocationOptions?: VenueLocationOption[]
   gridClassName?: string
 }
 
@@ -81,6 +86,7 @@ export default function VenueLocationFields({
   inputCls,
   venueListId,
   locationListId,
+  venueLocationOptions = [],
   gridClassName = 'grid grid-cols-2 gap-3',
 }: Props) {
   const { t } = useTranslation()
@@ -257,9 +263,34 @@ export default function VenueLocationFields({
     void fillFromMapText(text)
   }
 
+  const fillLocationFromSavedVenue = useCallback(
+    (value: string) => {
+      const venueKey = normalizePlaceSuggestionKey(value)
+      if (!venueKey) return
+
+      const matchingLocations = new Map<string, string>()
+      venueLocationOptions.forEach(option => {
+        if (normalizePlaceSuggestionKey(option.venue) !== venueKey) return
+        const nextLocation = option.location.trim()
+        const locationKey = normalizePlaceSuggestionKey(nextLocation)
+        if (!locationKey || matchingLocations.has(locationKey)) return
+        matchingLocations.set(locationKey, nextLocation)
+      })
+
+      if (matchingLocations.size !== 1) return
+      const [nextLocation] = matchingLocations.values()
+      if (nextLocation !== location) onLocationChange(nextLocation)
+    },
+    [location, onLocationChange, venueLocationOptions],
+  )
+
   const handleVenueChange = (value: string) => {
     onVenueChange(value)
-    if (containsMapLink(value)) void fillFromMapText(value)
+    if (containsMapLink(value)) {
+      void fillFromMapText(value)
+      return
+    }
+    fillLocationFromSavedVenue(value)
   }
 
   const handleLocationChange = (value: string) => {

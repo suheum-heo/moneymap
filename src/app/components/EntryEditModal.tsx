@@ -14,6 +14,7 @@ import {
   normalizeAmountInputValue,
   parseCurrencyInput,
 } from '../types'
+import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
@@ -70,13 +71,9 @@ export default function EntryEditModal({
     setEditType(entry.type)
   }, [entry])
 
-  const pastVenues = useMemo(
-    () => [...new Set(entries.map(item => item.venue).filter(Boolean))].sort(),
-    [entries],
-  )
-  const pastLocations = useMemo(
-    () => [...new Set(entries.map(item => item.location).filter(Boolean))].sort(),
-    [entries],
+  const placeSuggestions = useMemo(
+    () => getContextPlaceSuggestions(entries, activeContext?.id),
+    [entries, activeContext?.id],
   )
 
   if (!entry) return null
@@ -181,6 +178,7 @@ export default function EntryEditModal({
           inputCls={inputCls}
           venueListId="edit-venue-list"
           locationListId="edit-location-list"
+          venueLocationOptions={placeSuggestions.venueLocationOptions}
           gridClassName="grid grid-cols-2 gap-2"
         />
         <div className="grid grid-cols-2 gap-2">
@@ -196,8 +194,8 @@ export default function EntryEditModal({
           </div>
         </div>
         <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
-        <datalist id="edit-venue-list">{pastVenues.map(venue => <option key={venue} value={venue} />)}</datalist>
-        <datalist id="edit-location-list">{pastLocations.map(location => <option key={location} value={location} />)}</datalist>
+        <datalist id="edit-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
+        <datalist id="edit-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
       </div>
     </div>
   )
