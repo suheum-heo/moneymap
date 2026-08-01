@@ -52,6 +52,7 @@ export default function EntryEditModal({
   const [editCategory, setEditCategory] = useState('')
   const [editRemarks, setEditRemarks] = useState('')
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
+  const [editActualCharged, setEditActualCharged] = useState('')
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -69,6 +70,7 @@ export default function EntryEditModal({
     setEditCategory(entry.category)
     setEditRemarks(entry.remarks || '')
     setEditType(entry.type)
+    setEditActualCharged(entry.homeAmount == null ? '' : entry.homeAmount.toString())
   }, [entry])
 
   const placeSuggestions = useMemo(
@@ -83,6 +85,8 @@ export default function EntryEditModal({
   const editCats = editType === 'expense' ? expenseCategories : incomeCategories
   const editCurrency = getEntryCurrency(entry, cur, homeCur)
   const editAmountProps = getAmountInputProps(editCurrency)
+  const editActualChargedProps = getAmountInputProps(homeCur)
+  const canEditActualCharged = editCurrency !== homeCur
   const monthLabels = getMonthLabels(language)
   const placeholders = getEntryFormPlaceholders(language, activeContext?.currency || editCurrency, editType)
   const inputCls = 'app-input py-3 text-sm'
@@ -91,6 +95,16 @@ export default function EntryEditModal({
   const handleSave = () => {
     const parsed = parseCurrencyInput(editAmount, editCurrency)
     if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
+    const parsedActual = editActualCharged.trim()
+      ? parseCurrencyInput(editActualCharged.trim(), homeCur)
+      : undefined
+    if (
+      canEditActualCharged &&
+      editActualCharged.trim() &&
+      (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)
+    ) {
+      return
+    }
     const dateStr = `${editYear}-${String(editMonth + 1).padStart(2, '0')}-${String(editDay).padStart(2, '0')}`
     onUpdate({
       ...entry,
@@ -103,6 +117,7 @@ export default function EntryEditModal({
       location: editLocation.trim(),
       category: editCategory,
       remarks: editRemarks.trim(),
+      homeAmount: canEditActualCharged ? parsedActual : undefined,
     })
     onClose()
   }
@@ -165,6 +180,27 @@ export default function EntryEditModal({
             style={{ fontSize: '16px' }}
           />
         </div>
+        {canEditActualCharged && (
+          <div>
+            <div className="mb-2 flex items-center gap-1.5">
+              <label className="app-kicker">
+                {t('actualCharged')} ({homeCur} {getCurrencySymbol(homeCur)})
+              </label>
+              <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
+            </div>
+            <input
+              type="text"
+              value={editActualCharged}
+              onChange={event => setEditActualCharged(normalizeAmountInputValue(event.target.value, homeCur))}
+              className={inputCls}
+              step={editActualChargedProps.step}
+              inputMode={editActualChargedProps.inputMode}
+              placeholder={editActualChargedProps.placeholder}
+              style={{ fontSize: '16px' }}
+            />
+            <p className="mt-1 text-xs text-slate-400">{t('actualChargedHint')}</p>
+          </div>
+        )}
         <div>
           <label className="app-kicker mb-2 block">{t('summary')}</label>
           <input type="text" value={editSummary} onChange={event => setEditSummary(event.target.value)} placeholder={placeholders.summary} className={inputCls} style={{ fontSize: '16px' }} />

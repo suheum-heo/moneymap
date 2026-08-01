@@ -57,6 +57,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const [editCategory, setEditCategory] = useState('')
   const [editRemarks, setEditRemarks] = useState('')
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
+  const [editActualCharged, setEditActualCharged] = useState('')
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -110,6 +111,7 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
     setEditAmount(e.amount.toString()); setEditSummary(e.summary)
     setEditVenue(e.venue || ''); setEditLocation(e.location || '')
     setEditCategory(e.category); setEditRemarks(e.remarks || '')
+    setEditActualCharged(e.homeAmount == null ? '' : e.homeAmount.toString())
     setEditType(e.type); setEditEntry(e)
   }
 
@@ -117,8 +119,30 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
     if (!editEntry) return
     const parsed = parseCurrencyInput(editAmount, editCurrency)
     if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
+    const parsedActual = editActualCharged.trim()
+      ? parseCurrencyInput(editActualCharged.trim(), homeCur)
+      : undefined
+    if (
+      canEditActualCharged &&
+      editActualCharged.trim() &&
+      (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)
+    ) {
+      return
+    }
     const dateStr = `${editYear}-${String(editMonth + 1).padStart(2, '0')}-${String(editDay).padStart(2, '0')}`
-    onUpdate({ ...editEntry, type: editType, date: dateStr, amount: parsed, currency: editCurrency, summary: editSummary.trim(), venue: editVenue.trim(), location: editLocation.trim(), category: editCategory, remarks: editRemarks.trim() })
+    onUpdate({
+      ...editEntry,
+      type: editType,
+      date: dateStr,
+      amount: parsed,
+      currency: editCurrency,
+      summary: editSummary.trim(),
+      venue: editVenue.trim(),
+      location: editLocation.trim(),
+      category: editCategory,
+      remarks: editRemarks.trim(),
+      homeAmount: canEditActualCharged ? parsedActual : undefined,
+    })
     setEditEntry(null)
   }
 
@@ -127,6 +151,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
   const editCurrency = editEntry ? getEntryCurrency(editEntry, cur, homeCur) : cur
   const editAmountProps = getAmountInputProps(editCurrency)
+  const editActualChargedProps = getAmountInputProps(homeCur)
+  const canEditActualCharged = editCurrency !== homeCur
   const monthLabels = getMonthLabels(language)
   const weekdayLabels = getWeekdayLabels(language)
   const editPlaceholders = getEntryFormPlaceholders(language, activeContext?.currency || editCurrency, editType)
@@ -179,6 +205,27 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               <label className="app-kicker mb-2 block">{t('amount')} ({editCurrency} {getCurrencySymbol(editCurrency)})</label>
               <input type="text" value={editAmount} onChange={e => setEditAmount(normalizeAmountInputValue(e.target.value, editCurrency))} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
             </div>
+            {canEditActualCharged && (
+              <div>
+                <div className="mb-2 flex items-center gap-1.5">
+                  <label className="app-kicker">
+                    {t('actualCharged')} ({homeCur} {getCurrencySymbol(homeCur)})
+                  </label>
+                  <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
+                </div>
+                <input
+                  type="text"
+                  value={editActualCharged}
+                  onChange={e => setEditActualCharged(normalizeAmountInputValue(e.target.value, homeCur))}
+                  className={inputCls}
+                  step={editActualChargedProps.step}
+                  inputMode={editActualChargedProps.inputMode}
+                  placeholder={editActualChargedProps.placeholder}
+                  style={{fontSize:'16px'}}
+                />
+                <p className="mt-1 text-xs text-slate-400">{t('actualChargedHint')}</p>
+              </div>
+            )}
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>
               <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)} placeholder={editPlaceholders.summary} className={inputCls} style={{fontSize:'16px'}} />
