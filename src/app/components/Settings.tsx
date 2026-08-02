@@ -119,8 +119,8 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
   const placeSuggestions = useMemo(
-    () => getContextPlaceSuggestions(entries, activeContext?.id),
-    [entries, activeContext?.id],
+    () => getContextPlaceSuggestions(entries, activeContext?.id, items),
+    [entries, activeContext?.id, items],
   )
   const recCategoryOptions = getRecurringCategoryOptions(recType, recCategory)
   const recurringAmountProps = getAmountInputProps(recCurrency)
@@ -438,7 +438,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                   </div>
                   <div>
                     <label className="app-kicker block mb-2">{t('remarks')}</label>
-                    <input value={editRec.remarks} onChange={e => setEditRec({ ...editRec, remarks: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} />
+                    <input value={editRec.remarks} onChange={e => setEditRec({ ...editRec, remarks: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} list="settings-recurring-remarks-list" />
                   </div>
                   <VenueLocationFields
                     venue={editRec.venue || ''}
@@ -534,12 +534,13 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             </div>
             <div>
               <label className="app-kicker block mb-2">{t('remarks')}</label>
-              <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder={t('recurringRemarksPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+              <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder={t('recurringRemarksPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="settings-recurring-remarks-list" />
             </div>
           </div>
           <button onClick={handleAddRecurring} className="app-button-primary w-full">{t('addEntry')}</button>
           <datalist id="settings-recurring-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
           <datalist id="settings-recurring-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
+          <datalist id="settings-recurring-remarks-list">{placeSuggestions.remarks.map(remarks => <option key={remarks} value={remarks} />)}</datalist>
         </div>
       </div>
 

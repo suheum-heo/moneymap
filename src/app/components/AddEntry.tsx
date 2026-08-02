@@ -94,8 +94,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   }, [homeCur])
 
   const placeSuggestions = useMemo(
-    () => getContextPlaceSuggestions(entries, activeContext?.id),
-    [entries, activeContext?.id],
+    () => getContextPlaceSuggestions(entries, activeContext?.id, items),
+    [entries, activeContext?.id, items],
   )
 
   const handleTypeChange = (tp: 'expense' | 'income') => {
@@ -285,7 +285,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
           <div>
             <label className="app-kicker mb-2 block">{t('remarks')}</label>
             <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
-              placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} />
+              placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} list="remarks-list" />
           </div>
         </div>
 
@@ -298,6 +298,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
         <datalist id="venue-list">{placeSuggestions.venues.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="location-list">{placeSuggestions.locations.map(l => <option key={l} value={l} />)}</datalist>
+        <datalist id="remarks-list">{placeSuggestions.remarks.map(r => <option key={r} value={r} />)}</datalist>
       </div>
       </div>
     </div>

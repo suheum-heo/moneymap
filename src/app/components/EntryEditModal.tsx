@@ -14,12 +14,14 @@ import {
   normalizeAmountInputValue,
   parseCurrencyInput,
 } from '../types'
+import type { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
   entry: Entry | null
   entries: Entry[]
+  items?: RecurringItem[]
   activeContext?: Context
   expenseCategories: string[]
   incomeCategories: string[]
@@ -34,6 +36,7 @@ function daysInMonth(month: number, year: number) {
 export default function EntryEditModal({
   entry,
   entries,
+  items = [],
   activeContext,
   expenseCategories,
   incomeCategories,
@@ -74,8 +77,8 @@ export default function EntryEditModal({
   }, [entry])
 
   const placeSuggestions = useMemo(
-    () => getContextPlaceSuggestions(entries, activeContext?.id),
-    [entries, activeContext?.id],
+    () => getContextPlaceSuggestions(entries, activeContext?.id, items),
+    [entries, activeContext?.id, items],
   )
 
   if (!entry) return null
@@ -226,12 +229,13 @@ export default function EntryEditModal({
           </div>
           <div>
             <label className="app-kicker mb-2 block">{t('remarks')}</label>
-            <input type="text" value={editRemarks} onChange={event => setEditRemarks(event.target.value)} placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} />
+            <input type="text" value={editRemarks} onChange={event => setEditRemarks(event.target.value)} placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} list="edit-remarks-list" />
           </div>
         </div>
         <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
         <datalist id="edit-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
         <datalist id="edit-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
+        <datalist id="edit-remarks-list">{placeSuggestions.remarks.map(remarks => <option key={remarks} value={remarks} />)}</datalist>
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ import {
   getEntryCurrency,
   sortEntriesForDisplay,
 } from '../types'
+import type { RecurringItem } from '../useRecurring'
 import EntryEditModal from './EntryEditModal'
 import ChevronDownIcon from './ChevronDownIcon'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
@@ -21,6 +22,7 @@ Chart.register(...registerables)
 
 interface Props {
   entries: Entry[]
+  items?: RecurringItem[]
   month: string
   onNavigate: (tab: string, filter?: string, categoryFilter?: string) => void
   onUpdate: (entry: Entry) => void
@@ -121,7 +123,7 @@ function getEntryMonth(date: string) {
   return date.slice(0, 7)
 }
 
-export default function Overview({ entries, month, onNavigate, onUpdate, sortOrder, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
+export default function Overview({ entries, items = [], month, onNavigate, onUpdate, sortOrder, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const catChartRef = useRef<HTMLCanvasElement>(null)
@@ -524,6 +526,7 @@ export default function Overview({ entries, month, onNavigate, onUpdate, sortOrd
       <EntryEditModal
         entry={editEntry}
         entries={entries}
+        items={items}
         activeContext={activeContext}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}

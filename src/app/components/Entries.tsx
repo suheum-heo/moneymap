@@ -13,10 +13,12 @@ import {
   getEntryCurrency,
   sortEntriesForDisplay,
 } from '../types'
+import type { RecurringItem } from '../useRecurring'
 import EntryEditModal from './EntryEditModal'
 
 interface Props {
   entries: Entry[]
+  items?: RecurringItem[]
   month: string
   onDelete: (id: string) => void
   onUpdate: (entry: Entry) => void
@@ -42,7 +44,7 @@ function getWeekRange() {
   return { start: mon.toISOString().slice(0,10), end: sun.toISOString().slice(0,10) }
 }
 
-export default function Entries({ entries, month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, convert, expenseCategories, incomeCategories }: Props) {
+export default function Entries({ entries, items = [], month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, convert, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
@@ -109,6 +111,7 @@ export default function Entries({ entries, month, onDelete, onUpdate, initialTyp
       <EntryEditModal
         entry={editEntry}
         entries={entries}
+        items={items}
         activeContext={activeContext}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}

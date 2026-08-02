@@ -5,15 +5,22 @@ export interface VenueLocationOption {
   location: string
 }
 
+export interface RemarkSuggestionSource {
+  context: string
+  remarks?: string | null
+}
+
 export interface PlaceSuggestions {
   venues: string[]
   locations: string[]
+  remarks: string[]
   venueLocationOptions: VenueLocationOption[]
 }
 
 const EMPTY_SUGGESTIONS: PlaceSuggestions = {
   venues: [],
   locations: [],
+  remarks: [],
   venueLocationOptions: [],
 }
 
@@ -34,11 +41,16 @@ function rememberName(map: Map<string, string>, value: string) {
   map.set(key, trimmed)
 }
 
-export function getContextPlaceSuggestions(entries: Entry[], contextId?: string): PlaceSuggestions {
+export function getContextPlaceSuggestions(
+  entries: Entry[],
+  contextId?: string,
+  remarkSources: RemarkSuggestionSource[] = [],
+): PlaceSuggestions {
   if (!contextId) return EMPTY_SUGGESTIONS
 
   const venues = new Map<string, string>()
   const locations = new Map<string, string>()
+  const remarks = new Map<string, string>()
   const venueLocationPairs = new Map<string, VenueLocationOption>()
   const contextEntries = entries.filter(entry => entry.context === contextId)
 
@@ -50,6 +62,7 @@ export function getContextPlaceSuggestions(entries: Entry[], contextId?: string)
 
     rememberName(venues, venue)
     rememberName(locations, location)
+    rememberName(remarks, entry.remarks)
 
     if (!venueKey || !locationKey) return
     const pairKey = `${venueKey}|${locationKey}`
@@ -57,9 +70,14 @@ export function getContextPlaceSuggestions(entries: Entry[], contextId?: string)
     venueLocationPairs.set(pairKey, { venue, location })
   })
 
+  remarkSources
+    .filter(source => source.context === contextId)
+    .forEach(source => rememberName(remarks, source.remarks || ''))
+
   return {
     venues: sortedNames(venues.values()),
     locations: sortedNames(locations.values()),
+    remarks: sortedNames(remarks.values()),
     venueLocationOptions: [...venueLocationPairs.values()],
   }
 }

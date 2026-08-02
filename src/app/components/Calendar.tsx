@@ -22,11 +22,13 @@ import {
   parseCurrencyInput,
   sortEntriesForDisplay,
 } from '../types'
+import type { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
   entries: Entry[]
+  items?: RecurringItem[]
   month: string
   onUpdate: (entry: Entry) => void
   onDelete: (id: string) => void
@@ -40,7 +42,7 @@ interface Props {
 
 function daysInMonth(m: number, y: number) { return new Date(y, m + 1, 0).getDate() }
 
-export default function Calendar({ entries, month, onUpdate, onDelete, onAddForDate, sortOrder, activeContext, convert, expenseCategories, incomeCategories }: Props) {
+export default function Calendar({ entries, items = [], month, onUpdate, onDelete, onAddForDate, sortOrder, activeContext, convert, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
@@ -66,8 +68,8 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
     entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
     [entries, month, activeContext])
   const placeSuggestions = useMemo(
-    () => getContextPlaceSuggestions(entries, activeContext?.id),
-    [entries, activeContext?.id],
+    () => getContextPlaceSuggestions(entries, activeContext?.id, items),
+    [entries, activeContext?.id, items],
   )
 
   const dayTotals = useMemo(() => {
@@ -251,12 +253,13 @@ export default function Calendar({ entries, month, onUpdate, onDelete, onAddForD
               </div>
               <div>
                 <label className="app-kicker mb-2 block">{t('remarks')}</label>
-                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} placeholder={editPlaceholders.remarks} className={inputCls} style={{fontSize:'16px'}} />
+                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} placeholder={editPlaceholders.remarks} className={inputCls} style={{fontSize:'16px'}} list="calendar-edit-remarks-list" />
               </div>
             </div>
             <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
             <datalist id="calendar-edit-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
             <datalist id="calendar-edit-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
+            <datalist id="calendar-edit-remarks-list">{placeSuggestions.remarks.map(remarks => <option key={remarks} value={remarks} />)}</datalist>
           </div>
         </div>
       )}
