@@ -569,13 +569,13 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           <div className="app-kicker">{t('exchangeRates')}</div>
           {ratesUpdated && <div className="text-xs text-slate-400">{t('updatedAt', { time: formatLocaleTime(ratesUpdated, language) })}</div>}
         </div>
-        <div className="app-panel-soft p-3.5">
-          <div className="flex items-center gap-2 mb-3">
-            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} flex-1`} style={{ fontSize: '16px' }}>
+        <div className="app-panel-soft min-w-0 overflow-hidden p-3.5">
+          <div className="mb-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} min-w-0 w-full truncate`} style={{ fontSize: '16px' }}>
               {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
             </select>
-            <span className="text-zinc-400 text-sm flex-shrink-0">→</span>
-            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={`${selCls} flex-1`} style={{ fontSize: '16px' }}>
+            <span className="text-center text-sm text-zinc-400">→</span>
+            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={`${selCls} min-w-0 w-full truncate`} style={{ fontSize: '16px' }}>
               {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
             </select>
           </div>
