@@ -25,6 +25,7 @@ export interface Context {
   currency: string
   homeCurrency: string
   startDate: string
+  sortOrder?: number
 }
 
 type DefaultExpenseCategoryKey =

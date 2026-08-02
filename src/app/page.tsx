@@ -13,6 +13,7 @@ import Settings from './components/Settings'
 import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
+import SortableContextList from './components/SortableContextList'
 import { UserContext } from './UserContext'
 import { formatFullDate, getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
 import type { User } from '@supabase/supabase-js'
@@ -37,7 +38,7 @@ function AppContent({ user }: { user: User }) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const { entries, loaded: entriesLoaded, addEntry, updateEntry, renameCategory: renameEntryCategory, deleteEntry } = useEntries()
-  const { contexts, activeContext, activeContextId, switchContext, addContext, removeContext, updateContext: saveContext, convert, loaded: settingsLoaded, ratesUpdated } = useSettings()
+  const { contexts, activeContext, activeContextId, switchContext, addContext, removeContext, updateContext: saveContext, reorderContexts, convert, loaded: settingsLoaded, ratesUpdated } = useSettings()
   const { items, loaded: recurringLoaded, addItem, updateItem, renameCategory: renameRecurringCategory, deleteItem: deleteRecurringItem } = useRecurring()
   const { setBudget, renameCategory: renameBudgetCategory, getBudget, loaded: budgetsLoaded } = useBudgets()
   const { categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, loaded: categoriesLoaded } = useCategories({
@@ -203,19 +204,26 @@ function AppContent({ user }: { user: User }) {
       <div className="mb-3">
         <div className="app-kicker mb-2 px-2">{t('contexts')}</div>
         <div className="app-panel-soft p-2">
-          {contexts.map(c => {
-            const sym = getCurrencySymbol(c.currency)
-            const isActive = c.id === activeContextId
-            return (
-              <button key={c.id} onClick={() => { switchContext(c.id); setTab('overview') }}
-                className={`mb-1 flex w-full items-center justify-between rounded-[20px] px-3 py-3 text-left text-sm transition-all last:mb-0 ${isActive
-                  ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
-                  : 'text-slate-500 hover:bg-white/85 hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'}`}>
-                <span>{c.name}</span>
-                <span className="text-xs opacity-60">{sym} {c.currency}</span>
-              </button>
-            )
-          })}
+          <SortableContextList
+            contexts={contexts}
+            activeContextId={activeContextId}
+            onReorder={reorderContexts}
+            getItemClassName={(_context, state) => `mb-1 flex w-full items-center rounded-[20px] text-sm transition-all last:mb-0 ${state.isActive
+              ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
+              : 'text-slate-500 hover:bg-white/85 hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'} ${state.isDragging ? 'scale-[1.01] ring-4 ring-[#3182f6]/10' : ''}`}
+            renderContext={c => {
+              const sym = getCurrencySymbol(c.currency)
+              return (
+                <button
+                  onClick={() => { switchContext(c.id); setTab('overview') }}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2 py-3 text-left"
+                >
+                  <span className="truncate">{c.name}</span>
+                  <span className="flex-shrink-0 text-xs opacity-60">{sym} {c.currency}</span>
+                </button>
+              )
+            }}
+          />
         </div>
       </div>
       <nav className="app-panel-soft flex flex-1 flex-col gap-1 p-2">
@@ -256,7 +264,7 @@ function AppContent({ user }: { user: User }) {
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={openAddEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} />}
+      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} />}
     </>
   )
 
@@ -339,19 +347,26 @@ function AppContent({ user }: { user: User }) {
               onClick={e => e.stopPropagation()}>
               <div className="text-xs text-slate-400 mb-3 truncate">{user.email}</div>
               <div className="app-kicker mb-3">{t('switchContext')}</div>
-              {contexts.map(c => {
-                const sym = getCurrencySymbol(c.currency)
-                const isActive = c.id === activeContextId
-                return (
-                  <button key={c.id} onClick={() => { switchContext(c.id); setMobileMenuOpen(false); setTab('overview') }}
-                    className={`mb-1.5 flex w-full items-center justify-between rounded-[20px] px-3 py-3 text-left text-sm transition-all ${isActive
-                      ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
-                      : 'bg-white/88 text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'}`}>
-                    <span>{c.name}</span>
-                    <span className="text-xs opacity-60">{sym} {c.currency}</span>
-                  </button>
-                )
-              })}
+              <SortableContextList
+                contexts={contexts}
+                activeContextId={activeContextId}
+                onReorder={reorderContexts}
+                getItemClassName={(_context, state) => `mb-1.5 flex w-full items-center rounded-[20px] text-sm transition-all ${state.isActive
+                  ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
+                  : 'bg-white/88 text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'} ${state.isDragging ? 'scale-[1.01] ring-4 ring-[#3182f6]/10' : ''}`}
+                renderContext={c => {
+                  const sym = getCurrencySymbol(c.currency)
+                  return (
+                    <button
+                      onClick={() => { switchContext(c.id); setMobileMenuOpen(false); setTab('overview') }}
+                      className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2 py-3 text-left"
+                    >
+                      <span className="truncate">{c.name}</span>
+                      <span className="flex-shrink-0 text-xs opacity-60">{sym} {c.currency}</span>
+                    </button>
+                  )
+                }}
+              />
               <button onClick={() => document.getElementById('sign-out-btn')?.click()}
                 className="mt-3 w-full rounded-[18px] border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-400 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">
                 {t('signOut')}

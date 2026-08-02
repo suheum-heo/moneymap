@@ -27,6 +27,7 @@ import LanguageSelector from './LanguageSelector'
 import CategorySettings from './CategorySettings'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
 import VenueLocationFields from './VenueLocationFields'
+import SortableContextList from './SortableContextList'
 
 interface Props {
   userEmail: string
@@ -34,6 +35,7 @@ interface Props {
   addContext: (ctx: Context) => void
   removeContext: (id: string) => void
   updateContext: (ctx: Context) => void
+  reorderContexts: (orderedIds: string[]) => void
   convert: (amount: number, from: string, to: string) => number
   activeContext?: Context
   ratesUpdated: Date | null
@@ -52,7 +54,7 @@ interface Props {
   removeCategory: (id: string) => void
 }
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -341,22 +343,25 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       {/* Contexts */}
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('contexts')}</div>
-        <div className="flex flex-col gap-2 mb-4">
-          {contexts.map((c: Context) => (
-            <div key={c.id} className="app-list-row">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{c.name}</div>
-                  <div className="text-xs text-slate-400 mt-0.5">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {formatMonthYear(c.startDate, language)}</div>
-                </div>
-                <div className="flex gap-3 ml-3">
-                  <button onClick={() => openEditCtx(c)} className="app-accent text-xs font-medium">{t('edit')}</button>
-                  <button onClick={() => removeContext(c.id)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
-                </div>
+        <SortableContextList
+          contexts={contexts}
+          activeContextId={activeContext?.id}
+          onReorder={reorderContexts}
+          className="mb-4 flex flex-col gap-2"
+          getItemClassName={(_context, state) => `app-list-row flex items-center gap-2 !px-2.5 !py-2.5 transition-all ${state.isDragging ? 'scale-[1.01] ring-4 ring-[#3182f6]/10' : ''}`}
+          renderContext={c => (
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{c.name}</div>
+                <div className="mt-0.5 truncate text-xs text-slate-400">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {formatMonthYear(c.startDate, language)}</div>
+              </div>
+              <div className="ml-3 flex flex-shrink-0 gap-3">
+                <button onClick={() => openEditCtx(c)} className="app-accent text-xs font-medium">{t('edit')}</button>
+                <button onClick={() => removeContext(c.id)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        />
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">{t('newContext')}</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
