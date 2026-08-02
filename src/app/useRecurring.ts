@@ -191,12 +191,12 @@ export function useRecurring() {
     await refreshItems()
   }, [items, refreshItems, userId])
 
-  const renameCategory = useCallback(async (from: string, to: string, type?: EntryType) => {
+  const renameCategory = useCallback(async (from: string, to: string, type?: EntryType, contextId?: string) => {
     if (!userId || !from.trim() || !to.trim()) return
     const source = from.trim()
     const target = to.trim()
     if (source === target) return
-    const matches = items.filter(item => item.category === source && (!type || item.type === type))
+    const matches = items.filter(item => item.category === source && (!type || item.type === type) && (!contextId || item.context === contextId))
     if (matches.length === 0) return
     setItems(prev => prev.map(item => matches.some(match => match.id === item.id) ? { ...item, category: target } : item))
     await Promise.all(matches.map(item =>

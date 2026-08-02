@@ -52,9 +52,10 @@ interface Props {
   addCategory: (name: string, type: 'expense' | 'income') => void
   updateCategory: (id: string, name: string) => void | Promise<void>
   removeCategory: (id: string) => void
+  importCategoriesFromContext: (sourceContextId: string, targetContextId: string) => void | Promise<void>
 }
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -338,7 +339,15 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       )}
 
       <LanguageSelector />
-      <CategorySettings categories={categories} addCategory={addCategory} updateCategory={updateCategory} removeCategory={removeCategory} />
+      <CategorySettings
+        categories={categories}
+        contexts={contexts}
+        activeContext={activeContext}
+        addCategory={addCategory}
+        updateCategory={updateCategory}
+        removeCategory={removeCategory}
+        importCategoriesFromContext={importCategoriesFromContext}
+      />
 
       {/* Contexts */}
       <div className="app-panel p-4">

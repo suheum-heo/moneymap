@@ -41,9 +41,22 @@ function AppContent({ user }: { user: User }) {
   const { contexts, activeContext, activeContextId, switchContext, addContext, removeContext, updateContext: saveContext, reorderContexts, convert, loaded: settingsLoaded, ratesUpdated } = useSettings()
   const { items, loaded: recurringLoaded, addItem, updateItem, renameCategory: renameRecurringCategory, deleteItem: deleteRecurringItem } = useRecurring()
   const { setBudget, renameCategory: renameBudgetCategory, getBudget, loaded: budgetsLoaded } = useBudgets()
-  const { categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, loaded: categoriesLoaded } = useCategories({
+  const {
+    categories,
+    expenseCategories,
+    incomeCategories,
+    addCategory,
+    updateCategory,
+    removeCategory,
+    importCategoriesFromContext,
+    loaded: categoriesLoaded,
+  } = useCategories({
     language,
     canSeedDefaults: settingsLoaded && contexts.length > 0,
+    activeContextId,
+    contexts,
+    entries,
+    recurringItems: items,
   })
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
@@ -90,15 +103,15 @@ function AppContent({ user }: { user: User }) {
     if (categories.some(item => item.id !== id && item.type === category.type && normalize(item.name) === normalize(trimmed))) return
 
     await updateCategory(id, trimmed)
-    await renameEntryCategory(category.name, trimmed, category.type)
-    await renameRecurringCategory(category.name, trimmed, category.type)
+    await renameEntryCategory(category.name, trimmed, category.type, activeContext?.id)
+    await renameRecurringCategory(category.name, trimmed, category.type, activeContext?.id)
 
     if (category.type === 'expense') {
-      await renameBudgetCategory(category.name, trimmed)
+      await renameBudgetCategory(category.name, trimmed, activeContext?.id)
     }
 
     setEntriesCategoryFilter(prev => prev === category.name ? trimmed : prev)
-  }, [categories, language, renameBudgetCategory, renameEntryCategory, renameRecurringCategory, updateCategory])
+  }, [activeContext?.id, categories, language, renameBudgetCategory, renameEntryCategory, renameRecurringCategory, updateCategory])
 
   const goNextMonth = useCallback(() => {
     const next = addMonths(selMonth, selYear, 1)
@@ -264,7 +277,7 @@ function AppContent({ user }: { user: User }) {
       {tab === 'entries' && <Entries entries={entries} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={openAddEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} />}
+      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} importCategoriesFromContext={importCategoriesFromContext} />}
     </>
   )
 

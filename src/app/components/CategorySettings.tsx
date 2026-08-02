@@ -1,29 +1,47 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getCategoryColor } from '../types'
+import { Context, getCategoryColor } from '../types'
 import { Category } from '../useCategories'
 
 interface Props {
   categories: Category[]
+  contexts: Context[]
+  activeContext?: Context
   addCategory: (name: string, type: 'expense' | 'income') => void
   updateCategory: (id: string, name: string) => void | Promise<void>
   removeCategory: (id: string) => void
+  importCategoriesFromContext: (sourceContextId: string, targetContextId: string) => void | Promise<void>
 }
 
-export default function CategorySettings({ categories, addCategory, updateCategory, removeCategory }: Props) {
+export default function CategorySettings({
+  categories,
+  contexts,
+  activeContext,
+  addCategory,
+  updateCategory,
+  removeCategory,
+  importCategoriesFromContext,
+}: Props) {
   const { t } = useTranslation()
   const [newName, setNewName] = useState('')
   const [newType, setNewType] = useState<'expense' | 'income'>('expense')
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [sourceContextId, setSourceContextId] = useState('')
 
   const expCats = categories.filter(c => c.type === 'expense')
   const incCats = categories.filter(c => c.type === 'income')
+  const sourceContexts = contexts.filter(context => context.id !== activeContext?.id)
 
   const inputCls = "app-input flex-1 py-3 text-sm"
   const normalized = (value: string) => value.trim().toLocaleLowerCase()
+
+  useEffect(() => {
+    if (sourceContexts.some(context => context.id === sourceContextId)) return
+    setSourceContextId(sourceContexts[0]?.id || '')
+  }, [sourceContextId, sourceContexts])
 
   const startEditing = (category: Category) => {
     setConfirmId(null)
@@ -124,6 +142,31 @@ export default function CategorySettings({ categories, addCategory, updateCatego
 
       {renderCategoryGroup(expCats, t('expenses'))}
       {renderCategoryGroup(incCats, t('income'))}
+
+      {activeContext && sourceContexts.length > 0 && (
+        <div className="app-panel-soft mb-3 flex flex-col gap-3 p-4">
+          <div className="app-kicker">{t('importCategories')}</div>
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <select
+              value={sourceContextId}
+              onChange={e => setSourceContextId(e.target.value)}
+              className="app-select min-w-0 w-full px-3 py-2.5 text-sm"
+              style={{ fontSize: '16px' }}
+            >
+              {sourceContexts.map(context => <option key={context.id} value={context.id}>{context.name}</option>)}
+            </select>
+            <button
+              onClick={() => {
+                if (!sourceContextId || !activeContext) return
+                void importCategoriesFromContext(sourceContextId, activeContext.id)
+              }}
+              className="app-button-secondary flex-shrink-0 px-4 py-2.5 text-xs"
+            >
+              {t('import')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add new */}
       <div className="app-panel-soft flex flex-col gap-3 p-4">

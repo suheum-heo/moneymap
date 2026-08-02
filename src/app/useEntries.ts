@@ -51,17 +51,23 @@ export function useEntries() {
     }).eq('id', updated.id).eq('user_id', userId)
   }, [userId])
 
-  const renameCategory = useCallback(async (from: string, to: string, type: 'expense' | 'income') => {
+  const renameCategory = useCallback(async (from: string, to: string, type: 'expense' | 'income', contextId?: string) => {
     if (!userId || !from.trim() || !to.trim()) return
     const source = from.trim()
     const target = to.trim()
     if (source === target) return
-    setEntries(prev => prev.map(e => e.type === type && e.category === source ? { ...e, category: target } : e))
-    await supabase.from('entries')
+    setEntries(prev => prev.map(e =>
+      e.type === type && e.category === source && (!contextId || e.context === contextId)
+        ? { ...e, category: target }
+        : e,
+    ))
+    let query = supabase.from('entries')
       .update({ category: target })
       .eq('user_id', userId)
       .eq('type', type)
       .eq('category', source)
+    if (contextId) query = query.eq('context', contextId)
+    await query
   }, [userId])
 
   const deleteEntry = useCallback(async (id: string) => {
