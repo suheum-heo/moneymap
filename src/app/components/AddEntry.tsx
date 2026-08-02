@@ -58,6 +58,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const [venue, setVenue] = useState(saved.venue || '')
   const [location, setLocation] = useState(saved.location || '')
   const [category, setCategory] = useState(saved.category || '')
+  const [paymentMethod, setPaymentMethod] = useState(saved.paymentMethod || '')
   const [remarks, setRemarks] = useState(saved.remarks || '')
   const [error, setError] = useState('')
   const [showRecurring, setShowRecurring] = useState(false)
@@ -66,10 +67,10 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
   useEffect(() => {
     sessionStorage.setItem('addentry-draft', JSON.stringify({
-      entryType, amount, summary, venue, location, category, remarks,
+      entryType, amount, summary, venue, location, category, paymentMethod, remarks,
       month, day, year,
     }))
-  }, [entryType, amount, summary, venue, location, category, remarks, month, day, year])
+  }, [entryType, amount, summary, venue, location, category, paymentMethod, remarks, month, day, year])
 
   const cats = entryType === 'expense' ? expenseCategories : incomeCategories
   const maxDay = daysInMonth(month, year)
@@ -108,6 +109,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setSummary(r.summary)
     setAmount(r.amount == null ? '' : r.amount.toString())
     setCategory(r.category)
+    setPaymentMethod(r.paymentMethod || '')
     setRemarks(r.remarks || '')
     setCurrency(r.currency)
     setShowCurrencyOverride(r.currency !== contextCur)
@@ -140,12 +142,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       location: location.trim(),
       category,
       amount: parsed,
+      paymentMethod: paymentMethod.trim(),
       remarks: remarks.trim(),
       currency: showCurrencyOverride ? currency : contextCur,
       context: activeContext?.id || '',
       homeAmount: parsedActual,
     })
-    setSummary(''); setAmount(''); setVenue(''); setLocation(''); setRemarks('')
+    setSummary(''); setAmount(''); setVenue(''); setLocation(''); setPaymentMethod(''); setRemarks('')
     setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')
     onDone()
     sessionStorage.removeItem('addentry-draft')
@@ -183,6 +186,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
                   <div className="min-w-0">
                     <span className="block truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{r.summary}</span>
                     {(r.venue || r.location) && <span className="mt-1 block truncate text-xs text-slate-400">{r.venue}{r.location ? ` · ${r.location}` : ''}</span>}
+                    {r.paymentMethod && <span className="mt-1 block truncate text-xs text-slate-400">{r.paymentMethod}</span>}
                     {r.remarks && <span className="mt-1 block text-xs text-slate-400">{r.remarks}</span>}
                   </div>
                   <span className={`ml-3 text-sm font-semibold ${r.type === 'income' ? 'app-positive' : 'text-[#3182f6] dark:text-sky-300'}`}>
@@ -283,10 +287,16 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
             </select>
           </div>
           <div>
-            <label className="app-kicker mb-2 block">{t('remarks')}</label>
-            <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
-              placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} list="remarks-list" />
+            <label className="app-kicker mb-2 block">{t('paymentMethod')}</label>
+            <input type="text" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
+              placeholder={t('paymentMethodPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="payment-method-list" />
           </div>
+        </div>
+
+        <div>
+          <label className="app-kicker mb-2 block">{t('remarks')}</label>
+          <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)}
+            placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} />
         </div>
 
         {error && <div className="text-xs text-rose-500">{error}</div>}
@@ -298,7 +308,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
         <datalist id="venue-list">{placeSuggestions.venues.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="location-list">{placeSuggestions.locations.map(l => <option key={l} value={l} />)}</datalist>
-        <datalist id="remarks-list">{placeSuggestions.remarks.map(r => <option key={r} value={r} />)}</datalist>
+        <datalist id="payment-method-list">{placeSuggestions.paymentMethods.map(method => <option key={method} value={method} />)}</datalist>
       </div>
       </div>
     </div>

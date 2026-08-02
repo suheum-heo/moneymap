@@ -768,6 +768,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                   <div className="min-w-0 flex-1">
                                     <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                                     {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                                    {e.paymentMethod && <div className="truncate text-xs text-slate-400">{e.paymentMethod}</div>}
                                   </div>
                                   <div className="flex-shrink-0">
                                     <div className="text-sm font-semibold" style={{ color: col }}>
@@ -950,6 +951,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                             </>
                                           ) : null}
                                         </div>
+                                        {e.paymentMethod && <div className="mt-1 truncate text-xs text-slate-400">{e.paymentMethod}</div>}
                                         {e.remarks && <div className="mt-1 truncate text-xs text-slate-400">{e.remarks}</div>}
                                       </div>
                                       <div className="flex-shrink-0 text-sm font-semibold" style={{ color: col }}>

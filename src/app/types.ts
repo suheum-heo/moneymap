@@ -13,6 +13,7 @@ export interface Entry {
   category: string
   amount: number
   remarks: string
+  paymentMethod: string
   currency: string
   context: string
   createdAt?: string
@@ -666,73 +667,73 @@ const ENTRY_FORM_PLACEHOLDER_SETS: Record<string, {
 }> = {
   en: {
     expense: {
-      default: { summary: 'e.g. lunch', venue: 'e.g. cafe', location: 'e.g. city center', remarks: 'e.g. card, takeaway…' },
-      USD: { summary: 'e.g. Chipotle before class', venue: 'e.g. Chipotle', location: 'e.g. Madison, WI', remarks: 'e.g. Uber, Amazon…' },
-      KRW: { summary: 'e.g. lunch', venue: 'e.g. Daiso', location: 'e.g. Seoul, Korea', remarks: 'e.g. Kakao T, Coupang…' },
-      EUR: { summary: 'e.g. coffee', venue: 'e.g. cafe', location: 'e.g. Paris, France', remarks: 'e.g. metro ticket, Monoprix…' },
-      JPY: { summary: 'e.g. ramen', venue: 'e.g. convenience store', location: 'e.g. Tokyo, Japan', remarks: 'e.g. Suica, 7-Eleven…' },
+      default: { summary: 'e.g. lunch', venue: 'e.g. cafe', location: 'e.g. city center', remarks: 'e.g. why I paid, who was there…' },
+      USD: { summary: 'e.g. Chipotle before class', venue: 'e.g. Chipotle', location: 'e.g. Madison, WI', remarks: 'e.g. why I paid, who was there…' },
+      KRW: { summary: 'e.g. lunch', venue: 'e.g. Daiso', location: 'e.g. Seoul, Korea', remarks: 'e.g. why I paid, who was there…' },
+      EUR: { summary: 'e.g. coffee', venue: 'e.g. cafe', location: 'e.g. Paris, France', remarks: 'e.g. why I paid, who was there…' },
+      JPY: { summary: 'e.g. ramen', venue: 'e.g. convenience store', location: 'e.g. Tokyo, Japan', remarks: 'e.g. why I paid, who was there…' },
     },
-    income: { summary: 'e.g. paycheck', venue: 'e.g. employer', location: 'e.g. bank transfer', remarks: 'e.g. bonus, refund…' },
+    income: { summary: 'e.g. paycheck', venue: 'e.g. employer', location: 'e.g. bank transfer', remarks: 'e.g. bonus note, refund reason…' },
   },
   ko: {
     expense: {
-      default: { summary: '예: 점심', venue: '예: 카페', location: '예: 시내', remarks: '예: 카드, 포장…' },
-      USD: { summary: '예: 수업 전 Chipotle', venue: '예: Chipotle', location: '예: Madison, WI', remarks: '예: Uber, Amazon…' },
-      KRW: { summary: '예: 점심', venue: '예: 스타벅스 신용산역점', location: '예: 서울 용산구', remarks: '예: 다이소, 쿠팡…' },
-      EUR: { summary: '예: 커피', venue: '예: 카페', location: '예: 프랑스 파리', remarks: '예: 지하철 티켓, Monoprix…' },
-      JPY: { summary: '예: 라멘', venue: '예: 편의점', location: '예: 일본 도쿄', remarks: '예: Suica, 7-Eleven…' },
+      default: { summary: '예: 점심', venue: '예: 카페', location: '예: 시내', remarks: '예: 왜 내가 냈는지, 누구랑 있었는지…' },
+      USD: { summary: '예: 수업 전 Chipotle', venue: '예: Chipotle', location: '예: Madison, WI', remarks: '예: 왜 내가 냈는지, 누구랑 있었는지…' },
+      KRW: { summary: '예: 점심', venue: '예: 스타벅스 신용산역점', location: '예: 서울 용산구', remarks: '예: 왜 내가 냈는지, 누구랑 있었는지…' },
+      EUR: { summary: '예: 커피', venue: '예: 카페', location: '예: 프랑스 파리', remarks: '예: 왜 내가 냈는지, 누구랑 있었는지…' },
+      JPY: { summary: '예: 라멘', venue: '예: 편의점', location: '예: 일본 도쿄', remarks: '예: 왜 내가 냈는지, 누구랑 있었는지…' },
     },
-    income: { summary: '예: 월급', venue: '예: 회사', location: '예: 계좌이체', remarks: '예: 보너스, 환급…' },
+    income: { summary: '예: 월급', venue: '예: 회사', location: '예: 계좌이체', remarks: '예: 보너스 메모, 환급 사유…' },
   },
   ja: {
     expense: {
-      default: { summary: '例: 昼ごはん', venue: '例: カフェ', location: '例: 街中', remarks: '例: カード、持ち帰り…' },
-      USD: { summary: '例: 授業前のChipotle', venue: '例: Chipotle', location: '例: Madison, WI', remarks: '例: Uber、Amazon…' },
-      KRW: { summary: '例: 昼ごはん', venue: '例: ダイソー', location: '例: ソウル龍山区', remarks: '例: Kakao T、Coupang…' },
-      EUR: { summary: '例: コーヒー', venue: '例: カフェ', location: '例: フランス・パリ', remarks: '例: 地下鉄チケット、Monoprix…' },
-      JPY: { summary: '例: ラーメン', venue: '例: コンビニ', location: '例: 日本・東京', remarks: '例: Suica、7-Eleven…' },
+      default: { summary: '例: 昼ごはん', venue: '例: カフェ', location: '例: 街中', remarks: '例: 自分が払った理由、同席者…' },
+      USD: { summary: '例: 授業前のChipotle', venue: '例: Chipotle', location: '例: Madison, WI', remarks: '例: 自分が払った理由、同席者…' },
+      KRW: { summary: '例: 昼ごはん', venue: '例: ダイソー', location: '例: ソウル龍山区', remarks: '例: 自分が払った理由、同席者…' },
+      EUR: { summary: '例: コーヒー', venue: '例: カフェ', location: '例: フランス・パリ', remarks: '例: 自分が払った理由、同席者…' },
+      JPY: { summary: '例: ラーメン', venue: '例: コンビニ', location: '例: 日本・東京', remarks: '例: 自分が払った理由、同席者…' },
     },
-    income: { summary: '例: 給与', venue: '例: 勤務先', location: '例: 銀行振込', remarks: '例: ボーナス、返金…' },
+    income: { summary: '例: 給与', venue: '例: 勤務先', location: '例: 銀行振込', remarks: '例: ボーナスのメモ、返金理由…' },
   },
   zh: {
     expense: {
-      default: { summary: '例如：午餐', venue: '例如：咖啡店', location: '例如：市中心', remarks: '例如：刷卡、外带…' },
-      USD: { summary: '例如：上课前吃 Chipotle', venue: '例如：Chipotle', location: '例如：Madison, WI', remarks: '例如：Uber、Amazon…' },
-      KRW: { summary: '例如：午餐', venue: '例如：大创', location: '例如：首尔、釜山', remarks: '例如：Kakao T、Coupang…' },
-      EUR: { summary: '例如：咖啡', venue: '例如：咖啡馆', location: '例如：巴黎，法国', remarks: '例如：地铁票、Monoprix…' },
-      JPY: { summary: '例如：拉面', venue: '例如：便利店', location: '例如：东京，日本', remarks: '例如：Suica、7-Eleven…' },
+      default: { summary: '例如：午餐', venue: '例如：咖啡店', location: '例如：市中心', remarks: '例如：为什么我付钱、和谁一起…' },
+      USD: { summary: '例如：上课前吃 Chipotle', venue: '例如：Chipotle', location: '例如：Madison, WI', remarks: '例如：为什么我付钱、和谁一起…' },
+      KRW: { summary: '例如：午餐', venue: '例如：大创', location: '例如：首尔、釜山', remarks: '例如：为什么我付钱、和谁一起…' },
+      EUR: { summary: '例如：咖啡', venue: '例如：咖啡馆', location: '例如：巴黎，法国', remarks: '例如：为什么我付钱、和谁一起…' },
+      JPY: { summary: '例如：拉面', venue: '例如：便利店', location: '例如：东京，日本', remarks: '例如：为什么我付钱、和谁一起…' },
     },
-    income: { summary: '例如：工资', venue: '例如：公司', location: '例如：银行转账', remarks: '例如：奖金、退款…' },
+    income: { summary: '例如：工资', venue: '例如：公司', location: '例如：银行转账', remarks: '例如：奖金备注、退款原因…' },
   },
   es: {
     expense: {
-      default: { summary: 'p. ej. almuerzo', venue: 'p. ej. cafetería', location: 'p. ej. centro', remarks: 'p. ej. tarjeta, para llevar…' },
-      USD: { summary: 'p. ej. Chipotle antes de clase', venue: 'p. ej. Chipotle', location: 'p. ej. Madison, WI', remarks: 'p. ej. Uber, Amazon…' },
-      KRW: { summary: 'p. ej. almuerzo', venue: 'p. ej. Daiso', location: 'p. ej. Seúl, Corea', remarks: 'p. ej. Kakao T, Coupang…' },
-      EUR: { summary: 'p. ej. café', venue: 'p. ej. cafetería', location: 'p. ej. París, Francia', remarks: 'p. ej. billete de metro, Monoprix…' },
-      JPY: { summary: 'p. ej. ramen', venue: 'p. ej. tienda de conveniencia', location: 'p. ej. Tokio, Japón', remarks: 'p. ej. Suica, 7-Eleven…' },
+      default: { summary: 'p. ej. almuerzo', venue: 'p. ej. cafetería', location: 'p. ej. centro', remarks: 'p. ej. por qué pagué, con quién estaba…' },
+      USD: { summary: 'p. ej. Chipotle antes de clase', venue: 'p. ej. Chipotle', location: 'p. ej. Madison, WI', remarks: 'p. ej. por qué pagué, con quién estaba…' },
+      KRW: { summary: 'p. ej. almuerzo', venue: 'p. ej. Daiso', location: 'p. ej. Seúl, Corea', remarks: 'p. ej. por qué pagué, con quién estaba…' },
+      EUR: { summary: 'p. ej. café', venue: 'p. ej. cafetería', location: 'p. ej. París, Francia', remarks: 'p. ej. por qué pagué, con quién estaba…' },
+      JPY: { summary: 'p. ej. ramen', venue: 'p. ej. tienda de conveniencia', location: 'p. ej. Tokio, Japón', remarks: 'p. ej. por qué pagué, con quién estaba…' },
     },
-    income: { summary: 'p. ej. salario', venue: 'p. ej. empresa', location: 'p. ej. transferencia bancaria', remarks: 'p. ej. bono, reembolso…' },
+    income: { summary: 'p. ej. salario', venue: 'p. ej. empresa', location: 'p. ej. transferencia bancaria', remarks: 'p. ej. nota de bono, motivo de reembolso…' },
   },
   fr: {
     expense: {
-      default: { summary: 'ex. déjeuner', venue: 'ex. café', location: 'ex. centre-ville', remarks: 'ex. carte, à emporter…' },
-      USD: { summary: 'ex. Chipotle avant les cours', venue: 'ex. Chipotle', location: 'ex. Madison, WI', remarks: 'ex. Uber, Amazon…' },
-      KRW: { summary: 'ex. déjeuner', venue: 'ex. Daiso', location: 'ex. Séoul, Corée', remarks: 'ex. Kakao T, Coupang…' },
-      EUR: { summary: 'ex. café', venue: 'ex. café', location: 'ex. Paris, France', remarks: 'ex. ticket de métro, Monoprix…' },
-      JPY: { summary: 'ex. ramen', venue: 'ex. supérette', location: 'ex. Tokyo, Japon', remarks: 'ex. Suica, 7-Eleven…' },
+      default: { summary: 'ex. déjeuner', venue: 'ex. café', location: 'ex. centre-ville', remarks: 'ex. pourquoi j’ai payé, avec qui…' },
+      USD: { summary: 'ex. Chipotle avant les cours', venue: 'ex. Chipotle', location: 'ex. Madison, WI', remarks: 'ex. pourquoi j’ai payé, avec qui…' },
+      KRW: { summary: 'ex. déjeuner', venue: 'ex. Daiso', location: 'ex. Séoul, Corée', remarks: 'ex. pourquoi j’ai payé, avec qui…' },
+      EUR: { summary: 'ex. café', venue: 'ex. café', location: 'ex. Paris, France', remarks: 'ex. pourquoi j’ai payé, avec qui…' },
+      JPY: { summary: 'ex. ramen', venue: 'ex. supérette', location: 'ex. Tokyo, Japon', remarks: 'ex. pourquoi j’ai payé, avec qui…' },
     },
-    income: { summary: 'ex. salaire', venue: 'ex. employeur', location: 'ex. virement bancaire', remarks: 'ex. prime, remboursement…' },
+    income: { summary: 'ex. salaire', venue: 'ex. employeur', location: 'ex. virement bancaire', remarks: 'ex. note de prime, raison du remboursement…' },
   },
   de: {
     expense: {
-      default: { summary: 'z. B. Mittagessen', venue: 'z. B. Café', location: 'z. B. Innenstadt', remarks: 'z. B. Karte, zum Mitnehmen…' },
-      USD: { summary: 'z. B. Chipotle vor der Vorlesung', venue: 'z. B. Chipotle', location: 'z. B. Madison, WI', remarks: 'z. B. Uber, Amazon…' },
-      KRW: { summary: 'z. B. Mittagessen', venue: 'z. B. Daiso', location: 'z. B. Seoul, Korea', remarks: 'z. B. Kakao T, Coupang…' },
-      EUR: { summary: 'z. B. Kaffee', venue: 'z. B. Café', location: 'z. B. Paris, Frankreich', remarks: 'z. B. Metroticket, Monoprix…' },
-      JPY: { summary: 'z. B. Ramen', venue: 'z. B. Konbini', location: 'z. B. Tokio, Japan', remarks: 'z. B. Suica, 7-Eleven…' },
+      default: { summary: 'z. B. Mittagessen', venue: 'z. B. Café', location: 'z. B. Innenstadt', remarks: 'z. B. warum ich gezahlt habe, mit wem…' },
+      USD: { summary: 'z. B. Chipotle vor der Vorlesung', venue: 'z. B. Chipotle', location: 'z. B. Madison, WI', remarks: 'z. B. warum ich gezahlt habe, mit wem…' },
+      KRW: { summary: 'z. B. Mittagessen', venue: 'z. B. Daiso', location: 'z. B. Seoul, Korea', remarks: 'z. B. warum ich gezahlt habe, mit wem…' },
+      EUR: { summary: 'z. B. Kaffee', venue: 'z. B. Café', location: 'z. B. Paris, Frankreich', remarks: 'z. B. warum ich gezahlt habe, mit wem…' },
+      JPY: { summary: 'z. B. Ramen', venue: 'z. B. Konbini', location: 'z. B. Tokio, Japan', remarks: 'z. B. warum ich gezahlt habe, mit wem…' },
     },
-    income: { summary: 'z. B. Gehalt', venue: 'z. B. Arbeitgeber', location: 'z. B. Banküberweisung', remarks: 'z. B. Bonus, Rückerstattung…' },
+    income: { summary: 'z. B. Gehalt', venue: 'z. B. Arbeitgeber', location: 'z. B. Banküberweisung', remarks: 'z. B. Bonusnotiz, Grund der Rückerstattung…' },
   },
 }
 

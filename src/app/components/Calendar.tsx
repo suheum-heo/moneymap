@@ -57,6 +57,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
   const [editVenue, setEditVenue] = useState('')
   const [editLocation, setEditLocation] = useState('')
   const [editCategory, setEditCategory] = useState('')
+  const [editPaymentMethod, setEditPaymentMethod] = useState('')
   const [editRemarks, setEditRemarks] = useState('')
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
   const [editActualCharged, setEditActualCharged] = useState('')
@@ -112,7 +113,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
     setEditMonth(mo - 1); setEditDay(day); setEditYear(y)
     setEditAmount(e.amount.toString()); setEditSummary(e.summary)
     setEditVenue(e.venue || ''); setEditLocation(e.location || '')
-    setEditCategory(e.category); setEditRemarks(e.remarks || '')
+    setEditCategory(e.category); setEditPaymentMethod(e.paymentMethod || ''); setEditRemarks(e.remarks || '')
     setEditActualCharged(e.homeAmount == null ? '' : e.homeAmount.toString())
     setEditType(e.type); setEditEntry(e)
   }
@@ -142,6 +143,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
       venue: editVenue.trim(),
       location: editLocation.trim(),
       category: editCategory,
+      paymentMethod: editPaymentMethod.trim(),
       remarks: editRemarks.trim(),
       homeAmount: canEditActualCharged ? parsedActual : undefined,
     })
@@ -252,14 +254,18 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
                 </select>
               </div>
               <div>
-                <label className="app-kicker mb-2 block">{t('remarks')}</label>
-                <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} placeholder={editPlaceholders.remarks} className={inputCls} style={{fontSize:'16px'}} list="calendar-edit-remarks-list" />
+                <label className="app-kicker mb-2 block">{t('paymentMethod')}</label>
+                <input type="text" value={editPaymentMethod} onChange={e => setEditPaymentMethod(e.target.value)} placeholder={t('paymentMethodPlaceholder')} className={inputCls} style={{fontSize:'16px'}} list="calendar-edit-payment-method-list" />
               </div>
+            </div>
+            <div>
+              <label className="app-kicker mb-2 block">{t('remarks')}</label>
+              <input type="text" value={editRemarks} onChange={e => setEditRemarks(e.target.value)} placeholder={editPlaceholders.remarks} className={inputCls} style={{fontSize:'16px'}} />
             </div>
             <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
             <datalist id="calendar-edit-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
             <datalist id="calendar-edit-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
-            <datalist id="calendar-edit-remarks-list">{placeSuggestions.remarks.map(remarks => <option key={remarks} value={remarks} />)}</datalist>
+            <datalist id="calendar-edit-payment-method-list">{placeSuggestions.paymentMethods.map(method => <option key={method} value={method} />)}</datalist>
           </div>
         </div>
       )}
@@ -352,6 +358,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
                       <div className="flex-1 min-w-0">
                         <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                         {e.venue && <div className="mt-1 truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                        {e.paymentMethod && <div className="mt-1 truncate text-xs text-slate-400">{e.paymentMethod}</div>}
                         <span className="mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium" style={badgeStyle}>{e.category}</span>
                       </div>
                       <div className="flex flex-col items-end gap-1">

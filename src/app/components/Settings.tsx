@@ -107,6 +107,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [recSummary, setRecSummary] = useState('')
   const [recVenue, setRecVenue] = useState('')
   const [recLocation, setRecLocation] = useState('')
+  const [recPaymentMethod, setRecPaymentMethod] = useState('')
   const [recRemarks, setRecRemarks] = useState('')
   const [editingRecId, setEditingRecId] = useState<string | null>(null)
   const [editRec, setEditRec] = useState<RecurringItem | null>(null)
@@ -178,11 +179,12 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       summary: recSummary.trim(),
       venue: recVenue.trim(),
       location: recLocation.trim(),
+      paymentMethod: recPaymentMethod.trim(),
       remarks: recRemarks.trim(),
     }
     try {
       await addItem(item)
-      setRecAmount(''); setRecSummary(''); setRecVenue(''); setRecLocation(''); setRecRemarks('')
+      setRecAmount(''); setRecSummary(''); setRecVenue(''); setRecLocation(''); setRecPaymentMethod(''); setRecRemarks('')
     } catch {}
   }
 
@@ -436,9 +438,15 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                       </select>
                     </div>
                   </div>
-                  <div>
-                    <label className="app-kicker block mb-2">{t('remarks')}</label>
-                    <input value={editRec.remarks} onChange={e => setEditRec({ ...editRec, remarks: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} list="settings-recurring-remarks-list" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="app-kicker block mb-2">{t('paymentMethod')}</label>
+                      <input value={editRec.paymentMethod || ''} onChange={e => setEditRec({ ...editRec, paymentMethod: e.target.value })} placeholder={t('paymentMethodPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="settings-payment-method-list" />
+                    </div>
+                    <div>
+                      <label className="app-kicker block mb-2">{t('remarks')}</label>
+                      <input value={editRec.remarks} onChange={e => setEditRec({ ...editRec, remarks: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} />
+                    </div>
                   </div>
                   <VenueLocationFields
                     venue={editRec.venue || ''}
@@ -472,6 +480,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                         {item.category}
                       </span>
                       {(item.venue || item.location) ? <span>· {item.venue}{item.location ? ` · ${item.location}` : ''}</span> : null}
+                      {item.paymentMethod ? <span>· {item.paymentMethod}</span> : null}
                       {item.remarks ? <span>· {item.remarks}</span> : null}
                     </div>
                   </div>
@@ -533,14 +542,18 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
               </select>
             </div>
             <div>
-              <label className="app-kicker block mb-2">{t('remarks')}</label>
-              <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder={t('recurringRemarksPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="settings-recurring-remarks-list" />
+              <label className="app-kicker block mb-2">{t('paymentMethod')}</label>
+              <input value={recPaymentMethod} onChange={e => setRecPaymentMethod(e.target.value)} placeholder={t('paymentMethodPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="settings-payment-method-list" />
             </div>
+          </div>
+          <div>
+            <label className="app-kicker block mb-2">{t('remarks')}</label>
+            <input value={recRemarks} onChange={e => setRecRemarks(e.target.value)} placeholder={t('recurringRemarksPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
           <button onClick={handleAddRecurring} className="app-button-primary w-full">{t('addEntry')}</button>
           <datalist id="settings-recurring-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
           <datalist id="settings-recurring-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
-          <datalist id="settings-recurring-remarks-list">{placeSuggestions.remarks.map(remarks => <option key={remarks} value={remarks} />)}</datalist>
+          <datalist id="settings-payment-method-list">{placeSuggestions.paymentMethods.map(method => <option key={method} value={method} />)}</datalist>
         </div>
       </div>
 

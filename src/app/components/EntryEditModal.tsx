@@ -53,6 +53,7 @@ export default function EntryEditModal({
   const [editVenue, setEditVenue] = useState('')
   const [editLocation, setEditLocation] = useState('')
   const [editCategory, setEditCategory] = useState('')
+  const [editPaymentMethod, setEditPaymentMethod] = useState('')
   const [editRemarks, setEditRemarks] = useState('')
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
   const [editActualCharged, setEditActualCharged] = useState('')
@@ -71,6 +72,7 @@ export default function EntryEditModal({
     setEditVenue(entry.venue || '')
     setEditLocation(entry.location || '')
     setEditCategory(entry.category)
+    setEditPaymentMethod(entry.paymentMethod || '')
     setEditRemarks(entry.remarks || '')
     setEditType(entry.type)
     setEditActualCharged(entry.homeAmount == null ? '' : entry.homeAmount.toString())
@@ -119,6 +121,7 @@ export default function EntryEditModal({
       venue: editVenue.trim(),
       location: editLocation.trim(),
       category: editCategory,
+      paymentMethod: editPaymentMethod.trim(),
       remarks: editRemarks.trim(),
       homeAmount: canEditActualCharged ? parsedActual : undefined,
     })
@@ -228,14 +231,18 @@ export default function EntryEditModal({
             </select>
           </div>
           <div>
-            <label className="app-kicker mb-2 block">{t('remarks')}</label>
-            <input type="text" value={editRemarks} onChange={event => setEditRemarks(event.target.value)} placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} list="edit-remarks-list" />
+            <label className="app-kicker mb-2 block">{t('paymentMethod')}</label>
+            <input type="text" value={editPaymentMethod} onChange={event => setEditPaymentMethod(event.target.value)} placeholder={t('paymentMethodPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} list="edit-payment-method-list" />
           </div>
+        </div>
+        <div>
+          <label className="app-kicker mb-2 block">{t('remarks')}</label>
+          <input type="text" value={editRemarks} onChange={event => setEditRemarks(event.target.value)} placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} />
         </div>
         <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
         <datalist id="edit-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
         <datalist id="edit-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
-        <datalist id="edit-remarks-list">{placeSuggestions.remarks.map(remarks => <option key={remarks} value={remarks} />)}</datalist>
+        <datalist id="edit-payment-method-list">{placeSuggestions.paymentMethods.map(method => <option key={method} value={method} />)}</datalist>
       </div>
     </div>
   )

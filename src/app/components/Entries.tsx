@@ -78,6 +78,7 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         e.summary.toLowerCase().includes(q) ||
         (e.venue || '').toLowerCase().includes(q) ||
         (e.location || '').toLowerCase().includes(q) ||
+        (e.paymentMethod || '').toLowerCase().includes(q) ||
         (e.remarks || '').toLowerCase().includes(q)
       )
     }
@@ -87,8 +88,8 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   const openEdit = (e: Entry) => setEditEntry(e)
 
   const exportCSV = () => {
-    const headers = [t('date'), t('expense') + '/' + t('income2'), t('summary'), t('venue'), t('location'), t('category'), t('amount'), t('currency'), t('remarks')]
-    const rows = filtered.map(e => [e.date, e.type, e.summary, e.venue || '', e.location || '', e.category, e.amount, getEntryCurrency(e, cur, homeCur), e.remarks || ''])
+    const headers = [t('date'), t('expense') + '/' + t('income2'), t('summary'), t('venue'), t('location'), t('category'), t('amount'), t('currency'), t('paymentMethod'), t('remarks')]
+    const rows = filtered.map(e => [e.date, e.type, e.summary, e.venue || '', e.location || '', e.category, e.amount, getEntryCurrency(e, cur, homeCur), e.paymentMethod || '', e.remarks || ''])
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -190,6 +191,7 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
                     <div className="truncate text-sm font-medium leading-snug text-slate-800 dark:text-zinc-100">{e.summary}</div>
                   </div>
                   {e.venue && <div className="mt-1 truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                  {e.paymentMethod && <div className="text-xs text-slate-400 truncate">{e.paymentMethod}</div>}
                   {e.remarks && <div className="text-xs text-slate-400 truncate">{e.remarks}</div>}
                   <span className="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium" style={badgeStyle}>{e.category}</span>
                 </div>

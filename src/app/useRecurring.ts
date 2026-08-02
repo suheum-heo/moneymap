@@ -7,7 +7,7 @@ import { useUserId } from './UserContext'
 export interface RecurringItem {
   id: string; type: EntryType; context: string; category: string
   amount: number | null; currency: string; summary: string; remarks: string
-  venue: string; location: string
+  paymentMethod: string; venue: string; location: string
 }
 
 const PLACE_META_PREFIX = '[[moneymap:recurring-place:'
@@ -24,7 +24,7 @@ function getMissingRecurringColumns(error: { code?: string; message?: string; de
   if (!error) return null
   const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
   const missing = new Set<string>()
-  ;(['type', 'venue', 'location'] as const).forEach(column => {
+  ;(['type', 'venue', 'location', 'payment_method'] as const).forEach(column => {
     if (
       message.includes(`'${column}' column`) ||
       message.includes(`recurring.${column}`) ||
@@ -37,30 +37,33 @@ function getMissingRecurringColumns(error: { code?: string; message?: string; de
   return missing.size > 0 ? missing : null
 }
 
-function decodeRecurringRemarks(raw: string) {
+function decodeRecurringRemarks(raw: string, rawPaymentMethod?: unknown) {
   const remarks = raw || ''
+  const fallbackPaymentMethod = typeof rawPaymentMethod === 'string' ? rawPaymentMethod : ''
   const match = remarks.match(PLACE_META_PATTERN)
-  if (!match || match.index == null) return { remarks, venue: '', location: '' }
+  if (!match || match.index == null) return { remarks, venue: '', location: '', paymentMethod: fallbackPaymentMethod }
 
   try {
-    const parsed = JSON.parse(match[1]) as { venue?: unknown; location?: unknown }
+    const parsed = JSON.parse(match[1]) as { venue?: unknown; location?: unknown; paymentMethod?: unknown }
     return {
       remarks: remarks.slice(0, match.index).trimEnd(),
       venue: typeof parsed.venue === 'string' ? parsed.venue : '',
       location: typeof parsed.location === 'string' ? parsed.location : '',
+      paymentMethod: fallbackPaymentMethod || (typeof parsed.paymentMethod === 'string' ? parsed.paymentMethod : ''),
     }
   } catch {
-    return { remarks, venue: '', location: '' }
+    return { remarks, venue: '', location: '', paymentMethod: fallbackPaymentMethod }
   }
 }
 
-function encodeRecurringRemarks(remarks: string, venue: string, location: string) {
+function encodeRecurringRemarks(remarks: string, venue: string, location: string, paymentMethod: string) {
   const decoded = decodeRecurringRemarks(remarks)
   const cleanRemarks = decoded.remarks.trim()
   const cleanVenue = venue.trim()
   const cleanLocation = location.trim()
-  if (!cleanVenue && !cleanLocation) return cleanRemarks
-  const metadata = JSON.stringify({ venue: cleanVenue, location: cleanLocation })
+  const cleanPaymentMethod = paymentMethod.trim()
+  if (!cleanVenue && !cleanLocation && !cleanPaymentMethod) return cleanRemarks
+  const metadata = JSON.stringify({ venue: cleanVenue, location: cleanLocation, paymentMethod: cleanPaymentMethod })
   return `${cleanRemarks}${cleanRemarks ? '\n' : ''}${PLACE_META_PREFIX}${metadata}${PLACE_META_SUFFIX}`
 }
 
@@ -78,6 +81,7 @@ function buildRecurringInsertPayload(
   userId: string,
   includeTypeColumn: boolean,
   includePlaceColumns: boolean,
+  includePaymentMethodColumn: boolean,
 ) {
   return {
     id: item.id,
@@ -88,8 +92,11 @@ function buildRecurringInsertPayload(
     amount: getStoredRecurringAmount(item.amount),
     currency: item.currency,
     summary: item.summary,
-    remarks: includePlaceColumns ? item.remarks : encodeRecurringRemarks(item.remarks, item.venue, item.location),
+    remarks: includePlaceColumns && includePaymentMethodColumn
+      ? item.remarks
+      : encodeRecurringRemarks(item.remarks, item.venue, item.location, item.paymentMethod || ''),
     ...(includePlaceColumns ? { venue: item.venue.trim(), location: item.location.trim() } : {}),
+    ...(includePaymentMethodColumn ? { payment_method: (item.paymentMethod || '').trim() } : {}),
   }
 }
 
@@ -97,6 +104,7 @@ function buildRecurringUpdatePayload(
   item: RecurringItem,
   includeTypeColumn: boolean,
   includePlaceColumns: boolean,
+  includePaymentMethodColumn: boolean,
 ) {
   return {
     summary: item.summary,
@@ -104,8 +112,11 @@ function buildRecurringUpdatePayload(
     ...(includeTypeColumn ? { type: item.type } : {}),
     amount: getStoredRecurringAmount(item.amount),
     currency: item.currency,
-    remarks: includePlaceColumns ? item.remarks : encodeRecurringRemarks(item.remarks, item.venue, item.location),
+    remarks: includePlaceColumns && includePaymentMethodColumn
+      ? item.remarks
+      : encodeRecurringRemarks(item.remarks, item.venue, item.location, item.paymentMethod || ''),
     ...(includePlaceColumns ? { venue: item.venue.trim(), location: item.location.trim() } : {}),
+    ...(includePaymentMethodColumn ? { payment_method: (item.paymentMethod || '').trim() } : {}),
   }
 }
 
@@ -127,11 +138,12 @@ export function useRecurring() {
       amount: normalizeRecurringAmount(r.amount), currency: normalizeCurrencyCode(r.currency || 'USD'),
       summary: r.summary,
       ...(() => {
-        const decoded = decodeRecurringRemarks(r.remarks || '')
+        const decoded = decodeRecurringRemarks(r.remarks || '', r.payment_method)
         return {
           remarks: decoded.remarks,
           venue: typeof r.venue === 'string' ? r.venue : decoded.venue,
           location: typeof r.location === 'string' ? r.location : decoded.location,
+          paymentMethod: decoded.paymentMethod,
         }
       })(),
     })))
@@ -147,13 +159,15 @@ export function useRecurring() {
     setItems(prev => [...prev, item])
     let includeTypeColumn = true
     let includePlaceColumns = true
-    let { error } = await supabase.from('recurring').insert(buildRecurringInsertPayload(item, userId, includeTypeColumn, includePlaceColumns))
-    for (let attempt = 0; attempt < 2 && error; attempt += 1) {
+    let includePaymentMethodColumn = true
+    let { error } = await supabase.from('recurring').insert(buildRecurringInsertPayload(item, userId, includeTypeColumn, includePlaceColumns, includePaymentMethodColumn))
+    for (let attempt = 0; attempt < 3 && error; attempt += 1) {
       const missingColumns = getMissingRecurringColumns(error)
       if (!missingColumns) break
       includeTypeColumn = includeTypeColumn && !missingColumns.has('type')
       includePlaceColumns = includePlaceColumns && !missingColumns.has('venue') && !missingColumns.has('location')
-      const fallback = await supabase.from('recurring').insert(buildRecurringInsertPayload(item, userId, includeTypeColumn, includePlaceColumns))
+      includePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
+      const fallback = await supabase.from('recurring').insert(buildRecurringInsertPayload(item, userId, includeTypeColumn, includePlaceColumns, includePaymentMethodColumn))
       error = fallback.error
     }
     if (error) {
@@ -169,17 +183,19 @@ export function useRecurring() {
     setItems(prev => prev.map(i => i.id === updated.id ? updated : i))
     let includeTypeColumn = true
     let includePlaceColumns = true
+    let includePaymentMethodColumn = true
     let { error } = await supabase.from('recurring')
-      .update(buildRecurringUpdatePayload(updated, includeTypeColumn, includePlaceColumns))
+      .update(buildRecurringUpdatePayload(updated, includeTypeColumn, includePlaceColumns, includePaymentMethodColumn))
       .eq('id', updated.id)
       .eq('user_id', userId)
-    for (let attempt = 0; attempt < 2 && error; attempt += 1) {
+    for (let attempt = 0; attempt < 3 && error; attempt += 1) {
       const missingColumns = getMissingRecurringColumns(error)
       if (!missingColumns) break
       includeTypeColumn = includeTypeColumn && !missingColumns.has('type')
       includePlaceColumns = includePlaceColumns && !missingColumns.has('venue') && !missingColumns.has('location')
+      includePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
       const fallback = await supabase.from('recurring')
-        .update(buildRecurringUpdatePayload(updated, includeTypeColumn, includePlaceColumns))
+        .update(buildRecurringUpdatePayload(updated, includeTypeColumn, includePlaceColumns, includePaymentMethodColumn))
         .eq('id', updated.id)
         .eq('user_id', userId)
       error = fallback.error

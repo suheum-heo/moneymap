@@ -5,22 +5,22 @@ export interface VenueLocationOption {
   location: string
 }
 
-export interface RemarkSuggestionSource {
+export interface PaymentMethodSuggestionSource {
   context: string
-  remarks?: string | null
+  paymentMethod?: string | null
 }
 
 export interface PlaceSuggestions {
   venues: string[]
   locations: string[]
-  remarks: string[]
+  paymentMethods: string[]
   venueLocationOptions: VenueLocationOption[]
 }
 
 const EMPTY_SUGGESTIONS: PlaceSuggestions = {
   venues: [],
   locations: [],
-  remarks: [],
+  paymentMethods: [],
   venueLocationOptions: [],
 }
 
@@ -44,13 +44,13 @@ function rememberName(map: Map<string, string>, value: string) {
 export function getContextPlaceSuggestions(
   entries: Entry[],
   contextId?: string,
-  remarkSources: RemarkSuggestionSource[] = [],
+  paymentMethodSources: PaymentMethodSuggestionSource[] = [],
 ): PlaceSuggestions {
   if (!contextId) return EMPTY_SUGGESTIONS
 
   const venues = new Map<string, string>()
   const locations = new Map<string, string>()
-  const remarks = new Map<string, string>()
+  const paymentMethods = new Map<string, string>()
   const venueLocationPairs = new Map<string, VenueLocationOption>()
   const contextEntries = entries.filter(entry => entry.context === contextId)
 
@@ -62,7 +62,7 @@ export function getContextPlaceSuggestions(
 
     rememberName(venues, venue)
     rememberName(locations, location)
-    rememberName(remarks, entry.remarks)
+    rememberName(paymentMethods, entry.paymentMethod || '')
 
     if (!venueKey || !locationKey) return
     const pairKey = `${venueKey}|${locationKey}`
@@ -70,14 +70,14 @@ export function getContextPlaceSuggestions(
     venueLocationPairs.set(pairKey, { venue, location })
   })
 
-  remarkSources
+  paymentMethodSources
     .filter(source => source.context === contextId)
-    .forEach(source => rememberName(remarks, source.remarks || ''))
+    .forEach(source => rememberName(paymentMethods, source.paymentMethod || ''))
 
   return {
     venues: sortedNames(venues.values()),
     locations: sortedNames(locations.values()),
-    remarks: sortedNames(remarks.values()),
+    paymentMethods: sortedNames(paymentMethods.values()),
     venueLocationOptions: [...venueLocationPairs.values()],
   }
 }
