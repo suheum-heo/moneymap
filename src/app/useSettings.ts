@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Context, normalizeCurrencyCode } from './types'
 import { supabase } from './lib/supabase'
 import { useUserId } from './UserContext'
@@ -71,20 +71,23 @@ function writeStoredContextOrder(userId: string, ids: string[]) {
 
 function orderContexts(contexts: Context[], storedOrder: string[] = []): Context[] {
   const storedRanks = new Map(storedOrder.map((id, index) => [id, index]))
+  const hasServerOrder = contexts.some(context => context.sortOrder != null)
   return contexts
     .map((context, index) => ({ context, index }))
     .sort((a, b) => {
+      const aSort = a.context.sortOrder
+      const bSort = b.context.sortOrder
+      if (hasServerOrder) {
+        if (aSort != null && bSort != null && aSort !== bSort) return aSort - bSort
+        if (aSort != null) return -1
+        if (bSort != null) return 1
+      }
+
       const aStored = storedRanks.get(a.context.id)
       const bStored = storedRanks.get(b.context.id)
       if (aStored != null && bStored != null && aStored !== bStored) return aStored - bStored
       if (aStored != null) return -1
       if (bStored != null) return 1
-
-      const aSort = a.context.sortOrder
-      const bSort = b.context.sortOrder
-      if (aSort != null && bSort != null && aSort !== bSort) return aSort - bSort
-      if (aSort != null) return -1
-      if (bSort != null) return 1
 
       return a.index - b.index
     })
@@ -118,10 +121,15 @@ function isMissingContextSortOrderColumn(error: { code?: string; message?: strin
 export function useSettings() {
   const userId = useUserId()
   const [contexts, setContexts] = useState<Context[]>([])
+  const contextsRef = useRef<Context[]>([])
   const [activeContextId, setActiveContextId] = useState<string>('')
   const [rates, setRates] = useState<ExchangeRate[]>(FALLBACK_RATES)
   const [loaded, setLoaded] = useState(false)
   const [ratesUpdated, setRatesUpdated] = useState<Date | null>(null)
+
+  useEffect(() => {
+    contextsRef.current = contexts
+  }, [contexts])
 
   useEffect(() => {
     if (!userId) { setLoaded(true); return }
@@ -144,6 +152,8 @@ export function useSettings() {
             sortOrder: typeof r.sort_order === 'number' ? r.sort_order : undefined,
           })), readStoredContextOrder(userId))
           setContexts(ctxs)
+          contextsRef.current = ctxs
+          writeStoredContextOrder(userId, ctxs.map(context => context.id))
           setActiveContextId(prev => prev || ctxs[0]?.id || '')
         }
         setLoaded(true)
@@ -175,6 +185,7 @@ export function useSettings() {
         setActiveContextId(ctx.id)
         localStorage.setItem('gagyebu-active-context', ctx.id)
       }
+      contextsRef.current = next
       writeStoredContextOrder(userId, next.map(context => context.id))
       return next
     })
@@ -196,6 +207,7 @@ export function useSettings() {
     if (!userId) return
     setContexts(prev => {
       const next = prev.filter(c => c.id !== id)
+      contextsRef.current = next
       writeStoredContextOrder(userId, next.map(context => context.id))
       return next
     })
@@ -204,13 +216,21 @@ export function useSettings() {
 
   const renameContext = useCallback(async (id: string, name: string) => {
     if (!userId) return
-    setContexts(prev => prev.map(c => c.id === id ? { ...c, name: name.trim() } : c))
+    setContexts(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, name: name.trim() } : c)
+      contextsRef.current = next
+      return next
+    })
     await supabase.from('contexts').update({ name: name.trim() }).eq('id', id).eq('user_id', userId)
   }, [userId])
 
   const updateContext = useCallback(async (ctx: Context) => {
     if (!userId) return
-    setContexts(prev => prev.map(c => c.id === ctx.id ? ctx : c))
+    setContexts(prev => {
+      const next = prev.map(c => c.id === ctx.id ? ctx : c)
+      contextsRef.current = next
+      return next
+    })
     await supabase.from('contexts').update({
       name: ctx.name, currency: ctx.currency,
       home_currency: ctx.homeCurrency, start_date: ctx.startDate,
@@ -219,7 +239,7 @@ export function useSettings() {
 
   const reorderContexts = useCallback(async (orderedIds: string[]) => {
     if (!userId) return
-    const nextIds = mergeOrderedContextIds(contexts, orderedIds)
+    const nextIds = mergeOrderedContextIds(contextsRef.current, orderedIds)
     if (nextIds.length === 0) return
 
     setContexts(prev => {
@@ -229,6 +249,7 @@ export function useSettings() {
         const context = byId.get(id)
         if (context) next.push({ ...context, sortOrder: next.length })
       })
+      contextsRef.current = next
       return next
     })
 
@@ -245,7 +266,7 @@ export function useSettings() {
         .eq('id', id)
         .eq('user_id', userId),
     ))
-  }, [contexts, userId])
+  }, [userId])
 
   const switchContext = useCallback((id: string) => {
     setActiveContextId(id)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Context } from '../types'
 
 interface RenderState {
@@ -59,12 +59,22 @@ export default function SortableContextList({
   const [draftIds, setDraftIds] = useState(() => contexts.map(context => context.id))
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const draftIdsRef = useRef(draftIds)
+  const contextsRef = useRef(contexts)
+  const onReorderRef = useRef(onReorder)
   const dragRef = useRef<{ id: string; pointerId: number; changed: boolean } | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     draftIdsRef.current = draftIds
   }, [draftIds])
+
+  useEffect(() => {
+    contextsRef.current = contexts
+  }, [contexts])
+
+  useEffect(() => {
+    onReorderRef.current = onReorder
+  }, [onReorder])
 
   useEffect(() => {
     if (draggingId) return
@@ -76,19 +86,31 @@ export default function SortableContextList({
     [contexts, draftIds],
   )
 
-  const finishDrag = () => {
+  const finishDrag = useCallback(() => {
     const drag = dragRef.current
     if (!drag) return
 
     const nextIds = draftIdsRef.current
-    const originalIds = contexts.map(context => context.id)
+    const originalIds = contextsRef.current.map(context => context.id)
     dragRef.current = null
     setDraggingId(null)
 
     if (drag.changed && !sameOrder(nextIds, originalIds)) {
-      onReorder(nextIds)
+      onReorderRef.current(nextIds)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!draggingId) return
+    window.addEventListener('pointerup', finishDrag)
+    window.addEventListener('touchend', finishDrag)
+    window.addEventListener('mouseup', finishDrag)
+    return () => {
+      window.removeEventListener('pointerup', finishDrag)
+      window.removeEventListener('touchend', finishDrag)
+      window.removeEventListener('mouseup', finishDrag)
+    }
+  }, [draggingId, finishDrag])
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, id: string) => {
     if (event.button !== 0) return
@@ -96,7 +118,7 @@ export default function SortableContextList({
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     dragRef.current = { id, pointerId: event.pointerId, changed: false }
-    setDraftIds(getOrderedContexts(contexts, draftIdsRef.current).map(context => context.id))
+    setDraftIds(getOrderedContexts(contextsRef.current, draftIdsRef.current).map(context => context.id))
     setDraggingId(id)
   }
 
@@ -142,9 +164,7 @@ export default function SortableContextList({
     if (dragRef.current?.pointerId !== event.pointerId) return
     event.preventDefault()
     event.stopPropagation()
-    dragRef.current = null
-    setDraggingId(null)
-    setDraftIds(contexts.map(context => context.id))
+    finishDrag()
   }
 
   return (
