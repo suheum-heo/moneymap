@@ -18,7 +18,7 @@ const NAVER_MAP_HOST_RE =
   /(?:^|\.)(?:map\.naver\.com|m\.place\.naver\.com|pcmap\.place\.naver\.com|place\.naver\.com|naver\.me)$/i
 
 const NAVER_URL_IN_TEXT_RE =
-  /https?:\/\/(?:naver\.me\/[A-Za-z0-9_-]+|(?:map|m\.place|pcmap\.place|place)\.naver\.com\/[^\s<>"']+)/i
+  /https?:\/\/(?:naver\.me\/[^\s<>"']+|(?:(?:m\.)?map|m\.place|pcmap\.place|place)\.naver\.com\/[^\s<>"']+)/i
 
 const SHARE_HEADER_RE = /\[?\s*네이버\s*지도\s*\]?/i
 const KOREAN_REGION_PATTERN =

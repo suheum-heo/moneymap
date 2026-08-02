@@ -64,6 +64,33 @@ function containsMapLink(text: string): boolean {
   return containsNaverMapLink(text) || containsGoogleMapsLink(text)
 }
 
+function getPasteText(event: React.ClipboardEvent<HTMLInputElement>) {
+  const clipboard = event.clipboardData
+  return [
+    clipboard.getData('text/plain'),
+    clipboard.getData('text'),
+    clipboard.getData('URL'),
+    clipboard.getData('text/uri-list'),
+  ].find(text => text.trim()) || ''
+}
+
+async function readSystemClipboardText() {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return ''
+  try {
+    return await navigator.clipboard.readText()
+  } catch {
+    return ''
+  }
+}
+
+function shouldRetryMapPasteFromClipboard(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  return /네이버\s*지도/i.test(trimmed)
+    || /naver/i.test(trimmed)
+    || /^(서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남|서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|제주특별자치도|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도)\s+\S+/.test(trimmed)
+}
+
 interface Props {
   venue: string
   location: string
@@ -96,6 +123,8 @@ export default function VenueLocationFields({
   const requestId = useRef(0)
   const boomTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastHandled = useRef('')
+  const lastClipboardRetry = useRef('')
+  const lastPasteAt = useRef(0)
 
   const triggerBoom = useCallback(() => {
     setBoom(true)
@@ -256,9 +285,30 @@ export default function VenueLocationFields({
     [applyPlace, lookingUp, lookupGoogleByUrl, lookupNaverByUrl, onVenueChange],
   )
 
+  const retryFromSystemClipboard = useCallback(
+    async (currentValue: string) => {
+      const retryKey = currentValue.trim()
+      if (!retryKey || retryKey === lastClipboardRetry.current) return false
+      lastClipboardRetry.current = retryKey
+
+      const clipboardText = await readSystemClipboardText()
+      if (!clipboardText || clipboardText.trim() === retryKey || !containsMapLink(clipboardText)) return false
+      return fillFromMapText(clipboardText)
+    },
+    [fillFromMapText],
+  )
+
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
-    const text = event.clipboardData.getData('text')
-    if (!containsMapLink(text)) return
+    lastPasteAt.current = Date.now()
+    const text = getPasteText(event)
+    if (!containsMapLink(text)) {
+      if (!text) {
+        void readSystemClipboardText().then(clipboardText => {
+          if (containsMapLink(clipboardText)) void fillFromMapText(clipboardText)
+        })
+      }
+      return
+    }
     event.preventDefault()
     void fillFromMapText(text)
   }
@@ -290,12 +340,21 @@ export default function VenueLocationFields({
       void fillFromMapText(value)
       return
     }
+    if (Date.now() - lastPasteAt.current < 2500 && shouldRetryMapPasteFromClipboard(value)) {
+      void retryFromSystemClipboard(value)
+    }
     fillLocationFromSavedVenue(value)
   }
 
   const handleLocationChange = (value: string) => {
     onLocationChange(value)
-    if (containsMapLink(value)) void fillFromMapText(value)
+    if (containsMapLink(value)) {
+      void fillFromMapText(value)
+      return
+    }
+    if (Date.now() - lastPasteAt.current < 2500 && shouldRetryMapPasteFromClipboard(value)) {
+      void retryFromSystemClipboard(value)
+    }
   }
 
   const handleBlur = (value: string) => {
