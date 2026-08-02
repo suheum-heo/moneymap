@@ -112,7 +112,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setCurrency(r.currency)
     setShowCurrencyOverride(r.currency !== contextCur)
     setActualCharged('')
-    setVenue(''); setLocation('')
+    setVenue(r.venue || ''); setLocation(r.location || '')
     setShowRecurring(false)
   }
 
@@ -182,6 +182,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
                   className="app-list-row flex w-full items-center justify-between text-left">
                   <div className="min-w-0">
                     <span className="block truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{r.summary}</span>
+                    {(r.venue || r.location) && <span className="mt-1 block truncate text-xs text-slate-400">{r.venue}{r.location ? ` · ${r.location}` : ''}</span>}
                     {r.remarks && <span className="mt-1 block text-xs text-slate-400">{r.remarks}</span>}
                   </div>
                   <span className={`ml-3 text-sm font-semibold ${r.type === 'income' ? 'app-positive' : 'text-[#3182f6] dark:text-sky-300'}`}>

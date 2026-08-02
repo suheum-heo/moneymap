@@ -1,10 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import {
   CURRENCIES,
   Context,
+  Entry,
   EntryType,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -15,14 +16,17 @@ import {
   getAmountInputProps,
   getCategoryBadgeStyle,
   getCategoryColor,
+  getEntryFormPlaceholders,
   normalizeAmountInputValue,
   parseCurrencyInput,
 } from '../types'
+import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import { RecurringItem } from '../useRecurring'
 import { Category } from '../useCategories'
 import LanguageSelector from './LanguageSelector'
 import CategorySettings from './CategorySettings'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
+import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
   userEmail: string
@@ -35,6 +39,7 @@ interface Props {
   ratesUpdated: Date | null
   setBudget: (context: string, category: string, amount: number) => void
   getBudget: (context: string, category: string) => number | null
+  entries: Entry[]
   items: RecurringItem[]
   addItem: (item: RecurringItem) => void
   updateItem: (item: RecurringItem) => void
@@ -47,7 +52,7 @@ interface Props {
   removeCategory: (id: string) => void
 }
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -97,6 +102,8 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [recAmount, setRecAmount] = useState('')
   const [recCurrency, setRecCurrency] = useState(activeContext?.currency || 'USD')
   const [recSummary, setRecSummary] = useState('')
+  const [recVenue, setRecVenue] = useState('')
+  const [recLocation, setRecLocation] = useState('')
   const [recRemarks, setRecRemarks] = useState('')
   const [editingRecId, setEditingRecId] = useState<string | null>(null)
   const [editRec, setEditRec] = useState<RecurringItem | null>(null)
@@ -108,10 +115,16 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [deletingAccount, setDeletingAccount] = useState(false)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
+  const placeSuggestions = useMemo(
+    () => getContextPlaceSuggestions(entries, activeContext?.id),
+    [entries, activeContext?.id],
+  )
   const recCategoryOptions = getRecurringCategoryOptions(recType, recCategory)
   const recurringAmountProps = getAmountInputProps(recCurrency)
+  const recurringPlaceholders = getEntryFormPlaceholders(language, recCurrency, recType)
   const budgetAmountProps = getAmountInputProps(activeContext?.currency || 'USD')
   const editRecurringAmountProps = getAmountInputProps(editRec?.currency || activeContext?.currency || 'USD')
+  const editRecurringPlaceholders = getEntryFormPlaceholders(language, editRec?.currency || activeContext?.currency || 'USD', editRec?.type || 'expense')
   const deleteKeyword = t('deleteAccountKeyword')
   const requiresEmailConfirmation = Boolean(userEmail)
   const deleteWordMatches = deleteConfirmWord.trim().toUpperCase() === deleteKeyword.toUpperCase()
@@ -160,11 +173,13 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       amount: amt,
       currency: recCurrency,
       summary: recSummary.trim(),
+      venue: recVenue.trim(),
+      location: recLocation.trim(),
       remarks: recRemarks.trim(),
     }
     try {
       await addItem(item)
-      setRecAmount(''); setRecSummary(''); setRecRemarks('')
+      setRecAmount(''); setRecSummary(''); setRecVenue(''); setRecLocation(''); setRecRemarks('')
     } catch {}
   }
 
@@ -411,6 +426,18 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                     <label className="app-kicker block mb-2">{t('remarks')}</label>
                     <input value={editRec.remarks} onChange={e => setEditRec({ ...editRec, remarks: e.target.value })} className={inputCls} style={{ fontSize: '16px' }} />
                   </div>
+                  <VenueLocationFields
+                    venue={editRec.venue || ''}
+                    location={editRec.location || ''}
+                    onVenueChange={value => setEditRec({ ...editRec, venue: value })}
+                    onLocationChange={value => setEditRec({ ...editRec, location: value })}
+                    placeholders={editRecurringPlaceholders}
+                    inputCls={inputCls}
+                    venueListId="settings-recurring-venue-list"
+                    locationListId="settings-recurring-location-list"
+                    venueLocationOptions={placeSuggestions.venueLocationOptions}
+                    gridClassName="grid grid-cols-2 gap-2"
+                  />
                   <div className="flex gap-2">
                     <button onClick={handleSaveRec} className="app-button-primary flex-1">{t('save')}</button>
                     <button onClick={() => { setEditingRecId(null); setEditRec(null); setEditRecAmount('') }} className="app-button-secondary flex-1">{t('cancel')}</button>
@@ -430,6 +457,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                       <span className="inline-flex rounded-full px-2 py-0.5 font-medium" style={getCategoryBadgeStyle(item.category, item.type, 0.16)}>
                         {item.category}
                       </span>
+                      {(item.venue || item.location) ? <span>· {item.venue}{item.location ? ` · ${item.location}` : ''}</span> : null}
                       {item.remarks ? <span>· {item.remarks}</span> : null}
                     </div>
                   </div>
@@ -457,6 +485,17 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             <label className="app-kicker block mb-2">{t('summary')}</label>
             <input value={recSummary} onChange={e => setRecSummary(e.target.value)} placeholder={t('recurringSummaryPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           </div>
+          <VenueLocationFields
+            venue={recVenue}
+            location={recLocation}
+            onVenueChange={setRecVenue}
+            onLocationChange={setRecLocation}
+            placeholders={recurringPlaceholders}
+            inputCls={inputCls}
+            venueListId="settings-recurring-venue-list"
+            locationListId="settings-recurring-location-list"
+            venueLocationOptions={placeSuggestions.venueLocationOptions}
+          />
           <div className="grid grid-cols-2 gap-2">
             <div>
               <div className="mb-2 flex items-center gap-1.5">
@@ -485,6 +524,8 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             </div>
           </div>
           <button onClick={handleAddRecurring} className="app-button-primary w-full">{t('addEntry')}</button>
+          <datalist id="settings-recurring-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
+          <datalist id="settings-recurring-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
         </div>
       </div>
 
