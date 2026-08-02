@@ -23,7 +23,10 @@ const NAVER_URL_IN_TEXT_RE =
 const SHARE_HEADER_RE = /\[?\s*네이버\s*지도\s*\]?/i
 const KOREAN_REGION_PATTERN =
   '(?:서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남|서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|제주특별자치도|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도)'
-const KOREAN_REGION_RE = new RegExp(`^${KOREAN_REGION_PATTERN}`)
+const KOREAN_REGION_WITH_BOUNDARY_PATTERN = `${KOREAN_REGION_PATTERN}(?=\\s|$)`
+const KOREAN_ADMIN_AREA_RE = new RegExp(
+  `^${KOREAN_REGION_WITH_BOUNDARY_PATTERN}\\s+[^\\s]+(?:시|군|구|읍|면|동)(?:\\s|$)`,
+)
 
 export function looksLikeNaverMapUrl(text: string): boolean {
   const trimmed = text.trim()
@@ -94,8 +97,8 @@ function normalizeKoreanAddressCandidate(line: string): string {
 
 function looksLikeKoreanAddress(line: string): boolean {
   const candidate = normalizeKoreanAddressCandidate(line)
-  return KOREAN_REGION_RE.test(candidate)
-    || /(특별시|광역시|특별자치시|특별자치도|도)\s/.test(candidate)
+  return KOREAN_ADMIN_AREA_RE.test(candidate)
+    || /(특별시|광역시|특별자치시|특별자치도|도)\s+[^\s]+(?:시|군|구|읍|면|동)(?:\s|$)/.test(candidate)
     || /(?:시|군|구)\s+[^\s]+(?:로|길|대로|번길)(?:\s|\d)/.test(candidate)
 }
 
@@ -138,7 +141,7 @@ export function parseNaverShareText(text: string): NaverShareParse | null {
   if (!withoutUrl) return { url }
 
   const leadingAddress = withoutUrl.match(new RegExp(
-    `^((?:(?:주소|도로명|지번|위치)\\s*[:：]?\\s*)?${KOREAN_REGION_PATTERN}\\s+[^\\s]+\\s+(?:[^\\s]+\\s+)?[^\\s]*(?:로|길|대로|번길)\\s*\\d+(?:-\\d+)?(?:\\s+[A-Za-z0-9가-힣~.-]+)?)\\s+(.+)$`,
+    `^((?:(?:주소|도로명|지번|위치)\\s*[:：]?\\s*)?${KOREAN_REGION_WITH_BOUNDARY_PATTERN}\\s+[^\\s]+\\s+(?:[^\\s]+\\s+)?[^\\s]*(?:로|길|대로|번길)\\s*\\d+(?:-\\d+)?(?:\\s+(?:B?\\d+[A-Za-z]?|\\d+~\\d+F|\\d+(?:층|호|F)|지하\\d+층?|[A-Za-z]?동|[A-Za-z]?관)){0,3})\\s+(.+)$`,
   ))
   if (leadingAddress) {
     const address = normalizeKoreanAddressCandidate(leadingAddress[1])
@@ -147,7 +150,7 @@ export function parseNaverShareText(text: string): NaverShareParse | null {
   }
 
   // "... 서울 강남구 ..."
-  const addrMatch = withoutUrl.match(new RegExp(`(${KOREAN_REGION_PATTERN}[^\\n]*)$`))
+  const addrMatch = withoutUrl.match(new RegExp(`(${KOREAN_REGION_WITH_BOUNDARY_PATTERN}[^\\n]*)$`))
   if (addrMatch) {
     const address = normalizeKoreanAddressCandidate(addrMatch[1])
     const name = withoutUrl.slice(0, addrMatch.index).trim()
