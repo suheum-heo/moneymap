@@ -91,6 +91,12 @@ function shouldRetryMapPasteFromClipboard(value: string) {
     || /^(서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남|서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|제주특별자치도|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도)\s+\S+/.test(trimmed)
 }
 
+function canFillFromPastedText(text: string) {
+  if (containsMapLink(text)) return true
+  const share = parseNaverShareText(text)
+  return Boolean(share?.name && share.address)
+}
+
 interface Props {
   venue: string
   location: string
@@ -234,29 +240,30 @@ export default function VenueLocationFields({
   const fillFromMapText = useCallback(
     async (raw: string) => {
       const text = raw.trim()
-      if (!containsMapLink(text)) return false
       if (lookingUp && text === lastHandled.current) return true
       lastHandled.current = text
 
       const id = ++requestId.current
+      const naverShare = parseNaverShareText(text)
+
+      if (naverShare?.name && naverShare.address) {
+        applyPlace({
+          name: naverShare.name,
+          address: naverShare.address,
+          location: toLocationArea(naverShare.address),
+          placeId: naverShare.url ? extractNaverPlaceId(naverShare.url) || '' : '',
+        })
+        setLookingUp(false)
+        return true
+      }
+
+      if (!containsMapLink(text)) return false
 
       if (containsNaverMapLink(text)) {
-        const share = parseNaverShareText(text)
-        const url = share?.url || findNaverMapUrlInText(text)
+        const url = naverShare?.url || findNaverMapUrlInText(text)
         if (!url) return false
 
-        if (share?.name && share.address) {
-          applyPlace({
-            name: share.name,
-            address: share.address,
-            location: toLocationArea(share.address),
-            placeId: extractNaverPlaceId(url) || '',
-          })
-          setLookingUp(false)
-          return true
-        }
-
-        if (share?.name && !share.address) onVenueChange(share.name)
+        if (naverShare?.name && !naverShare.address) onVenueChange(naverShare.name)
         return lookupNaverByUrl(url, id)
       }
 
@@ -301,10 +308,10 @@ export default function VenueLocationFields({
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
     lastPasteAt.current = Date.now()
     const text = getPasteText(event)
-    if (!containsMapLink(text)) {
+    if (!canFillFromPastedText(text)) {
       if (!text) {
         void readSystemClipboardText().then(clipboardText => {
-          if (containsMapLink(clipboardText)) void fillFromMapText(clipboardText)
+          if (canFillFromPastedText(clipboardText)) void fillFromMapText(clipboardText)
         })
       }
       return
@@ -340,6 +347,10 @@ export default function VenueLocationFields({
       void fillFromMapText(value)
       return
     }
+    if (canFillFromPastedText(value)) {
+      void fillFromMapText(value)
+      return
+    }
     if (Date.now() - lastPasteAt.current < 2500 && shouldRetryMapPasteFromClipboard(value)) {
       void retryFromSystemClipboard(value)
     }
@@ -352,13 +363,17 @@ export default function VenueLocationFields({
       void fillFromMapText(value)
       return
     }
+    if (canFillFromPastedText(value)) {
+      void fillFromMapText(value)
+      return
+    }
     if (Date.now() - lastPasteAt.current < 2500 && shouldRetryMapPasteFromClipboard(value)) {
       void retryFromSystemClipboard(value)
     }
   }
 
   const handleBlur = (value: string) => {
-    if (containsMapLink(value)) void fillFromMapText(value)
+    if (canFillFromPastedText(value)) void fillFromMapText(value)
   }
 
   const fieldCls = [

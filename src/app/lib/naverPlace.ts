@@ -8,7 +8,7 @@ export interface NaverPlaceInfo {
 export interface NaverShareParse {
   name?: string
   address?: string
-  url: string
+  url?: string
 }
 
 const PLACE_ID_RE =
@@ -18,7 +18,7 @@ const NAVER_MAP_HOST_RE =
   /(?:^|\.)(?:map\.naver\.com|m\.place\.naver\.com|pcmap\.place\.naver\.com|place\.naver\.com|naver\.me)$/i
 
 const NAVER_URL_IN_TEXT_RE =
-  /https?:\/\/(?:naver\.me\/[^\s<>"']+|(?:(?:m\.)?map|m\.place|pcmap\.place|place)\.naver\.com\/[^\s<>"']+)/i
+  /(?:https?:\/\/)?(?:naver\.me\/[^\s<>"']+|(?:(?:m\.)?map|m\.place|pcmap\.place|place)\.naver\.com\/[^\s<>"']+)/i
 
 const SHARE_HEADER_RE = /\[?\s*네이버\s*지도\s*\]?/i
 const KOREAN_REGION_PATTERN =
@@ -40,7 +40,8 @@ export function looksLikeNaverMapUrl(text: string): boolean {
 export function findNaverMapUrlInText(text: string): string | null {
   const match = text.match(NAVER_URL_IN_TEXT_RE)
   if (!match) return null
-  return match[0].replace(/[),.;\]}]+$/g, '')
+  const url = match[0].replace(/[),.;\]}]+$/g, '')
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
 }
 
 export function containsNaverMapLink(text: string): boolean {
@@ -106,8 +107,7 @@ function looksLikeKoreanAddress(line: string): boolean {
  * https://naver.me/FiPfV7SH
  */
 export function parseNaverShareText(text: string): NaverShareParse | null {
-  const url = findNaverMapUrlInText(text)
-  if (!url) return null
+  const url = findNaverMapUrlInText(text) || undefined
 
   const lines = text
     .split(/\r?\n/)
@@ -125,10 +125,10 @@ export function parseNaverShareText(text: string): NaverShareParse | null {
         || lines[0]
       return { name, address, url }
     }
-    return { name: lines[0], address: lines[1], url }
+    if (url) return { name: lines[0], address: lines[1], url }
   }
 
-  if (lines.length === 1) {
+  if (url && lines.length === 1) {
     return { name: lines[0], url }
   }
 
@@ -155,5 +155,5 @@ export function parseNaverShareText(text: string): NaverShareParse | null {
     return { address, url }
   }
 
-  return { url }
+  return url ? { url } : null
 }
