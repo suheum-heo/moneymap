@@ -21,6 +21,9 @@ const NAVER_URL_IN_TEXT_RE =
   /https?:\/\/(?:naver\.me\/[A-Za-z0-9_-]+|(?:map|m\.place|pcmap\.place|place)\.naver\.com\/[^\s<>"']+)/i
 
 const SHARE_HEADER_RE = /\[?\s*네이버\s*지도\s*\]?/i
+const KOREAN_REGION_PATTERN =
+  '(?:서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남|서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|제주특별자치도|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도)'
+const KOREAN_REGION_RE = new RegExp(`^${KOREAN_REGION_PATTERN}`)
 
 export function looksLikeNaverMapUrl(text: string): boolean {
   const trimmed = text.trim()
@@ -79,9 +82,20 @@ export function toLocationArea(address: string): string {
   return `${parts[0]} ${parts[1]}`
 }
 
+function normalizeKoreanAddressCandidate(line: string): string {
+  return line
+    .replace(SHARE_HEADER_RE, '')
+    .replace(/^\[[^\]]+\]\s*/, '')
+    .replace(/^(주소|도로명|지번|위치)\s*[:：]?\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function looksLikeKoreanAddress(line: string): boolean {
-  return /^(서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남)/.test(line)
-    || /(특별시|광역시|특별자치시|특별자치도|도)\s/.test(line)
+  const candidate = normalizeKoreanAddressCandidate(line)
+  return KOREAN_REGION_RE.test(candidate)
+    || /(특별시|광역시|특별자치시|특별자치도|도)\s/.test(candidate)
+    || /(?:시|군|구)\s+[^\s]+(?:로|길|대로|번길)(?:\s|\d)/.test(candidate)
 }
 
 /**
@@ -97,16 +111,18 @@ export function parseNaverShareText(text: string): NaverShareParse | null {
 
   const lines = text
     .split(/\r?\n/)
-    .map(line => line.trim())
+    .map(line => line.replace(SHARE_HEADER_RE, '').trim())
     .filter(Boolean)
-    .filter(line => !SHARE_HEADER_RE.test(line) && !NAVER_URL_IN_TEXT_RE.test(line))
+    .filter(line => !NAVER_URL_IN_TEXT_RE.test(line))
 
   if (lines.length >= 2) {
     // Prefer address-looking line for location; the other is the venue name.
     const addressIdx = lines.findIndex(looksLikeKoreanAddress)
     if (addressIdx >= 0) {
-      const address = lines[addressIdx]
-      const name = lines.find((_, i) => i !== addressIdx) || lines[0]
+      const address = normalizeKoreanAddressCandidate(lines[addressIdx])
+      const name = lines.find((line, i) => i !== addressIdx && !looksLikeKoreanAddress(line))
+        || lines.find((_, i) => i !== addressIdx)
+        || lines[0]
       return { name, address, url }
     }
     return { name: lines[0], address: lines[1], url }
@@ -121,12 +137,19 @@ export function parseNaverShareText(text: string): NaverShareParse | null {
   const withoutUrl = collapsed.replace(NAVER_URL_IN_TEXT_RE, '').replace(SHARE_HEADER_RE, '').trim()
   if (!withoutUrl) return { url }
 
+  const leadingAddress = withoutUrl.match(new RegExp(
+    `^((?:(?:주소|도로명|지번|위치)\\s*[:：]?\\s*)?${KOREAN_REGION_PATTERN}\\s+[^\\s]+\\s+(?:[^\\s]+\\s+)?[^\\s]*(?:로|길|대로|번길)\\s*\\d+(?:-\\d+)?(?:\\s+[A-Za-z0-9가-힣~.-]+)?)\\s+(.+)$`,
+  ))
+  if (leadingAddress) {
+    const address = normalizeKoreanAddressCandidate(leadingAddress[1])
+    const name = leadingAddress[2].trim()
+    if (looksLikeKoreanAddress(address) && name) return { name, address, url }
+  }
+
   // "... 서울 강남구 ..."
-  const addrMatch = withoutUrl.match(
-    /((?:서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남)[^\n]*)$/,
-  )
+  const addrMatch = withoutUrl.match(new RegExp(`(${KOREAN_REGION_PATTERN}[^\\n]*)$`))
   if (addrMatch) {
-    const address = addrMatch[1].trim()
+    const address = normalizeKoreanAddressCandidate(addrMatch[1])
     const name = withoutUrl.slice(0, addrMatch.index).trim()
     if (name) return { name, address, url }
     return { address, url }

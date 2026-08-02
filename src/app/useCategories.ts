@@ -38,6 +38,14 @@ function getCategoryContextFromId(id: string) {
   return decodeIdPart(rest.slice(0, marker))
 }
 
+function getScopedCategoryBaseId(id: string) {
+  if (!id.startsWith(CONTEXT_CATEGORY_PREFIX)) return id
+  const rest = id.slice(CONTEXT_CATEGORY_PREFIX.length)
+  const marker = rest.indexOf('__')
+  if (marker === -1) return id
+  return rest.slice(marker + 2)
+}
+
 function getCategoryContext(row: { id: string; context?: unknown }) {
   return typeof row.context === 'string' && row.context.trim()
     ? row.context.trim()
@@ -54,7 +62,7 @@ function categoryNameKey(category: Pick<Category, 'name' | 'type'>, language?: s
 
 function isDefaultCategoryId(id: string, language?: string) {
   const defaultIds = new Set(getDefaultCategoryDefinitions(language).map(category => category.id))
-  return defaultIds.has(id)
+  return defaultIds.has(getScopedCategoryBaseId(id))
 }
 
 function isScopedCategory(category: Category) {
@@ -100,6 +108,10 @@ function getCategoriesForContext(
 
   allCategories
     .filter(category => category.context === contextId)
+    .filter(category => {
+      if (!isDefaultCategoryId(category.id, language)) return true
+      return getUsedContextsForCategory(category, entries, recurringItems, language).has(contextId)
+    })
     .forEach(remember)
 
   allCategories
@@ -121,7 +133,6 @@ export function useCategories({
   language,
   canSeedDefaults = true,
   activeContextId,
-  contexts = [],
   entries = [],
   recurringItems = [],
 }: {
@@ -152,12 +163,37 @@ export function useCategories({
         if (cancelled) return
 
         if (data && data.length > 0) {
-          setAllCategories(data.map(r => ({
+          const loadedCategories = data.map(r => ({
             id: r.id,
             name: r.name,
             type: r.type,
             context: getCategoryContext(r) || undefined,
-          })))
+          }))
+
+          const hasScopedDefaults = loadedCategories.some(category =>
+            isScopedCategory(category) && isDefaultCategoryId(category.id)
+          )
+          const hasGlobalDefaults = loadedCategories.some(category =>
+            !isScopedCategory(category) && isDefaultCategoryId(category.id)
+          )
+          if (canSeedDefaults && hasScopedDefaults && !hasGlobalDefaults) {
+            const defaults: Category[] = getDefaultCategoryDefinitions()
+            await Promise.all(
+              defaults.map(category =>
+                supabase.from('categories').upsert(
+                  { id: category.id, user_id: userId, name: category.name, type: category.type },
+                  { onConflict: 'id,user_id' },
+                ),
+              ),
+            )
+
+            if (cancelled) return
+            setAllCategories([...loadedCategories, ...defaults])
+            setLoaded(true)
+            return
+          }
+
+          setAllCategories(loadedCategories)
           setLoaded(true)
           return
         }
@@ -168,12 +204,7 @@ export function useCategories({
           return
         }
 
-        const seedContextId = activeContextId || contexts[0]?.id || ''
-        const defaults: Category[] = getDefaultCategoryDefinitions(language).map(category => ({
-          ...category,
-          id: seedContextId ? getScopedCategoryId(seedContextId, category.id) : category.id,
-          context: seedContextId || undefined,
-        }))
+        const defaults: Category[] = getDefaultCategoryDefinitions()
         await Promise.all(
           defaults.map(category =>
             supabase.from('categories').upsert(
@@ -191,40 +222,7 @@ export function useCategories({
     return () => {
       cancelled = true
     }
-  }, [activeContextId, canSeedDefaults, contexts, language, userId])
-
-  const ensureContextDefaults = useCallback(async (contextId: string) => {
-    if (!userId || !contextId || !canSeedDefaults) return
-    const defaults = getDefaultCategoryDefinitions(language)
-    const visible = getCategoriesForContext(allCategories, contextId, language, entries, recurringItems)
-    const visibleNames = new Set(visible.map(category => categoryNameKey(category, language)))
-    const missing = defaults
-      .filter(category => !visibleNames.has(categoryNameKey(category, language)))
-      .map(category => ({
-        ...category,
-        id: getScopedCategoryId(contextId, category.id),
-        context: contextId,
-      }))
-
-    if (missing.length === 0) return
-    setAllCategories(prev => {
-      const existingIds = new Set(prev.map(category => category.id))
-      return [...prev, ...missing.filter(category => !existingIds.has(category.id))]
-    })
-    await Promise.all(
-      missing.map(category =>
-        supabase.from('categories').upsert(
-          { id: category.id, user_id: userId, name: category.name, type: category.type },
-          { onConflict: 'id,user_id' },
-        ),
-      ),
-    )
-  }, [allCategories, canSeedDefaults, entries, language, recurringItems, userId])
-
-  useEffect(() => {
-    if (!loaded || !activeContextId) return
-    void ensureContextDefaults(activeContextId)
-  }, [activeContextId, ensureContextDefaults, loaded])
+  }, [canSeedDefaults, userId])
 
   const claimUnusedLegacyCategories = useCallback(async (contextId: string) => {
     if (!userId || !contextId) return
