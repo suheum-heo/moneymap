@@ -20,7 +20,7 @@ import {
   normalizeAmountInputValue,
   parseCurrencyInput,
 } from '../types'
-import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
+import { getContextPlaceSuggestions, normalizePlaceSuggestionKey } from '../lib/placeSuggestions'
 import { RecurringItem } from '../useRecurring'
 import { Category } from '../useCategories'
 import LanguageSelector from './LanguageSelector'
@@ -44,7 +44,7 @@ interface Props {
   entries: Entry[]
   items: RecurringItem[]
   addItem: (item: RecurringItem) => void
-  updateItem: (item: RecurringItem) => void
+  updateItem: (item: RecurringItem) => void | Promise<void>
   deleteItem: (id: string) => void
   categories: Category[]
   expenseCategories: string[]
@@ -53,9 +53,14 @@ interface Props {
   updateCategory: (id: string, name: string) => void | Promise<void>
   removeCategory: (id: string) => void
   importCategoriesFromContext: (sourceContextId: string, targetContextId: string) => void | Promise<void>
+  renamePaymentMethod: (from: string, to: string, contextId?: string) => void | Promise<void>
+  renameVenue: (from: string, to: string, contextId?: string) => void | Promise<void>
+  renameLocation: (from: string, to: string, contextId?: string) => void | Promise<void>
 }
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext }: Props) {
+type SavedDataField = 'paymentMethod' | 'venue' | 'location'
+
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -117,6 +122,9 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
   const [deleteAccountError, setDeleteAccountError] = useState('')
   const [deletingAccount, setDeletingAccount] = useState(false)
+  const [editingSavedData, setEditingSavedData] = useState<{ field: SavedDataField; value: string } | null>(null)
+  const [savedDataDraft, setSavedDataDraft] = useState('')
+  const [savingSavedData, setSavingSavedData] = useState(false)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
   const placeSuggestions = useMemo(
@@ -244,6 +252,103 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
     }
   }
 
+  const hasSavedData = placeSuggestions.paymentMethods.length > 0
+    || placeSuggestions.venues.length > 0
+    || placeSuggestions.locations.length > 0
+
+  const startEditingSavedData = (field: SavedDataField, value: string) => {
+    setEditingSavedData({ field, value })
+    setSavedDataDraft(value)
+  }
+
+  const stopEditingSavedData = () => {
+    setEditingSavedData(null)
+    setSavedDataDraft('')
+  }
+
+  const saveSavedData = async () => {
+    if (!activeContext || !editingSavedData) return
+    const trimmed = savedDataDraft.trim()
+    if (!trimmed) return
+    if (normalizePlaceSuggestionKey(trimmed) === normalizePlaceSuggestionKey(editingSavedData.value)) {
+      stopEditingSavedData()
+      return
+    }
+
+    setSavingSavedData(true)
+    try {
+      if (editingSavedData.field === 'paymentMethod') {
+        await renamePaymentMethod(editingSavedData.value, trimmed, activeContext.id)
+      } else if (editingSavedData.field === 'venue') {
+        await renameVenue(editingSavedData.value, trimmed, activeContext.id)
+      } else {
+        await renameLocation(editingSavedData.value, trimmed, activeContext.id)
+      }
+      stopEditingSavedData()
+    } catch {
+    } finally {
+      setSavingSavedData(false)
+    }
+  }
+
+  const renderSavedDataGroup = (values: string[], label: string, field: SavedDataField) => {
+    if (values.length === 0) return null
+
+    return (
+      <div className="mb-3 last:mb-0">
+        <div className="mb-2 text-xs font-medium text-slate-500">{label}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {values.map(value => {
+            const isEditing = editingSavedData?.field === field
+              && normalizePlaceSuggestionKey(editingSavedData.value) === normalizePlaceSuggestionKey(value)
+
+            return (
+              <div key={`${field}-${value}`} className="max-w-full rounded-full border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-900/70">
+                {isEditing ? (
+                  <div className="flex max-w-full items-center gap-2">
+                    <input
+                      value={savedDataDraft}
+                      onChange={e => setSavedDataDraft(e.target.value)}
+                      className="w-52 max-w-[48vw] bg-transparent text-sm text-slate-700 outline-none dark:text-zinc-200"
+                      style={{ fontSize: '16px' }}
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && savedDataDraft.trim() && !savingSavedData) void saveSavedData()
+                        if (e.key === 'Escape' && !savingSavedData) stopEditingSavedData()
+                      }}
+                    />
+                    <button
+                      onClick={() => void saveSavedData()}
+                      disabled={!savedDataDraft.trim() || savingSavedData}
+                      className="app-accent text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {savingSavedData ? t('loading') : t('save')}
+                    </button>
+                    <button onClick={stopEditingSavedData} disabled={savingSavedData} className="text-xs text-slate-400 disabled:opacity-40">{t('cancel')}</button>
+                  </div>
+                ) : (
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="max-w-[12rem] truncate text-sm text-slate-700 dark:text-zinc-300 sm:max-w-[16rem]">{value}</span>
+                    <button
+                      onClick={() => startEditingSavedData(field, value)}
+                      aria-label={`${t('edit')} ${value}`}
+                      className="ml-0.5 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/80 hover:text-[#255fcb] dark:text-zinc-500 dark:hover:bg-slate-800 dark:hover:text-sky-200"
+                    >
+                      <svg viewBox="0 0 16 16" aria-hidden="true" className="h-3 w-3 fill-none stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3.5 12.5l2.1-.4 6-6a1.4 1.4 0 0 0-2-2l-6 6-.4 2.4z" />
+                        <path d="M8.8 3.8l2.4 2.4" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3 px-4 pb-6">
 
@@ -350,6 +455,19 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         removeCategory={removeCategory}
         importCategoriesFromContext={importCategoriesFromContext}
       />
+
+      <div className="app-panel p-4 sm:p-5">
+        <div className="app-kicker mb-3">{t('savedData')}</div>
+        {hasSavedData ? (
+          <>
+            {renderSavedDataGroup(placeSuggestions.paymentMethods, t('paymentMethod'), 'paymentMethod')}
+            {renderSavedDataGroup(placeSuggestions.venues, t('venue'), 'venue')}
+            {renderSavedDataGroup(placeSuggestions.locations, t('location'), 'location')}
+          </>
+        ) : (
+          <div className="app-panel-soft py-8 text-center text-xs text-slate-400">—</div>
+        )}
+      </div>
 
       {/* Contexts */}
       <div className="app-panel p-4">

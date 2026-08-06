@@ -37,9 +37,29 @@ function monthStr(month: number, year: number) {
 function AppContent({ user }: { user: User }) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
-  const { entries, loaded: entriesLoaded, addEntry, updateEntry, renameCategory: renameEntryCategory, deleteEntry } = useEntries()
+  const {
+    entries,
+    loaded: entriesLoaded,
+    addEntry,
+    updateEntry,
+    renameCategory: renameEntryCategory,
+    renamePaymentMethod: renameEntryPaymentMethod,
+    renameVenue: renameEntryVenue,
+    renameLocation: renameEntryLocation,
+    deleteEntry,
+  } = useEntries()
   const { contexts, activeContext, activeContextId, switchContext, addContext, removeContext, updateContext: saveContext, reorderContexts, convert, loaded: settingsLoaded, ratesUpdated } = useSettings()
-  const { items, loaded: recurringLoaded, addItem, updateItem, renameCategory: renameRecurringCategory, deleteItem: deleteRecurringItem } = useRecurring()
+  const {
+    items,
+    loaded: recurringLoaded,
+    addItem,
+    updateItem,
+    renameCategory: renameRecurringCategory,
+    renamePaymentMethod: renameRecurringPaymentMethod,
+    renameVenue: renameRecurringVenue,
+    renameLocation: renameRecurringLocation,
+    deleteItem: deleteRecurringItem,
+  } = useRecurring()
   const { setBudget, renameCategory: renameBudgetCategory, getBudget, loaded: budgetsLoaded } = useBudgets()
   const {
     categories,
@@ -112,6 +132,21 @@ function AppContent({ user }: { user: User }) {
 
     setEntriesCategoryFilter(prev => prev === category.name ? trimmed : prev)
   }, [activeContext?.id, categories, language, renameBudgetCategory, renameEntryCategory, renameRecurringCategory, updateCategory])
+
+  const renamePaymentMethod = useCallback(async (from: string, to: string, contextId?: string) => {
+    await renameEntryPaymentMethod(from, to, contextId)
+    await renameRecurringPaymentMethod(from, to, contextId)
+  }, [renameEntryPaymentMethod, renameRecurringPaymentMethod])
+
+  const renameVenue = useCallback(async (from: string, to: string, contextId?: string) => {
+    await renameEntryVenue(from, to, contextId)
+    await renameRecurringVenue(from, to, contextId)
+  }, [renameEntryVenue, renameRecurringVenue])
+
+  const renameLocation = useCallback(async (from: string, to: string, contextId?: string) => {
+    await renameEntryLocation(from, to, contextId)
+    await renameRecurringLocation(from, to, contextId)
+  }, [renameEntryLocation, renameRecurringLocation])
 
   const goNextMonth = useCallback(() => {
     const next = addMonths(selMonth, selYear, 1)
@@ -277,7 +312,7 @@ function AppContent({ user }: { user: User }) {
       {tab === 'entries' && <Entries entries={entries} items={items} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} items={items} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={openAddEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} importCategoriesFromContext={importCategoriesFromContext} />}
+      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} importCategoriesFromContext={importCategoriesFromContext} renamePaymentMethod={renamePaymentMethod} renameVenue={renameVenue} renameLocation={renameLocation} />}
     </>
   )
 

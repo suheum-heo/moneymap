@@ -37,6 +37,10 @@ function getMissingRecurringColumns(error: { code?: string; message?: string; de
   return missing.size > 0 ? missing : null
 }
 
+function normalizeSavedValue(value: string) {
+  return value.normalize('NFKC').trim().toLocaleLowerCase()
+}
+
 function decodeRecurringRemarks(raw: string, rawPaymentMethod?: unknown) {
   const remarks = raw || ''
   const fallbackPaymentMethod = typeof rawPaymentMethod === 'string' ? rawPaymentMethod : ''
@@ -223,6 +227,42 @@ export function useRecurring() {
     ))
   }, [items, userId])
 
+  const renamePaymentMethod = useCallback(async (from: string, to: string, contextId?: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const sourceKey = normalizeSavedValue(from)
+    const target = to.trim()
+    if (!sourceKey || sourceKey === normalizeSavedValue(target)) return
+    const matches = items.filter(item =>
+      normalizeSavedValue(item.paymentMethod || '') === sourceKey && (!contextId || item.context === contextId),
+    )
+    if (matches.length === 0) return
+    await Promise.all(matches.map(item => updateItem({ ...item, paymentMethod: target })))
+  }, [items, updateItem, userId])
+
+  const renameVenue = useCallback(async (from: string, to: string, contextId?: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const sourceKey = normalizeSavedValue(from)
+    const target = to.trim()
+    if (!sourceKey || sourceKey === normalizeSavedValue(target)) return
+    const matches = items.filter(item =>
+      normalizeSavedValue(item.venue || '') === sourceKey && (!contextId || item.context === contextId),
+    )
+    if (matches.length === 0) return
+    await Promise.all(matches.map(item => updateItem({ ...item, venue: target })))
+  }, [items, updateItem, userId])
+
+  const renameLocation = useCallback(async (from: string, to: string, contextId?: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const sourceKey = normalizeSavedValue(from)
+    const target = to.trim()
+    if (!sourceKey || sourceKey === normalizeSavedValue(target)) return
+    const matches = items.filter(item =>
+      normalizeSavedValue(item.location || '') === sourceKey && (!contextId || item.context === contextId),
+    )
+    if (matches.length === 0) return
+    await Promise.all(matches.map(item => updateItem({ ...item, location: target })))
+  }, [items, updateItem, userId])
+
   const deleteItem = useCallback(async (id: string) => {
     if (!userId) return
     const previous = items
@@ -235,5 +275,5 @@ export function useRecurring() {
     await refreshItems()
   }, [items, refreshItems, userId])
 
-  return { items, loaded, addItem, updateItem, renameCategory, deleteItem }
+  return { items, loaded, addItem, updateItem, renameCategory, renamePaymentMethod, renameVenue, renameLocation, deleteItem }
 }

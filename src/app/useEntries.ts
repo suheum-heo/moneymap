@@ -47,6 +47,10 @@ function isMissingEntryPaymentMethodColumn(error: { code?: string; message?: str
     || message.includes("'payment_method' column")
 }
 
+function normalizeSavedValue(value: string) {
+  return value.normalize('NFKC').trim().toLocaleLowerCase()
+}
+
 function buildEntryInsertPayload(entry: Entry, userId: string, includePaymentMethodColumn: boolean) {
   return {
     id: entry.id, user_id: userId, type: entry.type, date: entry.date,
@@ -150,11 +154,47 @@ export function useEntries() {
     await query
   }, [userId])
 
+  const renamePaymentMethod = useCallback(async (from: string, to: string, contextId?: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const sourceKey = normalizeSavedValue(from)
+    const target = to.trim()
+    if (!sourceKey || sourceKey === normalizeSavedValue(target)) return
+    const matches = entries.filter(entry =>
+      normalizeSavedValue(entry.paymentMethod || '') === sourceKey && (!contextId || entry.context === contextId),
+    )
+    if (matches.length === 0) return
+    await Promise.all(matches.map(entry => updateEntry({ ...entry, paymentMethod: target })))
+  }, [entries, updateEntry, userId])
+
+  const renameVenue = useCallback(async (from: string, to: string, contextId?: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const sourceKey = normalizeSavedValue(from)
+    const target = to.trim()
+    if (!sourceKey || sourceKey === normalizeSavedValue(target)) return
+    const matches = entries.filter(entry =>
+      normalizeSavedValue(entry.venue || '') === sourceKey && (!contextId || entry.context === contextId),
+    )
+    if (matches.length === 0) return
+    await Promise.all(matches.map(entry => updateEntry({ ...entry, venue: target })))
+  }, [entries, updateEntry, userId])
+
+  const renameLocation = useCallback(async (from: string, to: string, contextId?: string) => {
+    if (!userId || !from.trim() || !to.trim()) return
+    const sourceKey = normalizeSavedValue(from)
+    const target = to.trim()
+    if (!sourceKey || sourceKey === normalizeSavedValue(target)) return
+    const matches = entries.filter(entry =>
+      normalizeSavedValue(entry.location || '') === sourceKey && (!contextId || entry.context === contextId),
+    )
+    if (matches.length === 0) return
+    await Promise.all(matches.map(entry => updateEntry({ ...entry, location: target })))
+  }, [entries, updateEntry, userId])
+
   const deleteEntry = useCallback(async (id: string) => {
     if (!userId) return
     setEntries(prev => prev.filter(e => e.id !== id))
     await supabase.from('entries').delete().eq('id', id).eq('user_id', userId)
   }, [userId])
 
-  return { entries, loaded, addEntry, updateEntry, renameCategory, deleteEntry }
+  return { entries, loaded, addEntry, updateEntry, renameCategory, renamePaymentMethod, renameVenue, renameLocation, deleteEntry }
 }
