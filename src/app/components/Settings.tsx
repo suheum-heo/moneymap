@@ -125,6 +125,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [editingSavedData, setEditingSavedData] = useState<{ field: SavedDataField; value: string } | null>(null)
   const [savedDataDraft, setSavedDataDraft] = useState('')
   const [savingSavedData, setSavingSavedData] = useState(false)
+  const [savedDataOpen, setSavedDataOpen] = useState(false)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
   const placeSuggestions = useMemo(
@@ -255,6 +256,18 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const hasSavedData = placeSuggestions.paymentMethods.length > 0
     || placeSuggestions.venues.length > 0
     || placeSuggestions.locations.length > 0
+  const savedDataSummary = [
+    `${t('paymentMethod')} ${placeSuggestions.paymentMethods.length}`,
+    `${t('venue')} ${placeSuggestions.venues.length}`,
+    `${t('location')} ${placeSuggestions.locations.length}`,
+  ].join(' · ')
+
+  const toggleSavedDataOpen = () => {
+    setSavedDataOpen(open => {
+      if (open) stopEditingSavedData()
+      return !open
+    })
+  }
 
   const startEditingSavedData = (field: SavedDataField, value: string) => {
     setEditingSavedData({ field, value })
@@ -457,15 +470,31 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       />
 
       <div className="app-panel p-4 sm:p-5">
-        <div className="app-kicker mb-3">{t('savedData')}</div>
-        {hasSavedData ? (
-          <>
-            {renderSavedDataGroup(placeSuggestions.paymentMethods, t('paymentMethod'), 'paymentMethod')}
-            {renderSavedDataGroup(placeSuggestions.venues, t('venue'), 'venue')}
-            {renderSavedDataGroup(placeSuggestions.locations, t('location'), 'location')}
-          </>
-        ) : (
-          <div className="app-panel-soft py-8 text-center text-xs text-slate-400">—</div>
+        <button
+          onClick={toggleSavedDataOpen}
+          className="flex w-full items-center justify-between gap-3 text-left"
+          aria-expanded={savedDataOpen}
+        >
+          <div className="min-w-0">
+            <div className="app-kicker">{t('savedData')}</div>
+            <div className="mt-1 truncate text-xs text-slate-400">{savedDataSummary}</div>
+          </div>
+          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200/80 text-sm text-slate-400 dark:border-white/10 dark:text-zinc-500">
+            {savedDataOpen ? '▲' : '▼'}
+          </span>
+        </button>
+        {savedDataOpen && (
+          <div className="mt-4">
+            {hasSavedData ? (
+              <>
+                {renderSavedDataGroup(placeSuggestions.paymentMethods, t('paymentMethod'), 'paymentMethod')}
+                {renderSavedDataGroup(placeSuggestions.venues, t('venue'), 'venue')}
+                {renderSavedDataGroup(placeSuggestions.locations, t('location'), 'location')}
+              </>
+            ) : (
+              <div className="app-panel-soft py-8 text-center text-xs text-slate-400">—</div>
+            )}
+          </div>
         )}
       </div>
 
