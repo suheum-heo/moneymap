@@ -34,6 +34,29 @@ function unescapeJsonString(value: string): string {
     .replace(/\\\\/g, '\\')
 }
 
+function unescapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function getMetaContent(html: string, key: string): string {
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const tag = html.match(new RegExp(`<meta\\b(?=[^>]*(?:property|name)=["']${escapedKey}["'])[^>]*>`, 'i'))?.[0] || ''
+  const content = tag.match(/\bcontent=["']([^"']*)["']/i)?.[1] || ''
+  return unescapeHtmlAttribute(content).replace(/[\u0000-\u001f]/g, '').trim()
+}
+
+function cleanNaverMetaTitle(value: string): string {
+  return value
+    .replace(/\s*[-:]\s*네이버\s*지도\s*$/u, '')
+    .replace(/\s*[-:]\s*네이버지도\s*$/u, '')
+    .trim()
+}
+
 /** Fast path: pull name + address from a partial HTML buffer without full Apollo parse. */
 export function parsePlaceHtml(html: string, placeId?: string): { name: string; address: string } | null {
   const baseKey = placeId ? `PlaceDetailBase:${placeId}` : 'PlaceDetailBase:'
@@ -61,11 +84,12 @@ export function parsePlaceHtml(html: string, placeId?: string): { name: string; 
     }
   }
 
-  const og = html.match(/property="og:title"\s+content="([^"]+)"/i)
+  const ogTitle = getMetaContent(html, 'og:title')
+  const ogDescription = getMetaContent(html, 'og:description') || getMetaContent(html, 'twitter:description')
   const road = html.match(/"roadAddress"\s*:\s*"((?:\\.|[^"\\])*)"/)
   const jibun = html.match(/"address"\s*:\s*"((?:\\.|[^"\\])*)"/)
-  const name = og?.[1]?.replace(/\s*:\s*네이버.*$/u, '').replace(/[\u0000-\u001f]/g, '').trim() || ''
-  const address = unescapeJsonString(road?.[1] || jibun?.[1] || '')
+  const name = cleanNaverMetaTitle(ogTitle)
+  const address = unescapeJsonString(road?.[1] || jibun?.[1] || '') || ogDescription
   if (name && address) return { name, address }
   return null
 }
