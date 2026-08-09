@@ -515,14 +515,8 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     { label: t('net'), value: (periodNet < 0 ? '-' : '') + fmt(periodNet), sub: fmtHome(periodNetHome), color: periodNet < 0 ? 'app-negative' : 'app-accent' },
   ]
 
-  const catRows = useMemo(() => {
-    const rows = []
-    for (let i = 0; i < byCategory.length; i += 2) rows.push(byCategory.slice(i, i + 2))
-    return rows
-  }, [byCategory])
-
   return (
-    <div className="px-4 pb-6">
+    <div className="overflow-x-hidden px-4 pb-6">
       <EntryEditModal
         entry={editEntry}
         entries={entries}
@@ -696,103 +690,93 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
               <div className="text-right text-xs text-slate-400">{t('categoryCount', { count: byCategory.length })}</div>
             </div>
 
-            <div className="space-y-3">
-              {catRows.map((row, rowIdx) => {
-                const expandedInRow = row.find(([cat]) => cat === expandedCat)
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+              {byCategory.map(([cat, amt]) => {
+                const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
+                const col = getCategoryColor(cat, 'expense')
+                const budget = activeContext ? getBudget(activeContext.id, cat) : null
+                const budgetPct = budget ? (amt / budget) * 100 : null
+                const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
+                const isDanger = budgetPct !== null && budgetPct >= 100
+                const isExpanded = expandedCat === cat
+                const catEntriesForCat = isExpanded
+                  ? sortEntriesForDisplay(
+                    monthEntries.filter(e => e.type === 'expense' && e.category === cat),
+                    sortOrder,
+                  )
+                  : []
                 return (
-                  <div key={rowIdx} className="space-y-2">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {row.map(([cat, amt]) => {
-                        const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
-                        const col = getCategoryColor(cat, 'expense')
-                        const budget = activeContext ? getBudget(activeContext.id, cat) : null
-                        const budgetPct = budget ? (amt / budget) * 100 : null
-                        const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
-                        const isDanger = budgetPct !== null && budgetPct >= 100
-                        const isExpanded = expandedCat === cat
-                        return (
-                          <button
-                            key={cat}
-                            onClick={() => setExpandedCat(isExpanded ? null : cat)}
-                            className="app-list-row text-left transition-transform hover:-translate-y-0.5"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: col }} />
-                                  <span className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{cat}</span>
-                                  {isDanger && <span className="app-negative text-xs font-medium">{t('overBudget')}</span>}
-                                  {isWarning && <span className="text-xs font-medium text-amber-500">80%</span>}
-                                </div>
-                                <div className="mt-2 text-xs text-slate-400">{pct}%</div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
-                                {budget && <div className="mt-1 text-xs text-slate-400">/ {formatAmount(budget, cur)}</div>}
-                                <div className="mt-2 text-xs text-slate-400">{isExpanded ? '▲' : '▼'}</div>
-                              </div>
-                            </div>
-                            {budget && (
-                              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
-                                <div
-                                  className="h-full rounded-full transition-all"
-                                  style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#d97784' : isWarning ? '#e7ae4b' : softenColor(col, 0.12, 0.95) }}
-                                />
-                              </div>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    {expandedInRow && (() => {
-                      const [cat, amt] = expandedInRow
-                      const col = getCategoryColor(cat, 'expense')
-                      const catEntriesForCat = sortEntriesForDisplay(
-                        monthEntries.filter(e => e.type === 'expense' && e.category === cat),
-                        sortOrder,
-                      )
-                      return (
-                        <div className="rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
-                          <div className="space-y-2">
-                            {catEntriesForCat.map(e => {
-                              const entryCurrency = getEntryCurrency(e, cur, homeCur)
-                              return (
-                                <button
-                                  key={e.id}
-                                  onClick={() => setEditEntry(e)}
-                                  className="app-list-row flex w-full cursor-pointer items-center gap-3 !rounded-[20px] !px-3 !py-3 text-left transition-all hover:border-slate-300/85 hover:bg-white/92 dark:hover:border-white/15 dark:hover:bg-slate-900/80"
-                                >
-                                  <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
-                                  <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                    {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
-                                    {e.paymentMethod && <div className="truncate text-xs text-slate-400">{e.paymentMethod}</div>}
-                                  </div>
-                                  <div className="flex-shrink-0">
-                                    <div className="text-sm font-semibold" style={{ color: col }}>
-                                      -{formatAmount(e.amount, entryCurrency)}
-                                    </div>
-                                  </div>
-                                </button>
-                              )
-                            })}
+                  <div key={cat} className="min-w-0 space-y-2">
+                    <button
+                      onClick={() => setExpandedCat(isExpanded ? null : cat)}
+                      className="app-list-row w-full min-w-0 text-left transition-transform sm:hover:-translate-y-0.5"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
+                            <span className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{cat}</span>
+                            {isDanger && <span className="app-negative flex-shrink-0 text-xs font-medium">{t('overBudget')}</span>}
+                            {isWarning && <span className="flex-shrink-0 text-xs font-medium text-amber-500">80%</span>}
                           </div>
-                          <div className="flex items-center justify-between gap-3 px-2 pt-3">
-                            <div className="text-xs text-slate-400">
-                              {t('entryCount', { count: catEntriesForCat.length })} · {t('total')} {formatAmount(amt, cur)}
-                            </div>
-                            <button
-                              onClick={() => onNavigate('entries', 'expense', cat)}
-                              className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] transition-colors hover:text-[#255fcb] dark:text-sky-300 dark:hover:text-sky-200"
-                            >
-                              {t('viewAllInEntries')}
-                            </button>
-                          </div>
+                          <div className="mt-2 text-xs text-slate-400">{pct}%</div>
                         </div>
-                      )
-                    })()}
+                        <div className="flex-shrink-0 text-right">
+                          <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
+                          {budget && <div className="mt-1 text-xs text-slate-400">/ {formatAmount(budget, cur)}</div>}
+                          <div className="mt-2 text-xs text-slate-400">{isExpanded ? '▲' : '▼'}</div>
+                        </div>
+                      </div>
+                      {budget && (
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${Math.min(budgetPct || 0, 100)}%`, background: isDanger ? '#d97784' : isWarning ? '#e7ae4b' : softenColor(col, 0.12, 0.95) }}
+                          />
+                        </div>
+                      )}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="min-w-0 overflow-hidden rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
+                        <div className="space-y-2">
+                          {catEntriesForCat.map(e => {
+                            const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                            return (
+                              <button
+                                key={e.id}
+                                onClick={() => setEditEntry(e)}
+                                className="app-list-row flex w-full min-w-0 cursor-pointer items-center gap-3 !rounded-[20px] !px-3 !py-3 text-left transition-colors hover:border-slate-300/85 hover:bg-white/92 dark:hover:border-white/15 dark:hover:bg-slate-900/80"
+                              >
+                                <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
+                                <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
+                                  {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                                  {e.paymentMethod && <div className="truncate text-xs text-slate-400">{e.paymentMethod}</div>}
+                                </div>
+                                <div className="min-w-0 flex-shrink-0 text-right">
+                                  <div className="text-sm font-semibold" style={{ color: col }}>
+                                    -{formatAmount(e.amount, entryCurrency)}
+                                  </div>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <div className="flex min-w-0 items-center justify-between gap-3 px-2 pt-3">
+                          <div className="min-w-0 truncate text-xs text-slate-400">
+                            {t('entryCount', { count: catEntriesForCat.length })} · {t('total')} {formatAmount(amt, cur)}
+                          </div>
+                          <button
+                            onClick={() => onNavigate('entries', 'expense', cat)}
+                            className="flex-shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] transition-colors hover:text-[#255fcb] dark:text-sky-300 dark:hover:text-sky-200"
+                          >
+                            {t('viewAllInEntries')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
