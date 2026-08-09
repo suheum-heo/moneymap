@@ -5,6 +5,13 @@ import { supabase } from './lib/supabase'
 import { useUserId } from './UserContext'
 
 export interface ExchangeRate { from: string; to: string; rate: number }
+export type RateSource = 'market' | 'visa' | 'mastercard'
+
+interface LiveRatesResult {
+  rates: ExchangeRate[]
+  source: RateSource
+  fallback: boolean
+}
 
 const FALLBACK_RATES: ExchangeRate[] = [
   { from: 'KRW', to: 'USD', rate: 0.00073 },
@@ -19,33 +26,78 @@ const FALLBACK_RATES: ExchangeRate[] = [
 
 const CURRENCIES_TO_FETCH = ['USD', 'KRW', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'SGD', 'HKD', 'THB', 'VND', 'MXN', 'BRL', 'INR']
 const CONTEXT_ORDER_KEY_PREFIX = 'gagyebu-context-order'
+const RATE_SOURCE_KEY = 'gagyebu-rate-source'
+const CARD_FEE_KEY = 'gagyebu-card-fee-pct'
+const RATES_KEY_PREFIX = 'gagyebu-rates'
+const RATES_TIMESTAMP_KEY_PREFIX = 'gagyebu-rates-timestamp'
 
-async function fetchLiveRates(): Promise<ExchangeRate[]> {
+function normalizeRateSource(value: unknown): RateSource {
+  if (value === 'visa' || value === 'mastercard') return value
+  return 'market'
+}
+
+function normalizeCardFeePct(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return 0
+  return Math.min(Math.max(parsed, 0), 20)
+}
+
+function getRatesKey(source: RateSource, fee: number) {
+  return `${RATES_KEY_PREFIX}:${source}:${fee.toFixed(4)}`
+}
+
+function getRatesTimestampKey(source: RateSource, fee: number) {
+  return `${RATES_TIMESTAMP_KEY_PREFIX}:${source}:${fee.toFixed(4)}`
+}
+
+function buildRatesFromUsdBase(usdRates: Record<string, number>): ExchangeRate[] {
+  const rates: ExchangeRate[] = []
+
+  for (const [to, rate] of Object.entries(usdRates)) {
+    rates.push({ from: 'USD', to, rate: rate as number })
+    rates.push({ from: to, to: 'USD', rate: 1 / (rate as number) })
+  }
+
+  const currencies = Object.keys(usdRates)
+  for (const from of currencies) {
+    for (const to of currencies) {
+      if (from === to) continue
+      const fromUSD = 1 / (usdRates[from] as number)
+      const toRate = usdRates[to] as number
+      rates.push({ from, to, rate: fromUSD * toRate })
+    }
+  }
+
+  return rates
+}
+
+async function fetchLiveRates(source: RateSource, cardFeePct: number): Promise<LiveRatesResult> {
   try {
-    const res = await fetch('/api/rates')
+    const params = new URLSearchParams({ source, fee: cardFeePct.toString() })
+    const res = await fetch(`/api/rates?${params.toString()}`)
     if (!res.ok) throw new Error('Failed')
     const data = await res.json()
-    const rates: ExchangeRate[] = []
+    const effectiveSource = normalizeRateSource(data.source)
+    const fallback = Boolean(data.fallback)
+    if (Array.isArray(data.pairs)) {
+      const rates = data.pairs
+        .filter((rate: ExchangeRate) =>
+          typeof rate?.from === 'string' &&
+          typeof rate?.to === 'string' &&
+          Number.isFinite(Number(rate.rate)) &&
+          Number(rate.rate) > 0,
+        )
+        .map((rate: ExchangeRate) => ({
+          from: normalizeCurrencyCode(rate.from),
+          to: normalizeCurrencyCode(rate.to),
+          rate: Number(rate.rate),
+        }))
+      return { rates, source: effectiveSource, fallback }
+    }
     const usdRates: Record<string, number> = data.rates
-
-    for (const [to, rate] of Object.entries(usdRates)) {
-      rates.push({ from: 'USD', to, rate: rate as number })
-      rates.push({ from: to, to: 'USD', rate: 1 / (rate as number) })
-    }
-
-    const currencies = Object.keys(usdRates)
-    for (const from of currencies) {
-      for (const to of currencies) {
-        if (from === to) continue
-        const fromUSD = 1 / (usdRates[from] as number)
-        const toRate = usdRates[to] as number
-        rates.push({ from, to, rate: fromUSD * toRate })
-      }
-    }
-
-    return rates
+    return { rates: buildRatesFromUsdBase(usdRates), source: effectiveSource, fallback }
   } catch {
-    return []
+    return { rates: [], source: 'market', fallback: source !== 'market' }
   }
 }
 
@@ -126,6 +178,10 @@ export function useSettings() {
   const [rates, setRates] = useState<ExchangeRate[]>(FALLBACK_RATES)
   const [loaded, setLoaded] = useState(false)
   const [ratesUpdated, setRatesUpdated] = useState<Date | null>(null)
+  const [rateSource, setRateSourceState] = useState<RateSource>('market')
+  const [effectiveRateSource, setEffectiveRateSource] = useState<RateSource>('market')
+  const [rateFallback, setRateFallback] = useState(false)
+  const [cardFeePct, setCardFeePctState] = useState(0)
 
   useEffect(() => {
     contextsRef.current = contexts
@@ -136,11 +192,11 @@ export function useSettings() {
 
     try {
       const a = localStorage.getItem('gagyebu-active-context')
-      const r = localStorage.getItem('gagyebu-rates')
-      const rts = localStorage.getItem('gagyebu-rates-timestamp')
+      const storedRateSource = normalizeRateSource(localStorage.getItem(RATE_SOURCE_KEY))
+      const storedCardFeePct = normalizeCardFeePct(localStorage.getItem(CARD_FEE_KEY))
       if (a) setActiveContextId(a)
-      if (r) setRates(JSON.parse(r))
-      if (rts) setRatesUpdated(new Date(rts))
+      setRateSourceState(storedRateSource)
+      setCardFeePctState(storedCardFeePct)
     } catch {}
 
     supabase.from('contexts').select('*').eq('user_id', userId)
@@ -159,21 +215,56 @@ export function useSettings() {
         setLoaded(true)
       })
 
-    const lastFetch = localStorage.getItem('gagyebu-rates-timestamp')
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    const normalizedFee = normalizeCardFeePct(cardFeePct)
+    const ratesKey = getRatesKey(rateSource, normalizedFee)
+    const timestampKey = getRatesTimestampKey(rateSource, normalizedFee)
+
+    try {
+      const legacyRates = rateSource === 'market' ? localStorage.getItem(RATES_KEY_PREFIX) : null
+      const legacyTimestamp = rateSource === 'market' ? localStorage.getItem(RATES_TIMESTAMP_KEY_PREFIX) : null
+      const storedRates = localStorage.getItem(ratesKey) || legacyRates
+      const storedTimestamp = localStorage.getItem(timestampKey) || legacyTimestamp
+      if (storedRates) setRates(JSON.parse(storedRates))
+      else setRates(FALLBACK_RATES)
+      if (storedTimestamp) setRatesUpdated(new Date(storedTimestamp))
+      else setRatesUpdated(null)
+      setEffectiveRateSource(rateSource)
+      setRateFallback(false)
+    } catch {
+      setRates(FALLBACK_RATES)
+      setRatesUpdated(null)
+      setEffectiveRateSource('market')
+      setRateFallback(rateSource !== 'market')
+    }
+
+    const lastFetch = localStorage.getItem(timestampKey)
+      || (rateSource === 'market' ? localStorage.getItem(RATES_TIMESTAMP_KEY_PREFIX) : null)
     const shouldFetch = !lastFetch || Date.now() - new Date(lastFetch).getTime() > 60 * 60 * 1000
 
     if (shouldFetch) {
-      fetchLiveRates().then(liveRates => {
-        if (liveRates.length > 0) {
-          setRates(liveRates)
+      fetchLiveRates(rateSource, normalizedFee).then(result => {
+        if (result.rates.length > 0) {
+          setRates(result.rates)
+          setEffectiveRateSource(result.source)
+          setRateFallback(result.fallback)
           const now = new Date()
-          localStorage.setItem('gagyebu-rates', JSON.stringify(liveRates))
-          localStorage.setItem('gagyebu-rates-timestamp', now.toISOString())
+          if (!result.fallback) {
+            localStorage.setItem(ratesKey, JSON.stringify(result.rates))
+            localStorage.setItem(timestampKey, now.toISOString())
+          }
+          if (result.source === 'market') {
+            localStorage.setItem(RATES_KEY_PREFIX, JSON.stringify(result.rates))
+            localStorage.setItem(RATES_TIMESTAMP_KEY_PREFIX, now.toISOString())
+          }
           setRatesUpdated(now)
         }
       })
     }
-  }, [userId])
+  }, [cardFeePct, rateSource, userId])
 
   const addContext = useCallback(async (ctx: Context) => {
     if (!userId) return
@@ -276,9 +367,21 @@ export function useSettings() {
   const updateRate = useCallback((from: string, to: string, rate: number) => {
     setRates(prev => {
       const next = [...prev.filter(r => !(r.from === from && r.to === to)), { from, to, rate }]
-      localStorage.setItem('gagyebu-rates', JSON.stringify(next))
+      localStorage.setItem(getRatesKey(rateSource, cardFeePct), JSON.stringify(next))
       return next
     })
+  }, [cardFeePct, rateSource])
+
+  const setRateSource = useCallback((source: RateSource) => {
+    const next = normalizeRateSource(source)
+    setRateSourceState(next)
+    localStorage.setItem(RATE_SOURCE_KEY, next)
+  }, [])
+
+  const setCardFeePct = useCallback((fee: number) => {
+    const next = normalizeCardFeePct(fee)
+    setCardFeePctState(next)
+    localStorage.setItem(CARD_FEE_KEY, String(next))
   }, [])
 
   const convert = useCallback((amount: number, from: string, to: string): number => {
@@ -295,5 +398,10 @@ export function useSettings() {
 
   const activeContext = contexts.find(c => c.id === activeContextId) || contexts[0]
 
-  return { contexts, addContext, removeContext, renameContext, updateContext, reorderContexts, activeContext, activeContextId, switchContext, rates, updateRate, convert, loaded, ratesUpdated }
+  return {
+    contexts, addContext, removeContext, renameContext, updateContext, reorderContexts,
+    activeContext, activeContextId, switchContext,
+    rates, updateRate, convert, loaded, ratesUpdated,
+    rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct,
+  }
 }

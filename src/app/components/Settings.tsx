@@ -21,6 +21,7 @@ import {
   parseCurrencyInput,
 } from '../types'
 import { getContextPlaceSuggestions, normalizePlaceSuggestionKey } from '../lib/placeSuggestions'
+import type { RateSource } from '../useSettings'
 import { RecurringItem } from '../useRecurring'
 import { Category } from '../useCategories'
 import LanguageSelector from './LanguageSelector'
@@ -39,6 +40,12 @@ interface Props {
   convert: (amount: number, from: string, to: string) => number
   activeContext?: Context
   ratesUpdated: Date | null
+  rateSource: RateSource
+  effectiveRateSource: RateSource
+  rateFallback: boolean
+  setRateSource: (source: RateSource) => void
+  cardFeePct: number
+  setCardFeePct: (fee: number) => void
   setBudget: (context: string, category: string, amount: number) => void
   getBudget: (context: string, category: string) => number | null
   entries: Entry[]
@@ -60,7 +67,7 @@ interface Props {
 
 type SavedDataField = 'paymentMethod' | 'venue' | 'location'
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -101,6 +108,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
   const [rateFrom, setRateFrom] = useState('USD')
   const [rateTo, setRateTo] = useState('KRW')
+  const rateSourceOptions: Array<{ value: RateSource; label: string }> = [
+    { value: 'market', label: t('rateSourceMarket') },
+    { value: 'visa', label: t('rateSourceVisa') },
+    { value: 'mastercard', label: t('rateSourceMastercard') },
+  ]
 
   const [budgetCat, setBudgetCat] = useState(expenseCategoryOptions[0] || EXPENSE_CATEGORIES[0])
   const [budgetAmt, setBudgetAmt] = useState('')
@@ -239,6 +251,13 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         localStorage.removeItem('gagyebu-active-context')
         localStorage.removeItem('gagyebu-rates')
         localStorage.removeItem('gagyebu-rates-timestamp')
+        localStorage.removeItem('gagyebu-rate-source')
+        localStorage.removeItem('gagyebu-card-fee-pct')
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('gagyebu-rates:') || key.startsWith('gagyebu-rates-timestamp:')) {
+            localStorage.removeItem(key)
+          }
+        })
         localStorage.removeItem('gagyebu-entry-sort-order')
         localStorage.removeItem('theme')
         localStorage.removeItem('gagyebu-lang')
@@ -745,6 +764,46 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           {ratesUpdated && <div className="text-xs text-slate-400">{t('updatedAt', { time: formatLocaleTime(ratesUpdated, language) })}</div>}
         </div>
         <div className="app-panel-soft min-w-0 overflow-hidden p-3.5">
+          <div className="mb-3">
+            <label className="app-kicker mb-2 block">{t('exchangeRateSource')}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {rateSourceOptions.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setRateSource(option.value)}
+                  className={`app-segment px-2 py-2.5 text-xs ${rateSource === option.value ? 'app-segment-active' : ''}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {rateSource !== 'market' && (
+            <div className="mb-3">
+              <label className="app-kicker mb-2 block">{t('cardFeePercent')}</label>
+              <input
+                type="number"
+                min="0"
+                max="20"
+                step="0.01"
+                value={cardFeePct}
+                onChange={e => setCardFeePct(Number(e.target.value))}
+                placeholder={t('cardFeePlaceholder')}
+                className={inputCls}
+                style={{ fontSize: '16px' }}
+              />
+              <p className="mt-1 text-xs text-slate-400">{t('cardRateHint')}</p>
+            </div>
+          )}
+          {rateFallback && (
+            <div className="mb-3 rounded-[18px] border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200">
+              {t('rateSourceFallback', {
+                requested: rateSourceOptions.find(option => option.value === rateSource)?.label || rateSource,
+                actual: rateSourceOptions.find(option => option.value === effectiveRateSource)?.label || effectiveRateSource,
+              })}
+            </div>
+          )}
           <div className="mb-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
             <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} min-w-0 w-full truncate`} style={{ fontSize: '16px' }}>
               {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
@@ -772,6 +831,13 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
               localStorage.removeItem('gagyebu-active-context')
               localStorage.removeItem('gagyebu-rates')
               localStorage.removeItem('gagyebu-rates-timestamp')
+              localStorage.removeItem('gagyebu-rate-source')
+              localStorage.removeItem('gagyebu-card-fee-pct')
+              Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('gagyebu-rates:') || key.startsWith('gagyebu-rates-timestamp:')) {
+                  localStorage.removeItem(key)
+                }
+              })
               localStorage.removeItem('theme')
               localStorage.removeItem('gagyebu-lang')
               window.location.reload()
