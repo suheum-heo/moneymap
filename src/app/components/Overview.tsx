@@ -798,16 +798,16 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
       )}
 
       {byLocation.length > 0 && (
-        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,1.05fr)]">
-          <div className="app-panel p-4 sm:p-5">
+        <div className="mt-3 grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <div className="app-panel min-w-0 overflow-hidden p-4 sm:p-5">
             <div className="mb-4">
               <div className="app-kicker mb-2">{t('location')}</div>
               <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t('locationBreakdown')}</h3>
             </div>
 
             {byLocationRegion.length > 0 && (
-              <div className="mb-5 overflow-hidden rounded-[24px] border border-teal-200/80 bg-gradient-to-br from-teal-50/95 via-white to-cyan-50/70 shadow-[0_14px_28px_-26px_rgba(13,148,136,0.55)] dark:border-teal-400/20 dark:from-teal-950/40 dark:via-slate-950/70 dark:to-cyan-950/30">
-                <div className="flex items-center justify-between gap-3 border-b border-teal-200/70 px-4 py-3 dark:border-teal-400/15">
+              <div className="mb-5 min-w-0 overflow-hidden rounded-[24px] border border-teal-200/80 bg-gradient-to-br from-teal-50/95 via-white to-cyan-50/70 shadow-[0_14px_28px_-26px_rgba(13,148,136,0.55)] dark:border-teal-400/20 dark:from-teal-950/40 dark:via-slate-950/70 dark:to-cyan-950/30">
+                <div className="flex min-w-0 items-center justify-between gap-3 border-b border-teal-200/70 px-4 py-3 dark:border-teal-400/15">
                   <div className="min-w-0">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700/80 dark:text-teal-300/80">
                       {t('byRegion')}
@@ -820,16 +820,16 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                     {t('regionCount', { count: byLocationRegion.length })}
                   </div>
                 </div>
-                <div className="grid gap-2 p-3 sm:grid-cols-2">
+                <div className="grid min-w-0 gap-2 p-3 sm:grid-cols-2">
                   {byLocationRegion.map(([region, amt]) => {
                     const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                     return (
                       <div
                         key={region}
-                        className="rounded-[18px] border border-teal-200/70 bg-white/85 px-3.5 py-3 dark:border-teal-400/15 dark:bg-slate-950/55"
+                        className="min-w-0 overflow-hidden rounded-[18px] border border-teal-200/70 bg-white/85 px-3.5 py-3 dark:border-teal-400/15 dark:bg-slate-950/55"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
+                        <div className="flex min-w-0 items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
                             <div className="truncate text-[15px] font-semibold tracking-tight text-teal-950 dark:text-teal-50">
                               {region}
                             </div>
@@ -837,7 +837,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                               {pct}%
                             </div>
                           </div>
-                          <div className="flex-shrink-0 text-sm font-semibold text-teal-900 dark:text-teal-50">
+                          <div className="flex-shrink-0 whitespace-nowrap text-sm font-semibold text-teal-900 dark:text-teal-50">
                             {formatAmount(amt, cur)}
                           </div>
                         </div>
@@ -863,18 +863,18 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               {byLocation.map(([loc, amt]) => {
                 const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                 const isExpanded = expandedLocation === loc
                 return (
-                  <div key={loc} className="space-y-2">
+                  <div key={loc} className="min-w-0 space-y-2">
                     <button
                       onClick={() => setExpandedLocation(prev => prev === loc ? null : loc)}
-                      className={`app-list-row w-full cursor-pointer border-l-[3px] border-l-[#8eb6f7] text-left transition-all hover:-translate-y-0.5 hover:border-slate-300/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3182f6]/10 dark:border-l-sky-400/50 dark:hover:border-white/15 ${isExpanded ? 'border-[#d7e4fb] border-l-[#5b8ef0] bg-[#f8fbff] shadow-[0_16px_28px_-24px_rgba(49,130,246,0.28)] dark:border-sky-400/15 dark:border-l-sky-300 dark:bg-slate-950/70' : ''}`}
+                      className={`app-list-row w-full min-w-0 cursor-pointer overflow-hidden border-l-[3px] border-l-[#8eb6f7] text-left transition-all sm:hover:-translate-y-0.5 sm:hover:border-slate-300/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3182f6]/10 dark:border-l-sky-400/50 dark:sm:hover:border-white/15 ${isExpanded ? 'border-[#d7e4fb] border-l-[#5b8ef0] bg-[#f8fbff] shadow-[0_16px_28px_-24px_rgba(49,130,246,0.28)] dark:border-sky-400/15 dark:border-l-sky-300 dark:bg-slate-950/70' : ''}`}
                     >
-                      <div className="mb-2 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                      <div className="mb-2 flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{loc}</div>
                           <div className="mt-1 text-xs text-slate-400">{pct}%</div>
                         </div>
@@ -883,17 +883,17 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                           <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180 text-[#5b8ef0]' : 'text-slate-400 dark:text-slate-500'}`} />
                         </div>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
                         <div className="h-full rounded-full bg-[#5b8ef0]" style={{ width: `${pct}%` }} />
                       </div>
                       <div className="mt-3 text-right text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(amt, cur)}</div>
                     </button>
 
                     {isExpanded && (
-                      <div className="ml-3 rounded-[20px] border border-[#d7e4fb] bg-slate-50/90 px-3 py-3 shadow-[0_12px_22px_-24px_rgba(49,130,246,0.35)] dark:border-sky-400/15 dark:bg-slate-950/55">
-                        <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0 overflow-hidden rounded-[20px] border border-[#d7e4fb] bg-slate-50/90 px-3 py-3 shadow-[0_12px_22px_-24px_rgba(49,130,246,0.35)] sm:ml-3 dark:border-sky-400/15 dark:bg-slate-950/55">
+                        <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="app-kicker mb-1">{loc}</div>
+                            <div className="app-kicker mb-1 truncate">{loc}</div>
                             <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">
                               {t('entryCount', { count: locationEntries.length })}
                             </div>
@@ -909,7 +909,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                         {locationEntries.length === 0 ? (
                           <div className="app-panel-soft py-5 text-center text-sm text-slate-400">{t('noEntriesForLocation')}</div>
                         ) : (
-                          <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
+                          <div className="max-h-[400px] min-w-0 space-y-2 overflow-y-auto pr-1">
                             {locationEntries.map(e => {
                               const entryCurrency = getEntryCurrency(e, cur, homeCur)
                               const col = getCategoryColor(e.category, e.type)
@@ -917,12 +917,12 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                 <button
                                   key={e.id}
                                   onClick={() => setEditEntry(e)}
-                                  className="app-list-row flex w-full cursor-pointer items-start gap-3 !rounded-[18px] !px-3 !py-3 text-left transition-all hover:border-slate-300/85 hover:bg-white/92 dark:hover:border-white/15 dark:hover:bg-slate-900/80"
+                                  className="app-list-row flex w-full min-w-0 cursor-pointer items-start gap-3 overflow-hidden !rounded-[18px] !px-3 !py-3 text-left transition-all sm:hover:border-slate-300/85 sm:hover:bg-white/92 dark:sm:hover:border-white/15 dark:sm:hover:bg-slate-900/80"
                                 >
                                   <div className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
                                   <div className="min-w-0 flex-1">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="min-w-0">
+                                    <div className="flex min-w-0 items-start justify-between gap-3">
+                                      <div className="min-w-0 flex-1">
                                         <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
                                         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
                                           <span>{formatEntryDate(e.date, language)}</span>
@@ -938,7 +938,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                         {e.paymentMethod && <div className="mt-1 truncate text-xs text-slate-400">{e.paymentMethod}</div>}
                                         {e.remarks && <div className="mt-1 truncate text-xs text-slate-400">{e.remarks}</div>}
                                       </div>
-                                      <div className="flex-shrink-0 text-sm font-semibold" style={{ color: col }}>
+                                      <div className="flex-shrink-0 whitespace-nowrap text-sm font-semibold" style={{ color: col }}>
                                         {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
                                       </div>
                                     </div>
