@@ -95,7 +95,7 @@ function normalizeKoreanAddressCandidate(line: string): string {
     .trim()
 }
 
-function looksLikeKoreanAddress(line: string): boolean {
+export function looksLikeKoreanAddress(line: string): boolean {
   const candidate = normalizeKoreanAddressCandidate(line)
   return KOREAN_ADMIN_AREA_RE.test(candidate)
     || /(특별시|광역시|특별자치시|특별자치도|도)\s+[^\s]+(?:시|군|구|읍|면|동)(?:\s|$)/.test(candidate)

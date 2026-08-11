@@ -2,6 +2,7 @@ import {
   extractNaverPlaceId,
   findNaverMapUrlInText,
   looksLikeNaverMapUrl,
+  looksLikeKoreanAddress,
   toLocationArea,
   type NaverPlaceInfo,
 } from './naverPlace'
@@ -52,9 +53,18 @@ function getMetaContent(html: string, key: string): string {
 
 function cleanNaverMetaTitle(value: string): string {
   return value
+    .replace(/[\u0000-\u001f]/g, '')
     .replace(/\s*[-:]\s*네이버\s*지도\s*$/u, '')
     .replace(/\s*[-:]\s*네이버지도\s*$/u, '')
+    .replace(/\s*[-:]\s*네이버\s*$/u, '')
     .trim()
+}
+
+function isUsableNaverAddress(value: string): boolean {
+  const cleaned = value.replace(/\s+/g, ' ').trim()
+  if (!cleaned) return false
+  if (/(?:방문자|블로그)?리뷰\s*\d|별점|저장|공유|네이버\s*플레이스/u.test(cleaned)) return false
+  return looksLikeKoreanAddress(cleaned)
 }
 
 /** Fast path: pull name + address from a partial HTML buffer without full Apollo parse. */
@@ -66,10 +76,11 @@ export function parsePlaceHtml(html: string, placeId?: string): { name: string; 
     const nameMatch = slice.match(/"name"\s*:\s*"((?:\\.|[^"\\])*)"/)
     const roadMatch = slice.match(/"roadAddress"\s*:\s*"((?:\\.|[^"\\])*)"/)
     const addrMatch = slice.match(/"address"\s*:\s*"((?:\\.|[^"\\])*)"/)
-    if (nameMatch?.[1] && (roadMatch?.[1] || addrMatch?.[1])) {
+    const address = unescapeJsonString(roadMatch?.[1] || addrMatch?.[1] || '')
+    if (nameMatch?.[1] && isUsableNaverAddress(address)) {
       return {
         name: unescapeJsonString(nameMatch[1]),
-        address: unescapeJsonString(roadMatch?.[1] || addrMatch?.[1] || ''),
+        address,
       }
     }
   }
@@ -77,7 +88,7 @@ export function parsePlaceHtml(html: string, placeId?: string): { name: string; 
   const pair = html.match(
     /"name"\s*:\s*"((?:\\.|[^"\\])*)"\s*,\s*"reviewSettings"[\s\S]{0,600}?"roadAddress"\s*:\s*"((?:\\.|[^"\\])*)"/,
   )
-  if (pair) {
+  if (pair && isUsableNaverAddress(unescapeJsonString(pair[2]))) {
     return {
       name: unescapeJsonString(pair[1]),
       address: unescapeJsonString(pair[2]),
@@ -89,8 +100,9 @@ export function parsePlaceHtml(html: string, placeId?: string): { name: string; 
   const road = html.match(/"roadAddress"\s*:\s*"((?:\\.|[^"\\])*)"/)
   const jibun = html.match(/"address"\s*:\s*"((?:\\.|[^"\\])*)"/)
   const name = cleanNaverMetaTitle(ogTitle)
-  const address = unescapeJsonString(road?.[1] || jibun?.[1] || '') || ogDescription
-  if (name && address) return { name, address }
+  const jsonAddress = unescapeJsonString(road?.[1] || jibun?.[1] || '')
+  if (name && isUsableNaverAddress(jsonAddress)) return { name, address: jsonAddress }
+  if (name && isUsableNaverAddress(ogDescription)) return { name, address: ogDescription }
   return null
 }
 
