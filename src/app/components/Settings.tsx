@@ -310,7 +310,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
     setSavingSavedData(true)
     try {
       if (editingSavedData.field === 'paymentMethod') {
-        await renamePaymentMethod(editingSavedData.value, trimmed, activeContext.id)
+        await renamePaymentMethod(editingSavedData.value, trimmed)
       } else if (editingSavedData.field === 'venue') {
         await renameVenue(editingSavedData.value, trimmed, activeContext.id)
       } else {

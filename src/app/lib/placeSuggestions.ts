@@ -46,13 +46,11 @@ export function getContextPlaceSuggestions(
   contextId?: string,
   paymentMethodSources: PaymentMethodSuggestionSource[] = [],
 ): PlaceSuggestions {
-  if (!contextId) return EMPTY_SUGGESTIONS
-
   const venues = new Map<string, string>()
   const locations = new Map<string, string>()
   const paymentMethods = new Map<string, string>()
   const venueLocationPairs = new Map<string, VenueLocationOption>()
-  const contextEntries = entries.filter(entry => entry.context === contextId)
+  const contextEntries = contextId ? entries.filter(entry => entry.context === contextId) : []
 
   sortEntriesForDisplay(contextEntries, 'newest').forEach(entry => {
     const venue = entry.venue.trim()
@@ -62,7 +60,6 @@ export function getContextPlaceSuggestions(
 
     rememberName(venues, venue)
     rememberName(locations, location)
-    rememberName(paymentMethods, entry.paymentMethod || '')
 
     if (!venueKey || !locationKey) return
     const pairKey = `${venueKey}|${locationKey}`
@@ -70,8 +67,11 @@ export function getContextPlaceSuggestions(
     venueLocationPairs.set(pairKey, { venue, location })
   })
 
+  sortEntriesForDisplay(entries, 'newest').forEach(entry => {
+    rememberName(paymentMethods, entry.paymentMethod || '')
+  })
+
   paymentMethodSources
-    .filter(source => source.context === contextId)
     .forEach(source => rememberName(paymentMethods, source.paymentMethod || ''))
 
   return {
