@@ -10,9 +10,11 @@ export interface Category {
   name: string
   type: 'expense' | 'income'
   context?: string
+  hidden?: boolean
 }
 
 const CONTEXT_CATEGORY_PREFIX = 'ctxcat__'
+const HIDDEN_CATEGORY_PREFIX = 'ctxcat_hidden__'
 
 function encodeIdPart(value: string) {
   return encodeURIComponent(value)
@@ -46,10 +48,22 @@ function getScopedCategoryBaseId(id: string) {
   return rest.slice(marker + 2)
 }
 
+function getHiddenCategoryId(contextId: string, category: Pick<Category, 'name' | 'type'>) {
+  return `${HIDDEN_CATEGORY_PREFIX}${encodeIdPart(contextId)}__${category.type}__${encodeIdPart(category.name.trim())}`
+}
+
+function getHiddenCategoryContextFromId(id: string) {
+  if (!id.startsWith(HIDDEN_CATEGORY_PREFIX)) return ''
+  const rest = id.slice(HIDDEN_CATEGORY_PREFIX.length)
+  const marker = rest.indexOf('__')
+  if (marker === -1) return ''
+  return decodeIdPart(rest.slice(0, marker))
+}
+
 function getCategoryContext(row: { id: string; context?: unknown }) {
   return typeof row.context === 'string' && row.context.trim()
     ? row.context.trim()
-    : getCategoryContextFromId(row.id)
+    : getCategoryContextFromId(row.id) || getHiddenCategoryContextFromId(row.id)
 }
 
 function normalizeCategoryKey(value: string, language?: string) {
@@ -67,6 +81,22 @@ function isDefaultCategoryId(id: string, language?: string) {
 
 function isScopedCategory(category: Category) {
   return Boolean(category.context)
+}
+
+function isHiddenCategory(category: Category) {
+  return Boolean(category.hidden) || category.id.startsWith(HIDDEN_CATEGORY_PREFIX)
+}
+
+function getHiddenCategoryKeys(
+  allCategories: Category[],
+  contextId: string,
+  language?: string,
+) {
+  return new Set(
+    allCategories
+      .filter(category => isHiddenCategory(category) && category.context === contextId)
+      .map(category => categoryNameKey(category, language)),
+  )
 }
 
 function getUsedContextsForCategory(
@@ -101,12 +131,16 @@ function getCategoriesForContext(
   if (!contextId) return []
 
   const result = new Map<string, Category>()
+  const hiddenKeys = getHiddenCategoryKeys(allCategories, contextId, language)
   const remember = (category: Category) => {
+    if (isHiddenCategory(category)) return
     const key = categoryNameKey(category, language)
+    if (hiddenKeys.has(key)) return
     if (!result.has(key)) result.set(key, category)
   }
 
   allCategories
+    .filter(category => !isHiddenCategory(category))
     .filter(category => category.context === contextId)
     .filter(category => {
       if (!isDefaultCategoryId(category.id, language)) return true
@@ -115,6 +149,7 @@ function getCategoriesForContext(
     .forEach(remember)
 
   allCategories
+    .filter(category => !isHiddenCategory(category))
     .filter(category => !isScopedCategory(category) && !isDefaultCategoryId(category.id, language))
     .forEach(category => {
       if (getUsedContextsForCategory(category, entries, recurringItems, language).has(contextId)) {
@@ -123,6 +158,7 @@ function getCategoriesForContext(
     })
 
   allCategories
+    .filter(category => !isHiddenCategory(category))
     .filter(category => !isScopedCategory(category) && isDefaultCategoryId(category.id, language))
     .forEach(remember)
 
@@ -168,13 +204,14 @@ export function useCategories({
             name: r.name,
             type: r.type,
             context: getCategoryContext(r) || undefined,
+            hidden: typeof r.id === 'string' && r.id.startsWith(HIDDEN_CATEGORY_PREFIX),
           }))
 
           const hasScopedDefaults = loadedCategories.some(category =>
-            isScopedCategory(category) && isDefaultCategoryId(category.id)
+            !isHiddenCategory(category) && isScopedCategory(category) && isDefaultCategoryId(category.id)
           )
           const hasGlobalDefaults = loadedCategories.some(category =>
-            !isScopedCategory(category) && isDefaultCategoryId(category.id)
+            !isHiddenCategory(category) && !isScopedCategory(category) && isDefaultCategoryId(category.id)
           )
           if (canSeedDefaults && hasScopedDefaults && !hasGlobalDefaults) {
             const defaults: Category[] = getDefaultCategoryDefinitions()
@@ -226,15 +263,19 @@ export function useCategories({
 
   const claimUnusedLegacyCategories = useCallback(async (contextId: string) => {
     if (!userId || !contextId) return
+    const hiddenKeys = getHiddenCategoryKeys(allCategories, contextId, language)
     const existingNames = new Set(
       allCategories
+        .filter(category => !isHiddenCategory(category))
         .filter(category => category.context === contextId)
         .map(category => categoryNameKey(category, language)),
     )
     const legacyCategories = allCategories
+      .filter(category => !isHiddenCategory(category))
       .filter(category => !isScopedCategory(category) && !isDefaultCategoryId(category.id, language))
       .filter(category => getUsedContextsForCategory(category, entries, recurringItems, language).size === 0)
       .filter(category => !existingNames.has(categoryNameKey(category, language)))
+      .filter(category => !hiddenKeys.has(categoryNameKey(category, language)))
       .map(category => ({
         ...category,
         id: getScopedCategoryId(contextId, `legacy_${category.id}`),
@@ -263,11 +304,39 @@ export function useCategories({
 
   const addCategory = useCallback(async (name: string, type: 'expense' | 'income') => {
     if (!userId || !activeContextId || !name.trim()) return
+    const trimmed = name.trim()
+    const targetKey = categoryNameKey({ name: trimmed, type }, language)
+    const hiddenMatches = allCategories.filter(category =>
+      isHiddenCategory(category) &&
+      category.context === activeContextId &&
+      categoryNameKey(category, language) === targetKey
+    )
+    const hiddenIds = hiddenMatches.map(category => category.id)
+    const categoriesAfterUnhide = hiddenIds.length > 0
+      ? allCategories.filter(category => !hiddenIds.includes(category.id))
+      : allCategories
+
+    if (hiddenIds.length > 0) {
+      setAllCategories(prev => prev.filter(category => !hiddenIds.includes(category.id)))
+      await Promise.all(
+        hiddenIds.map(id => supabase.from('categories').delete().eq('id', id).eq('user_id', userId)),
+      )
+    }
+
+    const alreadyVisible = getCategoriesForContext(
+      categoriesAfterUnhide,
+      activeContextId,
+      language,
+      entries,
+      recurringItems,
+    ).some(category => categoryNameKey(category, language) === targetKey)
+    if (alreadyVisible) return
+
     const id = getScopedCategoryId(activeContextId, `${type === 'expense' ? 'exp' : 'inc'}_${Date.now()}`)
-    const cat: Category = { id, name: name.trim(), type, context: activeContextId }
+    const cat: Category = { id, name: trimmed, type, context: activeContextId }
     setAllCategories(prev => [...prev, cat])
-    await supabase.from('categories').insert({ id, user_id: userId, name: name.trim(), type })
-  }, [activeContextId, userId])
+    await supabase.from('categories').insert({ id, user_id: userId, name: trimmed, type })
+  }, [activeContextId, allCategories, entries, language, recurringItems, userId])
 
   const updateCategory = useCallback(async (id: string, name: string) => {
     if (!userId || !name.trim()) return
@@ -278,9 +347,45 @@ export function useCategories({
 
   const removeCategory = useCallback(async (id: string) => {
     if (!userId) return
-    setAllCategories(prev => prev.filter(c => c.id !== id))
-    await supabase.from('categories').delete().eq('id', id).eq('user_id', userId)
-  }, [userId])
+    const category = allCategories.find(item => item.id === id)
+    if (!category || isHiddenCategory(category)) {
+      setAllCategories(prev => prev.filter(c => c.id !== id))
+      await supabase.from('categories').delete().eq('id', id).eq('user_id', userId)
+      return
+    }
+
+    if (!activeContextId) {
+      setAllCategories(prev => prev.filter(c => c.id !== id))
+      await supabase.from('categories').delete().eq('id', id).eq('user_id', userId)
+      return
+    }
+
+    const hiddenCategory: Category = {
+      id: getHiddenCategoryId(activeContextId, category),
+      name: category.name,
+      type: category.type,
+      context: activeContextId,
+      hidden: true,
+    }
+
+    setAllCategories(prev => {
+      const withoutOldScopedRow = category.context === activeContextId
+        ? prev.filter(c => c.id !== id)
+        : prev
+      if (withoutOldScopedRow.some(c => c.id === hiddenCategory.id)) return withoutOldScopedRow
+      return [...withoutOldScopedRow, hiddenCategory]
+    })
+
+    await Promise.all([
+      ...(category.context === activeContextId
+        ? [supabase.from('categories').delete().eq('id', id).eq('user_id', userId)]
+        : []),
+      supabase.from('categories').upsert(
+        { id: hiddenCategory.id, user_id: userId, name: hiddenCategory.name, type: hiddenCategory.type },
+        { onConflict: 'id,user_id' },
+      ),
+    ])
+  }, [activeContextId, allCategories, userId])
 
   const importCategoriesFromContext = useCallback(async (sourceContextId: string, targetContextId: string) => {
     if (!userId || !sourceContextId || !targetContextId || sourceContextId === targetContextId) return

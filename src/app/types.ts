@@ -852,14 +852,14 @@ export function sortEntriesForDisplay(entries: Entry[], sortOrder: EntrySortOrde
       const createdAtComparison = compareNullableByDirection(
         parseTimestampForSort(a.entry.createdAt),
         parseTimestampForSort(b.entry.createdAt),
-        direction,
+        1,
       )
       if (createdAtComparison !== 0) return createdAtComparison
 
       const idComparison = String(a.entry.id).localeCompare(String(b.entry.id), undefined, {
         numeric: true,
         sensitivity: 'base',
-      }) * direction
+      })
       if (idComparison !== 0) return idComparison
 
       return a.index - b.index
