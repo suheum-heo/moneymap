@@ -153,9 +153,12 @@ export function useEntries() {
   }, [userId])
 
   const addEntry = useCallback(async (entry: Entry) => {
-    if (!userId) return
+    if (!userId) throw new Error('Not signed in')
     const optimisticEntry = { ...entry, createdAt: entry.createdAt || new Date().toISOString() }
-    setEntries(prev => [...prev, optimisticEntry])
+    setEntries(prev => {
+      if (prev.some(existing => existing.id === optimisticEntry.id)) return prev
+      return [...prev, optimisticEntry]
+    })
     let includePaymentMethodColumn = canUseEntryPaymentMethodColumn
     let includeTimeColumn = canUseEntryTimeColumn
     let error = null

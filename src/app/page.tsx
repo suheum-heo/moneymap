@@ -311,7 +311,7 @@ function AppContent({ user }: { user: User }) {
     </div>
   )
 
-  const TabContent = () => (
+  const renderTabContent = () => (
     <>
       {tab === 'overview' && <Overview entries={entries} items={items} month={month} onNavigate={navigateTo} onUpdate={updateEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'entries' && <Entries entries={entries} items={items} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
@@ -351,7 +351,7 @@ function AppContent({ user }: { user: User }) {
                 </div>
               </div>
             </div>
-            <TabContent />
+            {renderTabContent()}
           </div>
         </div>
       </div>
@@ -440,7 +440,7 @@ function AppContent({ user }: { user: User }) {
         </div>
 
         <div className="flex-1 overflow-y-auto pt-4">
-          <TabContent />
+          {renderTabContent()}
         </div>
       </div>
     </div>

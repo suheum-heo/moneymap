@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Entry,
@@ -65,16 +65,18 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const [remarks, setRemarks] = useState(saved.remarks || '')
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const savingRef = useRef(false)
   const [showRecurring, setShowRecurring] = useState(false)
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)
   const contextRecurring = items.filter(i => i.context === activeContext?.id && i.type === entryType)
 
   useEffect(() => {
+    if (savingRef.current || isSaving) return
     sessionStorage.setItem('addentry-draft', JSON.stringify({
       entryType, amount, summary, venue, location, category, paymentMethod, remarks,
       month, day, year,
     }))
-  }, [entryType, amount, summary, venue, location, category, paymentMethod, remarks, month, day, year])
+  }, [entryType, amount, summary, venue, location, category, paymentMethod, remarks, month, day, year, isSaving])
 
   const cats = entryType === 'expense' ? expenseCategories : incomeCategories
   const maxDay = daysInMonth(month, year)
@@ -123,7 +125,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   }
 
   const handleSubmit = async () => {
-    if (isSaving) return
+    if (savingRef.current || isSaving) return
     if (!amount || !summary.trim()) {
       setError(t('amountSummaryRequired', { amountLabel: t('amount'), summaryLabel: t('summary') }))
       return
@@ -137,7 +139,10 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       return
     }
     setError('')
+    savingRef.current = true
     setIsSaving(true)
+    // Prevent a mid-save remount from restoring the filled draft and looking like a no-op.
+    sessionStorage.removeItem('addentry-draft')
 
     const date = toDateStr(month, day, year)
     const sameDayEntries = entries.filter(
@@ -167,11 +172,10 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       setSummary(''); setAmount(''); setVenue(''); setLocation(''); setPaymentMethod(''); setRemarks('')
       setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')
       onDone()
-      sessionStorage.removeItem('addentry-draft')
     } catch (err) {
       console.error('Failed to save entry', err)
       setError(t('saveEntryFailed'))
-    } finally {
+      savingRef.current = false
       setIsSaving(false)
     }
   }
@@ -324,6 +328,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
         {error && <div className="text-xs text-rose-500">{error}</div>}
 
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={isSaving}
           className="app-button-primary mt-1 w-full disabled:cursor-not-allowed disabled:opacity-60">
