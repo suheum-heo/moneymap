@@ -67,6 +67,12 @@ function getMissingEntryColumns(error: { code?: string; message?: string; detail
   return missing.size > 0 ? missing : null
 }
 
+function isCreatedAtUpdateRejected(error: { code?: string; message?: string; details?: string } | null) {
+  if (!error) return false
+  const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
+  return message.includes('created_at')
+}
+
 function rememberMissingEntryColumns(missingColumns: Set<OptionalEntryColumn>) {
   if (missingColumns.has('payment_method')) canUseEntryPaymentMethodColumn = false
   if (missingColumns.has('time')) canUseEntryTimeColumn = false
@@ -98,7 +104,12 @@ function buildEntryInsertPayload(entry: Entry, userId: string, includePaymentMet
   }
 }
 
-function buildEntryUpdatePayload(updated: Entry, includePaymentMethodColumn: boolean, includeTimeColumn: boolean) {
+function buildEntryUpdatePayload(
+  updated: Entry,
+  includePaymentMethodColumn: boolean,
+  includeTimeColumn: boolean,
+  includeCreatedAtColumn: boolean,
+) {
   return {
     type: updated.type, date: updated.date, summary: updated.summary,
     ...(includeTimeColumn ? { time: updated.time || null } : {}),
@@ -108,6 +119,7 @@ function buildEntryUpdatePayload(updated: Entry, includePaymentMethodColumn: boo
     ...(includePaymentMethodColumn ? { payment_method: (updated.paymentMethod || '').trim() } : {}),
     currency: updated.currency,
     home_amount: updated.homeAmount ?? null,
+    ...(includeCreatedAtColumn && updated.createdAt ? { created_at: updated.createdAt } : {}),
   }
 }
 
@@ -175,24 +187,36 @@ export function useEntries() {
     setEntries(prev => prev.map(e => e.id === updated.id ? { ...updated, createdAt: updated.createdAt || e.createdAt } : e))
     let includePaymentMethodColumn = canUseEntryPaymentMethodColumn
     let includeTimeColumn = canUseEntryTimeColumn
+    let includeCreatedAtColumn = Boolean(updated.createdAt)
     let error = null
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
       const result = await supabase.from('entries')
-        .update(buildEntryUpdatePayload(updated, includePaymentMethodColumn, includeTimeColumn))
+        .update(buildEntryUpdatePayload(updated, includePaymentMethodColumn, includeTimeColumn, includeCreatedAtColumn))
         .eq('id', updated.id)
         .eq('user_id', userId)
       error = result.error
       if (!error) break
 
       const missingColumns = getMissingEntryColumns(error)
-      if (!missingColumns) break
-      rememberMissingEntryColumns(missingColumns)
-      const nextIncludePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
-      const nextIncludeTimeColumn = includeTimeColumn && !missingColumns.has('time')
-      if (nextIncludePaymentMethodColumn === includePaymentMethodColumn && nextIncludeTimeColumn === includeTimeColumn) break
-      includePaymentMethodColumn = nextIncludePaymentMethodColumn
-      includeTimeColumn = nextIncludeTimeColumn
+      if (missingColumns) {
+        rememberMissingEntryColumns(missingColumns)
+        const nextIncludePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
+        const nextIncludeTimeColumn = includeTimeColumn && !missingColumns.has('time')
+        if (nextIncludePaymentMethodColumn === includePaymentMethodColumn && nextIncludeTimeColumn === includeTimeColumn) {
+          // fall through to created_at handling below
+        } else {
+          includePaymentMethodColumn = nextIncludePaymentMethodColumn
+          includeTimeColumn = nextIncludeTimeColumn
+          continue
+        }
+      }
+
+      if (includeCreatedAtColumn && isCreatedAtUpdateRejected(error)) {
+        includeCreatedAtColumn = false
+        continue
+      }
+      break
     }
 
     if (error) {

@@ -836,16 +836,40 @@ function parseEntryCreatedSortValue(entry: Pick<Entry, 'id' | 'createdAt'>): num
 
 function compareNullableByDirection(a: number | null, b: number | null, direction: 1 | -1): number {
   if (a !== null && b !== null) return (a - b) * direction
-  if (a !== null) return -1
-  if (b !== null) return 1
+  // Missing sort keys are treated as oldest so "newest" still floats recent rows up.
+  if (a !== null) return direction === -1 ? -1 : 1
+  if (b !== null) return direction === -1 ? 1 : -1
   return 0
 }
 
-function compareManualTimeByDirection(a: number | null, b: number | null, direction: 1 | -1): number {
-  if (a !== null && b !== null) return (a - b) * direction
-  return 0
+export function formatSecondsAsEntryTime(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.min(86399, Math.floor(totalSeconds)))
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
+/** Allocate a same-day time so a newly recorded entry sorts to the top for `newest`. */
+export function allocateTimeForNewEntry(sameDayEntries: Entry[], sortOrder: EntrySortOrder = 'newest'): string {
+  const times = sameDayEntries
+    .map(entry => parseTimeForSort(entry.time))
+    .filter((value): value is number => value !== null)
+  const now = new Date()
+  const wallClock = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
+
+  if (times.length === 0) return formatSecondsAsEntryTime(wallClock)
+
+  if (sortOrder === 'newest') {
+    return formatSecondsAsEntryTime(Math.max(Math.max(...times) + 1, wallClock))
+  }
+  return formatSecondsAsEntryTime(Math.min(Math.min(...times) - 1, wallClock))
+}
+
+/**
+ * Same-day order is recording order (createdAt / id timestamp).
+ * Manual `time` is only a tiebreaker — reorder persists by rewriting createdAt.
+ */
 export function sortEntriesForDisplay(entries: Entry[], sortOrder: EntrySortOrder = 'newest'): Entry[] {
   const direction: 1 | -1 = sortOrder === 'newest' ? -1 : 1
   return entries
@@ -854,19 +878,19 @@ export function sortEntriesForDisplay(entries: Entry[], sortOrder: EntrySortOrde
       const dateComparison = a.entry.date.localeCompare(b.entry.date) * direction
       if (dateComparison !== 0) return dateComparison
 
-      const timeComparison = compareManualTimeByDirection(
-        parseTimeForSort(a.entry.time),
-        parseTimeForSort(b.entry.time),
-        direction,
-      )
-      if (timeComparison !== 0) return timeComparison
-
       const createdAtComparison = compareNullableByDirection(
         parseEntryCreatedSortValue(a.entry),
         parseEntryCreatedSortValue(b.entry),
         direction,
       )
       if (createdAtComparison !== 0) return createdAtComparison
+
+      const timeComparison = compareNullableByDirection(
+        parseTimeForSort(a.entry.time),
+        parseTimeForSort(b.entry.time),
+        direction,
+      )
+      if (timeComparison !== 0) return timeComparison
 
       const idComparison = String(a.entry.id).localeCompare(String(b.entry.id), undefined, {
         numeric: true,

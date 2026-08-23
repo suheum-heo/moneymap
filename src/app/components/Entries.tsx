@@ -8,6 +8,7 @@ import {
   convertEntryAmount,
   formatAmount,
   formatEntryDate,
+  formatSecondsAsEntryTime,
   getCategoryBadgeStyle,
   getCategoryColor,
   getEntryCurrency,
@@ -46,11 +47,13 @@ function getWeekRange() {
 
 function formatManualOrderTime(index: number, total: number, sortOrder: EntrySortOrder) {
   const orderedIndex = sortOrder === 'newest' ? total - index - 1 : index
-  const seconds = Math.max(0, Math.min(86399, orderedIndex))
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  return formatSecondsAsEntryTime(orderedIndex)
+}
+
+function formatManualOrderCreatedAt(index: number, total: number, sortOrder: EntrySortOrder, baseMs: number) {
+  // Newest sort shows highest createdAt first, so the top row gets the largest timestamp.
+  const orderedIndex = sortOrder === 'newest' ? total - index : index + 1
+  return new Date(baseMs + orderedIndex).toISOString()
 }
 
 export default function Entries({ entries, items = [], month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, convert, expenseCategories, incomeCategories }: Props) {
@@ -119,10 +122,12 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   }
 
   const saveSameDateOrder = (ordered: Entry[]) => {
+    const baseMs = Date.now()
     ordered.forEach((entry, index) => {
       const time = formatManualOrderTime(index, ordered.length, sortOrder)
-      if (entry.time === time) return
-      onUpdate({ ...entry, time })
+      const createdAt = formatManualOrderCreatedAt(index, ordered.length, sortOrder, baseMs)
+      if (entry.time === time && entry.createdAt === createdAt) return
+      onUpdate({ ...entry, time, createdAt })
     })
   }
 

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import {
   Entry,
   Context,
+  EntrySortOrder,
+  allocateTimeForNewEntry,
   getCurrencySymbol,
   CURRENCIES,
   formatAmount,
@@ -26,6 +28,7 @@ interface Props {
   items: RecurringItem[]
   expenseCategories: string[]
   incomeCategories: string[]
+  sortOrder?: EntrySortOrder
 }
 
 function toDateStr(m: number, day: number, y: number) {
@@ -36,7 +39,7 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, items, expenseCategories, incomeCategories }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, items, expenseCategories, incomeCategories, sortOrder = 'newest' }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const contextCur = activeContext?.currency || 'USD'
@@ -136,10 +139,16 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setError('')
     setIsSaving(true)
 
+    const date = toDateStr(month, day, year)
+    const sameDayEntries = entries.filter(
+      entry => entry.date === date && entry.context === (activeContext?.id || ''),
+    )
+    const createdAt = new Date().toISOString()
     const entry: Entry = {
       id: Date.now().toString(),
       type: entryType,
-      date: toDateStr(month, day, year),
+      date,
+      time: allocateTimeForNewEntry(sameDayEntries, sortOrder),
       summary: summary.trim(),
       venue: venue.trim(),
       location: location.trim(),
@@ -149,6 +158,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       remarks: remarks.trim(),
       currency: showCurrencyOverride ? currency : contextCur,
       context: activeContext?.id || '',
+      createdAt,
       homeAmount: parsedActual,
     }
 
