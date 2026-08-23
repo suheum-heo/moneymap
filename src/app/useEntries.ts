@@ -7,6 +7,9 @@ import { useUserId } from './UserContext'
 const PAYMENT_META_PREFIX = '[[moneymap:entry-payment-method:'
 const PAYMENT_META_SUFFIX = ']]'
 const PAYMENT_META_PATTERN = /\n?\[\[moneymap:entry-payment-method:([\s\S]*?)\]\]\s*$/
+type OptionalEntryColumn = 'payment_method' | 'time'
+let canUseEntryPaymentMethodColumn = true
+let canUseEntryTimeColumn = true
 
 function decodeEntryPayment(rawRemarks: string, rawPaymentMethod: unknown, rawTime?: unknown) {
   const remarks = rawRemarks || ''
@@ -47,20 +50,26 @@ function encodeEntryRemarks(remarks: string, paymentMethod: string, time = '') {
   return `${cleanRemarks}${cleanRemarks ? '\n' : ''}${PAYMENT_META_PREFIX}${metadata}${PAYMENT_META_SUFFIX}`
 }
 
-function isMissingEntryPaymentMethodColumn(error: { code?: string; message?: string; details?: string } | null) {
-  if (!error) return false
+function getMissingEntryColumns(error: { code?: string; message?: string; details?: string } | null) {
+  if (!error) return null
   const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
-  return message.includes('entries.payment_method')
-    || message.includes('column entries.payment_method')
-    || message.includes("'payment_method' column")
+  const missing = new Set<OptionalEntryColumn>()
+  ;(['payment_method', 'time'] as const).forEach(column => {
+    if (
+      message.includes(`'${column}' column`) ||
+      message.includes(`'${column}' column of 'entries'`) ||
+      message.includes(`entries.${column}`) ||
+      message.includes(`column entries.${column}`)
+    ) {
+      missing.add(column)
+    }
+  })
+  return missing.size > 0 ? missing : null
 }
 
-function isMissingEntryTimeColumn(error: { code?: string; message?: string; details?: string } | null) {
-  if (!error) return false
-  const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
-  return message.includes('entries.time')
-    || message.includes('column entries.time')
-    || message.includes("'time' column")
+function rememberMissingEntryColumns(missingColumns: Set<OptionalEntryColumn>) {
+  if (missingColumns.has('payment_method')) canUseEntryPaymentMethodColumn = false
+  if (missingColumns.has('time')) canUseEntryTimeColumn = false
 }
 
 function normalizeSavedValue(value: string) {
@@ -135,36 +144,62 @@ export function useEntries() {
     if (!userId) return
     const optimisticEntry = { ...entry, createdAt: entry.createdAt || new Date().toISOString() }
     setEntries(prev => [...prev, optimisticEntry])
-    let includePaymentMethodColumn = true
-    let includeTimeColumn = true
-    let { error } = await supabase.from('entries').insert(buildEntryInsertPayload(entry, userId, includePaymentMethodColumn, includeTimeColumn))
-    if (isMissingEntryPaymentMethodColumn(error) || isMissingEntryTimeColumn(error)) {
-      includePaymentMethodColumn = includePaymentMethodColumn && !isMissingEntryPaymentMethodColumn(error)
-      includeTimeColumn = includeTimeColumn && !isMissingEntryTimeColumn(error)
-      const fallback = await supabase.from('entries').insert(buildEntryInsertPayload(entry, userId, includePaymentMethodColumn, includeTimeColumn))
-      error = fallback.error
+    let includePaymentMethodColumn = canUseEntryPaymentMethodColumn
+    let includeTimeColumn = canUseEntryTimeColumn
+    let error = null
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await supabase.from('entries').insert(buildEntryInsertPayload(entry, userId, includePaymentMethodColumn, includeTimeColumn))
+      error = result.error
+      if (!error) break
+
+      const missingColumns = getMissingEntryColumns(error)
+      if (!missingColumns) break
+      rememberMissingEntryColumns(missingColumns)
+      const nextIncludePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
+      const nextIncludeTimeColumn = includeTimeColumn && !missingColumns.has('time')
+      if (nextIncludePaymentMethodColumn === includePaymentMethodColumn && nextIncludeTimeColumn === includeTimeColumn) break
+      includePaymentMethodColumn = nextIncludePaymentMethodColumn
+      includeTimeColumn = nextIncludeTimeColumn
     }
-    if (error) setEntries(prev => prev.filter(e => e.id !== optimisticEntry.id))
+
+    if (error) {
+      setEntries(prev => prev.filter(e => e.id !== optimisticEntry.id))
+      throw error
+    }
   }, [userId])
 
   const updateEntry = useCallback(async (updated: Entry) => {
     if (!userId) return
+    const previous = entries.find(e => e.id === updated.id)
     setEntries(prev => prev.map(e => e.id === updated.id ? { ...updated, createdAt: updated.createdAt || e.createdAt } : e))
-    let includePaymentMethodColumn = true
-    let includeTimeColumn = true
-    let { error } = await supabase.from('entries')
-      .update(buildEntryUpdatePayload(updated, includePaymentMethodColumn, includeTimeColumn))
-      .eq('id', updated.id)
-      .eq('user_id', userId)
-    if (isMissingEntryPaymentMethodColumn(error) || isMissingEntryTimeColumn(error)) {
-      includePaymentMethodColumn = includePaymentMethodColumn && !isMissingEntryPaymentMethodColumn(error)
-      includeTimeColumn = includeTimeColumn && !isMissingEntryTimeColumn(error)
-      await supabase.from('entries')
+    let includePaymentMethodColumn = canUseEntryPaymentMethodColumn
+    let includeTimeColumn = canUseEntryTimeColumn
+    let error = null
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await supabase.from('entries')
         .update(buildEntryUpdatePayload(updated, includePaymentMethodColumn, includeTimeColumn))
         .eq('id', updated.id)
         .eq('user_id', userId)
+      error = result.error
+      if (!error) break
+
+      const missingColumns = getMissingEntryColumns(error)
+      if (!missingColumns) break
+      rememberMissingEntryColumns(missingColumns)
+      const nextIncludePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
+      const nextIncludeTimeColumn = includeTimeColumn && !missingColumns.has('time')
+      if (nextIncludePaymentMethodColumn === includePaymentMethodColumn && nextIncludeTimeColumn === includeTimeColumn) break
+      includePaymentMethodColumn = nextIncludePaymentMethodColumn
+      includeTimeColumn = nextIncludeTimeColumn
     }
-  }, [userId])
+
+    if (error) {
+      if (previous) setEntries(prev => prev.map(e => e.id === previous.id ? previous : e))
+      console.error('Failed to update entry', error)
+    }
+  }, [entries, userId])
 
   const renameCategory = useCallback(async (from: string, to: string, type: 'expense' | 'income', contextId?: string) => {
     if (!userId || !from.trim() || !to.trim()) return

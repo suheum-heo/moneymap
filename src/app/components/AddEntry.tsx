@@ -18,7 +18,7 @@ import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
 
 interface Props {
-  onAdd: (e: Entry) => void
+  onAdd: (e: Entry) => Promise<void> | void
   onDone: () => void
   entries?: Entry[]
   defaultDate?: string | null
@@ -61,6 +61,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const [paymentMethod, setPaymentMethod] = useState(saved.paymentMethod || '')
   const [remarks, setRemarks] = useState(saved.remarks || '')
   const [error, setError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
   const [showRecurring, setShowRecurring] = useState(false)
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)
   const contextRecurring = items.filter(i => i.context === activeContext?.id && i.type === entryType)
@@ -118,7 +119,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setShowRecurring(false)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSaving) return
     if (!amount || !summary.trim()) {
       setError(t('amountSummaryRequired', { amountLabel: t('amount'), summaryLabel: t('summary') }))
       return
@@ -132,8 +134,9 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       return
     }
     setError('')
+    setIsSaving(true)
 
-    onAdd({
+    const entry: Entry = {
       id: Date.now().toString(),
       type: entryType,
       date: toDateStr(month, day, year),
@@ -147,11 +150,20 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       currency: showCurrencyOverride ? currency : contextCur,
       context: activeContext?.id || '',
       homeAmount: parsedActual,
-    })
-    setSummary(''); setAmount(''); setVenue(''); setLocation(''); setPaymentMethod(''); setRemarks('')
-    setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')
-    onDone()
-    sessionStorage.removeItem('addentry-draft')
+    }
+
+    try {
+      await onAdd(entry)
+      setSummary(''); setAmount(''); setVenue(''); setLocation(''); setPaymentMethod(''); setRemarks('')
+      setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')
+      onDone()
+      sessionStorage.removeItem('addentry-draft')
+    } catch (err) {
+      console.error('Failed to save entry', err)
+      setError(t('saveEntryFailed'))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const selCls = "app-select w-full px-3 py-2.5 text-sm"
@@ -301,9 +313,11 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
         {error && <div className="text-xs text-rose-500">{error}</div>}
 
-        <button onClick={handleSubmit}
-          className="app-button-primary mt-1 w-full">
-          {t('addEntry')}
+        <button
+          onClick={handleSubmit}
+          disabled={isSaving}
+          className="app-button-primary mt-1 w-full disabled:cursor-not-allowed disabled:opacity-60">
+          {isSaving ? t('loading') : t('addEntry')}
         </button>
 
         <datalist id="venue-list">{placeSuggestions.venues.map(v => <option key={v} value={v} />)}</datalist>
