@@ -834,6 +834,11 @@ function compareNullableByDirection(a: number | null, b: number | null, directio
   return 0
 }
 
+function compareManualTimeByDirection(a: number | null, b: number | null, direction: 1 | -1): number {
+  if (a !== null && b !== null) return (a - b) * direction
+  return 0
+}
+
 export function sortEntriesForDisplay(entries: Entry[], sortOrder: EntrySortOrder = 'newest'): Entry[] {
   const direction: 1 | -1 = sortOrder === 'newest' ? -1 : 1
   return entries
@@ -842,7 +847,7 @@ export function sortEntriesForDisplay(entries: Entry[], sortOrder: EntrySortOrde
       const dateComparison = a.entry.date.localeCompare(b.entry.date) * direction
       if (dateComparison !== 0) return dateComparison
 
-      const timeComparison = compareNullableByDirection(
+      const timeComparison = compareManualTimeByDirection(
         parseTimeForSort(a.entry.time),
         parseTimeForSort(b.entry.time),
         direction,
