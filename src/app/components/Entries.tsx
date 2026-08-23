@@ -62,6 +62,7 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   const [weekOnly, setWeekOnly] = useState(false)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [reorderMode, setReorderMode] = useState(false)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
 
@@ -110,6 +111,12 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   }, [monthEntries, sortOrder])
 
   const openEdit = (e: Entry) => setEditEntry(e)
+
+  const toggleReorderMode = () => {
+    setReorderMode(value => !value)
+    setDraggedId(null)
+    setDropTargetId(null)
+  }
 
   const saveSameDateOrder = (ordered: Entry[]) => {
     ordered.forEach((entry, index) => {
@@ -220,9 +227,21 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
             className={weekOnly ? 'app-segment app-segment-active' : 'app-button-secondary'}>
             {t('thisWeek')}
           </button>
-          <button onClick={exportCSV} className="app-button-secondary ml-auto px-4 py-2.5 text-xs">
-            {t('exportCSV')}
-          </button>
+          <div className="flex w-full items-center justify-end gap-2 sm:ml-auto sm:w-auto">
+            <button
+              type="button"
+              onClick={toggleReorderMode}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2.5 text-xs font-semibold transition-all ${reorderMode
+                ? 'border-[#b9d4ff] bg-[#eef5ff] text-[#245ec6] shadow-[0_12px_22px_-18px_rgba(49,130,246,0.35)] dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
+                : 'border-slate-200/85 bg-white/90 text-slate-500 hover:border-[#cfe0ff] hover:text-[#3578e5] dark:border-white/10 dark:bg-white/5 dark:text-slate-400 dark:hover:border-sky-400/25 dark:hover:text-sky-300'}`}
+            >
+              <span aria-hidden="true">↕</span>
+              <span>{reorderMode ? t('doneReordering') : t('reorderEntries')}</span>
+            </button>
+            <button onClick={exportCSV} className="app-button-secondary whitespace-nowrap px-4 py-2.5 text-xs">
+              {t('exportCSV')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -252,7 +271,7 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
               <div
                 key={e.id}
                 onDragOver={event => {
-                  if (!draggedId || draggedId === e.id) return
+                  if (!reorderMode || !draggedId || draggedId === e.id) return
                   const dragged = monthEntries.find(item => item.id === draggedId)
                   if (!dragged || dragged.date !== e.date) return
                   event.preventDefault()
@@ -261,64 +280,74 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
                 }}
                 onDragLeave={() => setDropTargetId(current => current === e.id ? null : current)}
                 onDrop={event => {
+                  if (!reorderMode) return
                   event.preventDefault()
                   const entryId = draggedId || event.dataTransfer.getData('text/plain')
                   reorderEntryToTarget(entryId, e.id)
                   setDraggedId(null)
                   setDropTargetId(null)
                 }}
-                className={`app-list-row flex min-w-0 items-start gap-3 transition-all ${isDragged ? 'opacity-45' : ''} ${isDropTarget ? 'border-[#8eb6f7] bg-[#f5f9ff] ring-4 ring-[#3182f6]/10 dark:border-sky-400/25 dark:bg-slate-900/80' : ''}`}
+                className={`app-list-row flex min-w-0 items-start gap-3 transition-all ${reorderMode ? 'border-[#dce8fb] bg-[#fbfdff] dark:border-sky-400/15 dark:bg-slate-900/80' : ''} ${isDragged ? 'opacity-45' : ''} ${isDropTarget ? 'border-[#8eb6f7] bg-[#f5f9ff] ring-4 ring-[#3182f6]/10 dark:border-sky-400/25 dark:bg-slate-900/80' : ''}`}
               >
-                <div className="flex flex-shrink-0 flex-col items-center gap-1">
-                  <button
-                    type="button"
-                    draggable={canReorder}
-                    onDragStart={event => {
-                      if (!canReorder) {
-                        event.preventDefault()
-                        return
-                      }
-                      event.dataTransfer.effectAllowed = 'move'
-                      event.dataTransfer.setData('text/plain', e.id)
-                      setDraggedId(e.id)
-                    }}
-                    onDragEnd={() => {
-                      setDraggedId(null)
-                      setDropTargetId(null)
-                    }}
-                    title={t('reorderEntry')}
-                    aria-label={t('reorderEntry')}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-colors ${canReorder
-                      ? 'cursor-grab border-slate-200/80 bg-slate-50 text-slate-400 active:cursor-grabbing hover:border-[#bcd4fb] hover:text-[#3578e5] dark:border-white/10 dark:bg-white/5 dark:text-slate-500 dark:hover:border-sky-400/25 dark:hover:text-sky-300'
-                      : 'cursor-default border-slate-100 bg-slate-50 text-slate-200 dark:border-white/5 dark:bg-white/5 dark:text-slate-700'}`}
-                  >
-                    ↕
-                  </button>
-                  {canReorder && (
-                    <div className="flex rounded-full border border-slate-200/70 bg-white/80 p-0.5 dark:border-white/10 dark:bg-slate-950/70">
-                      <button
-                        type="button"
-                        onClick={() => moveEntryWithinDate(e.id, -1)}
-                        disabled={dateIndex <= 0}
-                        title={t('moveEntryUp')}
-                        aria-label={t('moveEntryUp')}
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] text-slate-400 transition-colors enabled:hover:bg-slate-50 enabled:hover:text-[#3578e5] disabled:opacity-25 dark:text-slate-500 dark:enabled:hover:bg-white/5 dark:enabled:hover:text-sky-300"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveEntryWithinDate(e.id, 1)}
-                        disabled={dateIndex < 0 || dateIndex >= sameDateEntries.length - 1}
-                        title={t('moveEntryDown')}
-                        aria-label={t('moveEntryDown')}
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] text-slate-400 transition-colors enabled:hover:bg-slate-50 enabled:hover:text-[#3578e5] disabled:opacity-25 dark:text-slate-500 dark:enabled:hover:bg-white/5 dark:enabled:hover:text-sky-300"
-                      >
-                        ↓
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {reorderMode && (
+                  <div className="flex w-8 flex-shrink-0 flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      draggable={canReorder}
+                      onDragStart={event => {
+                        if (!canReorder) {
+                          event.preventDefault()
+                          return
+                        }
+                        event.dataTransfer.effectAllowed = 'move'
+                        event.dataTransfer.setData('text/plain', e.id)
+                        setDraggedId(e.id)
+                      }}
+                      onDragEnd={() => {
+                        setDraggedId(null)
+                        setDropTargetId(null)
+                      }}
+                      title={t('reorderEntry')}
+                      aria-label={t('reorderEntry')}
+                      className={`grid h-9 w-8 place-items-center rounded-[14px] border transition-colors ${canReorder
+                        ? 'cursor-grab border-[#cfe0ff] bg-white text-[#5b8ef0] active:cursor-grabbing hover:border-[#9fc2fb] dark:border-sky-400/20 dark:bg-slate-950/70 dark:text-sky-300 dark:hover:border-sky-400/40'
+                        : 'cursor-default border-slate-100 bg-slate-50 text-slate-200 dark:border-white/5 dark:bg-white/5 dark:text-slate-700'}`}
+                    >
+                      <span className="grid grid-cols-2 gap-0.5" aria-hidden="true">
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                      </span>
+                    </button>
+                    {canReorder && (
+                      <div className="grid gap-0.5 rounded-[14px] border border-slate-200/70 bg-white/85 p-0.5 shadow-[0_10px_18px_-18px_rgba(15,23,42,0.24)] dark:border-white/10 dark:bg-slate-950/70">
+                        <button
+                          type="button"
+                          onClick={() => moveEntryWithinDate(e.id, -1)}
+                          disabled={dateIndex <= 0}
+                          title={t('moveEntryUp')}
+                          aria-label={t('moveEntryUp')}
+                          className="flex h-6 w-7 items-center justify-center rounded-[10px] text-[11px] text-slate-400 transition-colors enabled:hover:bg-[#eef5ff] enabled:hover:text-[#3578e5] disabled:opacity-25 dark:text-slate-500 dark:enabled:hover:bg-sky-500/10 dark:enabled:hover:text-sky-300"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveEntryWithinDate(e.id, 1)}
+                          disabled={dateIndex < 0 || dateIndex >= sameDateEntries.length - 1}
+                          title={t('moveEntryDown')}
+                          aria-label={t('moveEntryDown')}
+                          className="flex h-6 w-7 items-center justify-center rounded-[10px] text-[11px] text-slate-400 transition-colors enabled:hover:bg-[#eef5ff] enabled:hover:text-[#3578e5] disabled:opacity-25 dark:text-slate-500 dark:enabled:hover:bg-sky-500/10 dark:enabled:hover:text-sky-300"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-xs font-medium text-slate-500 dark:bg-slate-900/80 dark:text-slate-300">
                   {formatEntryDate(e.date, language)}
                 </div>
