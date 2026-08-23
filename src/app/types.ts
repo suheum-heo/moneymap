@@ -827,6 +827,13 @@ function parseTimestampForSort(value?: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function parseEntryCreatedSortValue(entry: Pick<Entry, 'id' | 'createdAt'>): number | null {
+  const createdAt = parseTimestampForSort(entry.createdAt)
+  if (createdAt !== null) return createdAt
+  const idTimestamp = Number(entry.id)
+  return Number.isFinite(idTimestamp) && idTimestamp > 1_000_000_000_000 ? idTimestamp : null
+}
+
 function compareNullableByDirection(a: number | null, b: number | null, direction: 1 | -1): number {
   if (a !== null && b !== null) return (a - b) * direction
   if (a !== null) return -1
@@ -855,8 +862,8 @@ export function sortEntriesForDisplay(entries: Entry[], sortOrder: EntrySortOrde
       if (timeComparison !== 0) return timeComparison
 
       const createdAtComparison = compareNullableByDirection(
-        parseTimestampForSort(a.entry.createdAt),
-        parseTimestampForSort(b.entry.createdAt),
+        parseEntryCreatedSortValue(a.entry),
+        parseEntryCreatedSortValue(b.entry),
         direction,
       )
       if (createdAtComparison !== 0) return createdAtComparison
