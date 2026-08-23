@@ -44,6 +44,15 @@ function getWeekRange() {
   return { start: mon.toISOString().slice(0,10), end: sun.toISOString().slice(0,10) }
 }
 
+function formatManualOrderTime(index: number, total: number, sortOrder: EntrySortOrder) {
+  const orderedIndex = sortOrder === 'newest' ? total - index - 1 : index
+  const seconds = Math.max(0, Math.min(86399, orderedIndex))
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 export default function Entries({ entries, items = [], month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, convert, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
@@ -53,6 +62,8 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   const [weekOnly, setWeekOnly] = useState(false)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -85,7 +96,59 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
     return sortEntriesForDisplay(f, sortOrder)
   }, [monthEntries, typeFilter, catFilter, search, weekOnly, weekRange, sortOrder])
 
+  const sameDateEntriesByDate = useMemo(() => {
+    const groups = new Map<string, Entry[]>()
+    monthEntries.forEach(entry => {
+      const group = groups.get(entry.date) || []
+      group.push(entry)
+      groups.set(entry.date, group)
+    })
+    groups.forEach((group, date) => {
+      groups.set(date, sortEntriesForDisplay(group, sortOrder))
+    })
+    return groups
+  }, [monthEntries, sortOrder])
+
   const openEdit = (e: Entry) => setEditEntry(e)
+
+  const saveSameDateOrder = (ordered: Entry[]) => {
+    ordered.forEach((entry, index) => {
+      const time = formatManualOrderTime(index, ordered.length, sortOrder)
+      if (entry.time === time) return
+      onUpdate({ ...entry, time })
+    })
+  }
+
+  const moveEntryWithinDate = (entryId: string, direction: -1 | 1) => {
+    const entry = monthEntries.find(item => item.id === entryId)
+    if (!entry) return
+    const sameDateEntries = sameDateEntriesByDate.get(entry.date) || []
+    const fromIndex = sameDateEntries.findIndex(item => item.id === entryId)
+    const toIndex = fromIndex + direction
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= sameDateEntries.length) return
+
+    const ordered = [...sameDateEntries]
+    const [moved] = ordered.splice(fromIndex, 1)
+    ordered.splice(toIndex, 0, moved)
+    saveSameDateOrder(ordered)
+  }
+
+  const reorderEntryToTarget = (entryId: string, targetId: string) => {
+    if (entryId === targetId) return
+    const entry = monthEntries.find(item => item.id === entryId)
+    const target = monthEntries.find(item => item.id === targetId)
+    if (!entry || !target || entry.date !== target.date) return
+
+    const sameDateEntries = sameDateEntriesByDate.get(entry.date) || []
+    const fromIndex = sameDateEntries.findIndex(item => item.id === entryId)
+    const targetIndex = sameDateEntries.findIndex(item => item.id === targetId)
+    if (fromIndex < 0 || targetIndex < 0) return
+
+    const ordered = [...sameDateEntries]
+    const [moved] = ordered.splice(fromIndex, 1)
+    ordered.splice(targetIndex, 0, moved)
+    saveSameDateOrder(ordered)
+  }
 
   const exportCSV = () => {
     const headers = [t('date'), t('expense') + '/' + t('income2'), t('summary'), t('venue'), t('location'), t('category'), t('amount'), t('currency'), t('paymentMethod'), t('remarks')]
@@ -180,8 +243,82 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
             const badgeStyle = getCategoryBadgeStyle(e.category, e.type)
             const isIncome = e.type === 'income'
             const converted = showConversion ? convertEntryAmount(e, cur, homeCur, homeCur, convert) : null
+            const sameDateEntries = sameDateEntriesByDate.get(e.date) || []
+            const dateIndex = sameDateEntries.findIndex(item => item.id === e.id)
+            const canReorder = sameDateEntries.length > 1
+            const isDragged = draggedId === e.id
+            const isDropTarget = dropTargetId === e.id && draggedId !== e.id
             return (
-              <div key={e.id} className="app-list-row flex items-start gap-3">
+              <div
+                key={e.id}
+                onDragOver={event => {
+                  if (!draggedId || draggedId === e.id) return
+                  const dragged = monthEntries.find(item => item.id === draggedId)
+                  if (!dragged || dragged.date !== e.date) return
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'move'
+                  setDropTargetId(e.id)
+                }}
+                onDragLeave={() => setDropTargetId(current => current === e.id ? null : current)}
+                onDrop={event => {
+                  event.preventDefault()
+                  const entryId = draggedId || event.dataTransfer.getData('text/plain')
+                  reorderEntryToTarget(entryId, e.id)
+                  setDraggedId(null)
+                  setDropTargetId(null)
+                }}
+                className={`app-list-row flex min-w-0 items-start gap-3 transition-all ${isDragged ? 'opacity-45' : ''} ${isDropTarget ? 'border-[#8eb6f7] bg-[#f5f9ff] ring-4 ring-[#3182f6]/10 dark:border-sky-400/25 dark:bg-slate-900/80' : ''}`}
+              >
+                <div className="flex flex-shrink-0 flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    draggable={canReorder}
+                    onDragStart={event => {
+                      if (!canReorder) {
+                        event.preventDefault()
+                        return
+                      }
+                      event.dataTransfer.effectAllowed = 'move'
+                      event.dataTransfer.setData('text/plain', e.id)
+                      setDraggedId(e.id)
+                    }}
+                    onDragEnd={() => {
+                      setDraggedId(null)
+                      setDropTargetId(null)
+                    }}
+                    title={t('reorderEntry')}
+                    aria-label={t('reorderEntry')}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm transition-colors ${canReorder
+                      ? 'cursor-grab border-slate-200/80 bg-slate-50 text-slate-400 active:cursor-grabbing hover:border-[#bcd4fb] hover:text-[#3578e5] dark:border-white/10 dark:bg-white/5 dark:text-slate-500 dark:hover:border-sky-400/25 dark:hover:text-sky-300'
+                      : 'cursor-default border-slate-100 bg-slate-50 text-slate-200 dark:border-white/5 dark:bg-white/5 dark:text-slate-700'}`}
+                  >
+                    ↕
+                  </button>
+                  {canReorder && (
+                    <div className="flex rounded-full border border-slate-200/70 bg-white/80 p-0.5 dark:border-white/10 dark:bg-slate-950/70">
+                      <button
+                        type="button"
+                        onClick={() => moveEntryWithinDate(e.id, -1)}
+                        disabled={dateIndex <= 0}
+                        title={t('moveEntryUp')}
+                        aria-label={t('moveEntryUp')}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] text-slate-400 transition-colors enabled:hover:bg-slate-50 enabled:hover:text-[#3578e5] disabled:opacity-25 dark:text-slate-500 dark:enabled:hover:bg-white/5 dark:enabled:hover:text-sky-300"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveEntryWithinDate(e.id, 1)}
+                        disabled={dateIndex < 0 || dateIndex >= sameDateEntries.length - 1}
+                        title={t('moveEntryDown')}
+                        aria-label={t('moveEntryDown')}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] text-slate-400 transition-colors enabled:hover:bg-slate-50 enabled:hover:text-[#3578e5] disabled:opacity-25 dark:text-slate-500 dark:enabled:hover:bg-white/5 dark:enabled:hover:text-sky-300"
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-slate-50 text-xs font-medium text-slate-500 dark:bg-slate-900/80 dark:text-slate-300">
                   {formatEntryDate(e.date, language)}
                 </div>
