@@ -18,6 +18,7 @@ export interface Entry {
   context: string
   createdAt?: string
   homeAmount?: number
+  homeAmountCurrency?: string
 }
 
 export interface Context {
@@ -519,8 +520,16 @@ export function shouldRepairLegacyEntryCurrency(
   return getEntryCurrency(entry, contextCurrency, homeCurrency) !== normalizeCurrencyCode(entry.currency || contextCurrency)
 }
 
+export function getEntryHomeAmountCurrency(
+  entry: Pick<Entry, 'homeAmount' | 'homeAmountCurrency'>,
+  homeCurrency: string,
+): string | null {
+  if (entry.homeAmount == null) return null
+  return normalizeCurrencyCode(entry.homeAmountCurrency || homeCurrency)
+}
+
 export function convertEntryAmount(
-  entry: Pick<Entry, 'amount' | 'currency' | 'homeAmount'>,
+  entry: Pick<Entry, 'amount' | 'currency' | 'homeAmount' | 'homeAmountCurrency'>,
   contextCurrency: string,
   homeCurrency: string,
   targetCurrency: string,
@@ -528,11 +537,21 @@ export function convertEntryAmount(
 ): number {
   const entryCurrency = getEntryCurrency(entry, contextCurrency, homeCurrency)
   const target = normalizeCurrencyCode(targetCurrency)
+  const context = normalizeCurrencyCode(contextCurrency)
   const home = normalizeCurrencyCode(homeCurrency || contextCurrency)
   const amount = coerceAmount(entry.amount)
 
   if (entryCurrency === target) return amount
-  if (target === home && entry.homeAmount != null) return coerceAmount(entry.homeAmount)
+
+  if (entry.homeAmount != null) {
+    const chargedCurrency = getEntryHomeAmountCurrency(entry, home) || home
+    const chargedAmount = coerceAmount(entry.homeAmount)
+    if (chargedCurrency === target) return chargedAmount
+    if (target === home || target === context) {
+      return convert(chargedAmount, chargedCurrency, target)
+    }
+  }
+
   return convert(amount, entryCurrency, target)
 }
 

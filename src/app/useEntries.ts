@@ -7,26 +7,39 @@ import { useUserId } from './UserContext'
 const PAYMENT_META_PREFIX = '[[moneymap:entry-payment-method:'
 const PAYMENT_META_SUFFIX = ']]'
 const PAYMENT_META_PATTERN = /\n?\[\[moneymap:entry-payment-method:([\s\S]*?)\]\]\s*$/
-type OptionalEntryColumn = 'payment_method' | 'time'
+type OptionalEntryColumn = 'payment_method' | 'time' | 'home_amount_currency'
 let canUseEntryPaymentMethodColumn = true
 let canUseEntryTimeColumn = true
+let canUseEntryHomeAmountCurrencyColumn = true
 
-function decodeEntryPayment(rawRemarks: string, rawPaymentMethod: unknown, rawTime?: unknown) {
+function decodeEntryPayment(
+  rawRemarks: string,
+  rawPaymentMethod: unknown,
+  rawTime?: unknown,
+  rawHomeAmountCurrency?: unknown,
+) {
   const remarks = rawRemarks || ''
   const match = remarks.match(PAYMENT_META_PATTERN)
   let cleanRemarks = remarks
   let encodedPaymentMethod = ''
   let encodedTime = ''
+  let encodedHomeAmountCurrency = ''
 
   if (match?.[1] && match.index != null) {
     cleanRemarks = remarks.slice(0, match.index).trimEnd()
     try {
-      const parsed = JSON.parse(match[1]) as { paymentMethod?: unknown; time?: unknown }
+      const parsed = JSON.parse(match[1]) as {
+        paymentMethod?: unknown
+        time?: unknown
+        homeAmountCurrency?: unknown
+      }
       encodedPaymentMethod = typeof parsed.paymentMethod === 'string' ? parsed.paymentMethod : ''
       encodedTime = typeof parsed.time === 'string' ? parsed.time : ''
+      encodedHomeAmountCurrency = typeof parsed.homeAmountCurrency === 'string' ? parsed.homeAmountCurrency : ''
     } catch {
       encodedPaymentMethod = ''
       encodedTime = ''
+      encodedHomeAmountCurrency = ''
     }
   }
 
@@ -34,18 +47,28 @@ function decodeEntryPayment(rawRemarks: string, rawPaymentMethod: unknown, rawTi
     remarks: cleanRemarks,
     paymentMethod: typeof rawPaymentMethod === 'string' ? rawPaymentMethod : encodedPaymentMethod,
     time: typeof rawTime === 'string' && rawTime.trim() ? rawTime : encodedTime,
+    homeAmountCurrency: typeof rawHomeAmountCurrency === 'string' && rawHomeAmountCurrency.trim()
+      ? rawHomeAmountCurrency
+      : encodedHomeAmountCurrency,
   }
 }
 
-function encodeEntryRemarks(remarks: string, paymentMethod: string, time = '') {
+function encodeEntryRemarks(
+  remarks: string,
+  paymentMethod: string,
+  time = '',
+  homeAmountCurrency = '',
+) {
   const decoded = decodeEntryPayment(remarks, '')
   const cleanRemarks = decoded.remarks.trim()
   const cleanPaymentMethod = paymentMethod.trim()
   const cleanTime = time.trim()
-  if (!cleanPaymentMethod && !cleanTime) return cleanRemarks
+  const cleanHomeAmountCurrency = homeAmountCurrency.trim()
+  if (!cleanPaymentMethod && !cleanTime && !cleanHomeAmountCurrency) return cleanRemarks
   const metadata = JSON.stringify({
     ...(cleanPaymentMethod ? { paymentMethod: cleanPaymentMethod } : {}),
     ...(cleanTime ? { time: cleanTime } : {}),
+    ...(cleanHomeAmountCurrency ? { homeAmountCurrency: cleanHomeAmountCurrency } : {}),
   })
   return `${cleanRemarks}${cleanRemarks ? '\n' : ''}${PAYMENT_META_PREFIX}${metadata}${PAYMENT_META_SUFFIX}`
 }
@@ -54,7 +77,7 @@ function getMissingEntryColumns(error: { code?: string; message?: string; detail
   if (!error) return null
   const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
   const missing = new Set<OptionalEntryColumn>()
-  ;(['payment_method', 'time'] as const).forEach(column => {
+  ;(['payment_method', 'time', 'home_amount_currency'] as const).forEach(column => {
     if (
       message.includes(`'${column}' column`) ||
       message.includes(`'${column}' column of 'entries'`) ||
@@ -76,31 +99,45 @@ function isCreatedAtUpdateRejected(error: { code?: string; message?: string; det
 function rememberMissingEntryColumns(missingColumns: Set<OptionalEntryColumn>) {
   if (missingColumns.has('payment_method')) canUseEntryPaymentMethodColumn = false
   if (missingColumns.has('time')) canUseEntryTimeColumn = false
+  if (missingColumns.has('home_amount_currency')) canUseEntryHomeAmountCurrencyColumn = false
 }
 
 function normalizeSavedValue(value: string) {
   return value.normalize('NFKC').trim().toLocaleLowerCase()
 }
 
-function buildEntryRemarksPayload(entry: Entry, includePaymentMethodColumn: boolean, includeTimeColumn: boolean) {
-  if (includePaymentMethodColumn && includeTimeColumn) return entry.remarks
+function buildEntryRemarksPayload(
+  entry: Entry,
+  includePaymentMethodColumn: boolean,
+  includeTimeColumn: boolean,
+  includeHomeAmountCurrencyColumn: boolean,
+) {
+  if (includePaymentMethodColumn && includeTimeColumn && includeHomeAmountCurrencyColumn) return entry.remarks
   return encodeEntryRemarks(
     entry.remarks,
     includePaymentMethodColumn ? '' : entry.paymentMethod || '',
     includeTimeColumn ? '' : entry.time || '',
+    includeHomeAmountCurrencyColumn ? '' : entry.homeAmountCurrency || '',
   )
 }
 
-function buildEntryInsertPayload(entry: Entry, userId: string, includePaymentMethodColumn: boolean, includeTimeColumn: boolean) {
+function buildEntryInsertPayload(
+  entry: Entry,
+  userId: string,
+  includePaymentMethodColumn: boolean,
+  includeTimeColumn: boolean,
+  includeHomeAmountCurrencyColumn: boolean,
+) {
   return {
     id: entry.id, user_id: userId, type: entry.type, date: entry.date,
     ...(includeTimeColumn ? { time: entry.time || null } : {}),
     summary: entry.summary, venue: entry.venue, location: entry.location,
     category: entry.category, amount: entry.amount,
-    remarks: buildEntryRemarksPayload(entry, includePaymentMethodColumn, includeTimeColumn),
+    remarks: buildEntryRemarksPayload(entry, includePaymentMethodColumn, includeTimeColumn, includeHomeAmountCurrencyColumn),
     ...(includePaymentMethodColumn ? { payment_method: (entry.paymentMethod || '').trim() } : {}),
     currency: entry.currency, context: entry.context,
     home_amount: entry.homeAmount ?? null,
+    ...(includeHomeAmountCurrencyColumn ? { home_amount_currency: entry.homeAmountCurrency || null } : {}),
   }
 }
 
@@ -108,6 +145,7 @@ function buildEntryUpdatePayload(
   updated: Entry,
   includePaymentMethodColumn: boolean,
   includeTimeColumn: boolean,
+  includeHomeAmountCurrencyColumn: boolean,
   includeCreatedAtColumn: boolean,
 ) {
   return {
@@ -115,10 +153,11 @@ function buildEntryUpdatePayload(
     ...(includeTimeColumn ? { time: updated.time || null } : {}),
     venue: updated.venue, location: updated.location, category: updated.category,
     amount: updated.amount,
-    remarks: buildEntryRemarksPayload(updated, includePaymentMethodColumn, includeTimeColumn),
+    remarks: buildEntryRemarksPayload(updated, includePaymentMethodColumn, includeTimeColumn, includeHomeAmountCurrencyColumn),
     ...(includePaymentMethodColumn ? { payment_method: (updated.paymentMethod || '').trim() } : {}),
     currency: updated.currency,
     home_amount: updated.homeAmount ?? null,
+    ...(includeHomeAmountCurrencyColumn ? { home_amount_currency: updated.homeAmountCurrency || null } : {}),
     ...(includeCreatedAtColumn && updated.createdAt ? { created_at: updated.createdAt } : {}),
   }
 }
@@ -134,7 +173,7 @@ export function useEntries() {
       .then(({ data }) => {
         setEntries((data || []).map(r => ({
           ...(() => {
-            const decoded = decodeEntryPayment(r.remarks || '', r.payment_method, r.time)
+            const decoded = decodeEntryPayment(r.remarks || '', r.payment_method, r.time, r.home_amount_currency)
             return {
               id: r.id, type: r.type, date: r.date, summary: r.summary,
               time: decoded.time || undefined,
@@ -145,6 +184,9 @@ export function useEntries() {
               context: r.context,
               createdAt: typeof r.created_at === 'string' ? r.created_at : undefined,
               homeAmount: r.home_amount == null ? undefined : coerceAmount(r.home_amount),
+              homeAmountCurrency: decoded.homeAmountCurrency
+                ? normalizeCurrencyCode(decoded.homeAmountCurrency)
+                : undefined,
             }
           })()
         })))
@@ -161,10 +203,13 @@ export function useEntries() {
     })
     let includePaymentMethodColumn = canUseEntryPaymentMethodColumn
     let includeTimeColumn = canUseEntryTimeColumn
+    let includeHomeAmountCurrencyColumn = canUseEntryHomeAmountCurrencyColumn
     let error = null
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const result = await supabase.from('entries').insert(buildEntryInsertPayload(entry, userId, includePaymentMethodColumn, includeTimeColumn))
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const result = await supabase.from('entries').insert(buildEntryInsertPayload(
+        entry, userId, includePaymentMethodColumn, includeTimeColumn, includeHomeAmountCurrencyColumn,
+      ))
       error = result.error
       if (!error) break
 
@@ -173,9 +218,15 @@ export function useEntries() {
       rememberMissingEntryColumns(missingColumns)
       const nextIncludePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
       const nextIncludeTimeColumn = includeTimeColumn && !missingColumns.has('time')
-      if (nextIncludePaymentMethodColumn === includePaymentMethodColumn && nextIncludeTimeColumn === includeTimeColumn) break
+      const nextIncludeHomeAmountCurrencyColumn = includeHomeAmountCurrencyColumn && !missingColumns.has('home_amount_currency')
+      if (
+        nextIncludePaymentMethodColumn === includePaymentMethodColumn &&
+        nextIncludeTimeColumn === includeTimeColumn &&
+        nextIncludeHomeAmountCurrencyColumn === includeHomeAmountCurrencyColumn
+      ) break
       includePaymentMethodColumn = nextIncludePaymentMethodColumn
       includeTimeColumn = nextIncludeTimeColumn
+      includeHomeAmountCurrencyColumn = nextIncludeHomeAmountCurrencyColumn
     }
 
     if (error) {
@@ -190,12 +241,15 @@ export function useEntries() {
     setEntries(prev => prev.map(e => e.id === updated.id ? { ...updated, createdAt: updated.createdAt || e.createdAt } : e))
     let includePaymentMethodColumn = canUseEntryPaymentMethodColumn
     let includeTimeColumn = canUseEntryTimeColumn
+    let includeHomeAmountCurrencyColumn = canUseEntryHomeAmountCurrencyColumn
     let includeCreatedAtColumn = Boolean(updated.createdAt)
     let error = null
 
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       const result = await supabase.from('entries')
-        .update(buildEntryUpdatePayload(updated, includePaymentMethodColumn, includeTimeColumn, includeCreatedAtColumn))
+        .update(buildEntryUpdatePayload(
+          updated, includePaymentMethodColumn, includeTimeColumn, includeHomeAmountCurrencyColumn, includeCreatedAtColumn,
+        ))
         .eq('id', updated.id)
         .eq('user_id', userId)
       error = result.error
@@ -206,11 +260,15 @@ export function useEntries() {
         rememberMissingEntryColumns(missingColumns)
         const nextIncludePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
         const nextIncludeTimeColumn = includeTimeColumn && !missingColumns.has('time')
-        if (nextIncludePaymentMethodColumn === includePaymentMethodColumn && nextIncludeTimeColumn === includeTimeColumn) {
-          // fall through to created_at handling below
-        } else {
+        const nextIncludeHomeAmountCurrencyColumn = includeHomeAmountCurrencyColumn && !missingColumns.has('home_amount_currency')
+        if (
+          nextIncludePaymentMethodColumn !== includePaymentMethodColumn ||
+          nextIncludeTimeColumn !== includeTimeColumn ||
+          nextIncludeHomeAmountCurrencyColumn !== includeHomeAmountCurrencyColumn
+        ) {
           includePaymentMethodColumn = nextIncludePaymentMethodColumn
           includeTimeColumn = nextIncludeTimeColumn
+          includeHomeAmountCurrencyColumn = nextIncludeHomeAmountCurrencyColumn
           continue
         }
       }

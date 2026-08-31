@@ -8,6 +8,7 @@ import {
   getAmountInputProps,
   getCurrencySymbol,
   getEntryCurrency,
+  getEntryHomeAmountCurrency,
   getEntryFormPlaceholders,
   getMonthLabels,
   INCOME_CATEGORIES,
@@ -17,6 +18,7 @@ import {
 import type { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
+import ActualChargedFields from './ActualChargedFields'
 
 interface Props {
   entry: Entry | null
@@ -57,6 +59,7 @@ export default function EntryEditModal({
   const [editRemarks, setEditRemarks] = useState('')
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
   const [editActualCharged, setEditActualCharged] = useState('')
+  const [editActualChargedCurrency, setEditActualChargedCurrency] = useState('USD')
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -76,7 +79,8 @@ export default function EntryEditModal({
     setEditRemarks(entry.remarks || '')
     setEditType(entry.type)
     setEditActualCharged(entry.homeAmount == null ? '' : entry.homeAmount.toString())
-  }, [entry])
+    setEditActualChargedCurrency(getEntryHomeAmountCurrency(entry, homeCur) || homeCur)
+  }, [entry, homeCur])
 
   const placeSuggestions = useMemo(
     () => getContextPlaceSuggestions(entries, activeContext?.id, items),
@@ -90,7 +94,6 @@ export default function EntryEditModal({
   const editCats = editType === 'expense' ? expenseCategories : incomeCategories
   const editCurrency = getEntryCurrency(entry, cur, homeCur)
   const editAmountProps = getAmountInputProps(editCurrency)
-  const editActualChargedProps = getAmountInputProps(homeCur)
   const canEditActualCharged = editCurrency !== homeCur
   const monthLabels = getMonthLabels(language)
   const placeholders = getEntryFormPlaceholders(language, activeContext?.currency || editCurrency, editType)
@@ -101,7 +104,7 @@ export default function EntryEditModal({
     const parsed = parseCurrencyInput(editAmount, editCurrency)
     if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
     const parsedActual = editActualCharged.trim()
-      ? parseCurrencyInput(editActualCharged.trim(), homeCur)
+      ? parseCurrencyInput(editActualCharged.trim(), editActualChargedCurrency)
       : undefined
     if (
       canEditActualCharged &&
@@ -124,6 +127,9 @@ export default function EntryEditModal({
       paymentMethod: editPaymentMethod.trim(),
       remarks: editRemarks.trim(),
       homeAmount: canEditActualCharged ? parsedActual : undefined,
+      homeAmountCurrency: canEditActualCharged && parsedActual && editActualChargedCurrency !== homeCur
+        ? editActualChargedCurrency
+        : undefined,
     })
     onClose()
   }
@@ -187,25 +193,13 @@ export default function EntryEditModal({
           />
         </div>
         {canEditActualCharged && (
-          <div>
-            <div className="mb-2 flex items-center gap-1.5">
-              <label className="app-kicker">
-                {t('actualCharged')} ({homeCur} {getCurrencySymbol(homeCur)})
-              </label>
-              <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
-            </div>
-            <input
-              type="text"
-              value={editActualCharged}
-              onChange={event => setEditActualCharged(normalizeAmountInputValue(event.target.value, homeCur))}
-              className={inputCls}
-              step={editActualChargedProps.step}
-              inputMode={editActualChargedProps.inputMode}
-              placeholder={editActualChargedProps.placeholder}
-              style={{ fontSize: '16px' }}
-            />
-            <p className="mt-1 text-xs text-slate-400">{t('actualChargedHint')}</p>
-          </div>
+          <ActualChargedFields
+            amount={editActualCharged}
+            currency={editActualChargedCurrency}
+            onAmountChange={setEditActualCharged}
+            onCurrencyChange={setEditActualChargedCurrency}
+            inputCls={inputCls}
+          />
         )}
         <div>
           <label className="app-kicker mb-2 block">{t('summary')}</label>

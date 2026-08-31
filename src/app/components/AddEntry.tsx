@@ -18,6 +18,7 @@ import {
 import { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
+import ActualChargedFields from './ActualChargedFields'
 
 interface Props {
   onAdd: (e: Entry) => Promise<void> | void
@@ -45,7 +46,6 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const contextCur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || contextCur
   const sym = getCurrencySymbol(contextCur)
-  const homeSym = getCurrencySymbol(homeCur)
 
   const saved = typeof window !== 'undefined' ? JSON.parse(sessionStorage.getItem('addentry-draft') || '{}') : {}
 
@@ -57,6 +57,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const [amount, setAmount] = useState(saved.amount || '')
   const [currency, setCurrency] = useState(contextCur)
   const [actualCharged, setActualCharged] = useState('')
+  const [actualChargedCurrency, setActualChargedCurrency] = useState(homeCur)
   const [summary, setSummary] = useState(saved.summary || '')
   const [venue, setVenue] = useState(saved.venue || '')
   const [location, setLocation] = useState(saved.location || '')
@@ -85,7 +86,6 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const monthLabels = getMonthLabels(language)
   const primaryAmountCurrency = showCurrencyOverride ? currency : contextCur
   const primaryAmountProps = getAmountInputProps(primaryAmountCurrency)
-  const actualChargedProps = getAmountInputProps(homeCur)
   const placeholders = getEntryFormPlaceholders(language, contextCur, entryType)
 
   useEffect(() => {
@@ -93,12 +93,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   }, [contextCur, showCurrencyOverride])
 
   useEffect(() => {
-    setAmount((prev: string) => normalizeAmountInputValue(prev, primaryAmountCurrency))
-  }, [primaryAmountCurrency])
+    if (!showCurrencyOverride) setActualChargedCurrency(homeCur)
+  }, [homeCur, showCurrencyOverride])
 
   useEffect(() => {
-    setActualCharged((prev: string) => normalizeAmountInputValue(prev, homeCur))
-  }, [homeCur])
+    setAmount((prev: string) => normalizeAmountInputValue(prev, primaryAmountCurrency))
+  }, [primaryAmountCurrency])
 
   const placeSuggestions = useMemo(
     () => getContextPlaceSuggestions(entries, activeContext?.id, items),
@@ -120,6 +120,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setCurrency(r.currency)
     setShowCurrencyOverride(r.currency !== contextCur)
     setActualCharged('')
+    setActualChargedCurrency(homeCur)
     setVenue(r.venue || ''); setLocation(r.location || '')
     setShowRecurring(false)
   }
@@ -133,7 +134,9 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     const parsed = parseCurrencyInput(amount, primaryAmountCurrency)
     if (isNaN(parsed) || parsed <= 0) { setError(t('invalidAmount')); return }
     if (!category) { setError(t('selectCategoryError')); return }
-    const parsedActual = actualCharged.trim() ? parseCurrencyInput(actualCharged.trim(), homeCur) : undefined
+    const parsedActual = actualCharged.trim()
+      ? parseCurrencyInput(actualCharged.trim(), actualChargedCurrency)
+      : undefined
     if (actualCharged.trim() && (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)) {
       setError(t('invalidAmount'))
       return
@@ -165,6 +168,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       context: activeContext?.id || '',
       createdAt,
       homeAmount: parsedActual,
+      homeAmountCurrency: parsedActual && actualChargedCurrency !== homeCur ? actualChargedCurrency : undefined,
     }
 
     try {
@@ -245,7 +249,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
             <label className="app-kicker">{t('amount')} ({showCurrencyOverride ? currency : contextCur} {showCurrencyOverride ? getCurrencySymbol(currency) : sym})</label>
-            <button onClick={() => { setShowCurrencyOverride(v => !v); setCurrency(contextCur); setActualCharged('') }} className="text-xs font-medium text-[#3182f6] dark:text-sky-300">
+            <button onClick={() => {
+              setShowCurrencyOverride(v => !v)
+              setCurrency(contextCur)
+              setActualCharged('')
+              setActualChargedCurrency(homeCur)
+            }} className="text-xs font-medium text-[#3182f6] dark:text-sky-300">
               {showCurrencyOverride ? t('useDefaultCurrency') : t('differentCurrency')}
             </button>
           </div>
@@ -263,25 +272,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
         </div>
 
         {showCurrencyOverride && (
-          <div>
-            <div className="mb-2 flex items-center gap-1.5">
-              <label className="app-kicker">
-                {t('actualCharged')} ({homeCur} {homeSym})
-              </label>
-              <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
-            </div>
-            <input
-              type="text"
-              value={actualCharged}
-              onChange={e => setActualCharged(normalizeAmountInputValue(e.target.value, homeCur))}
-              placeholder={actualChargedProps.placeholder}
-              className={inputCls}
-              step={actualChargedProps.step}
-              inputMode={actualChargedProps.inputMode}
-              style={{ fontSize: '16px' }}
-            />
-            <p className="mt-1 text-xs text-slate-400">{t('actualChargedHint')}</p>
-          </div>
+          <ActualChargedFields
+            amount={actualCharged}
+            currency={actualChargedCurrency}
+            onAmountChange={setActualCharged}
+            onCurrencyChange={setActualChargedCurrency}
+            inputCls={inputCls}
+          />
         )}
 
         <div>

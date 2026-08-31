@@ -14,6 +14,7 @@ import {
   getCategoryColor,
   getCurrencySymbol,
   getEntryCurrency,
+  getEntryHomeAmountCurrency,
   getEntryFormPlaceholders,
   getMonthLabels,
   getWeekdayLabels,
@@ -25,6 +26,7 @@ import {
 import type { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
 import VenueLocationFields from './VenueLocationFields'
+import ActualChargedFields from './ActualChargedFields'
 
 interface Props {
   entries: Entry[]
@@ -61,6 +63,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
   const [editRemarks, setEditRemarks] = useState('')
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
   const [editActualCharged, setEditActualCharged] = useState('')
+  const [editActualChargedCurrency, setEditActualChargedCurrency] = useState('USD')
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -115,6 +118,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
     setEditVenue(e.venue || ''); setEditLocation(e.location || '')
     setEditCategory(e.category); setEditPaymentMethod(e.paymentMethod || ''); setEditRemarks(e.remarks || '')
     setEditActualCharged(e.homeAmount == null ? '' : e.homeAmount.toString())
+    setEditActualChargedCurrency(getEntryHomeAmountCurrency(e, homeCur) || homeCur)
     setEditType(e.type); setEditEntry(e)
   }
 
@@ -123,7 +127,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
     const parsed = parseCurrencyInput(editAmount, editCurrency)
     if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
     const parsedActual = editActualCharged.trim()
-      ? parseCurrencyInput(editActualCharged.trim(), homeCur)
+      ? parseCurrencyInput(editActualCharged.trim(), editActualChargedCurrency)
       : undefined
     if (
       canEditActualCharged &&
@@ -146,6 +150,9 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
       paymentMethod: editPaymentMethod.trim(),
       remarks: editRemarks.trim(),
       homeAmount: canEditActualCharged ? parsedActual : undefined,
+      homeAmountCurrency: canEditActualCharged && parsedActual && editActualChargedCurrency !== homeCur
+        ? editActualChargedCurrency
+        : undefined,
     })
     setEditEntry(null)
   }
@@ -155,7 +162,6 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
   const editCurrency = editEntry ? getEntryCurrency(editEntry, cur, homeCur) : cur
   const editAmountProps = getAmountInputProps(editCurrency)
-  const editActualChargedProps = getAmountInputProps(homeCur)
   const canEditActualCharged = editCurrency !== homeCur
   const monthLabels = getMonthLabels(language)
   const weekdayLabels = getWeekdayLabels(language)
@@ -210,25 +216,13 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
               <input type="text" value={editAmount} onChange={e => setEditAmount(normalizeAmountInputValue(e.target.value, editCurrency))} className={inputCls} step={editAmountProps.step} inputMode={editAmountProps.inputMode} placeholder={editAmountProps.placeholder} style={{fontSize:'16px'}} />
             </div>
             {canEditActualCharged && (
-              <div>
-                <div className="mb-2 flex items-center gap-1.5">
-                  <label className="app-kicker">
-                    {t('actualCharged')} ({homeCur} {getCurrencySymbol(homeCur)})
-                  </label>
-                  <span className="text-xs text-slate-300 dark:text-zinc-600">{t('optional')}</span>
-                </div>
-                <input
-                  type="text"
-                  value={editActualCharged}
-                  onChange={e => setEditActualCharged(normalizeAmountInputValue(e.target.value, homeCur))}
-                  className={inputCls}
-                  step={editActualChargedProps.step}
-                  inputMode={editActualChargedProps.inputMode}
-                  placeholder={editActualChargedProps.placeholder}
-                  style={{fontSize:'16px'}}
-                />
-                <p className="mt-1 text-xs text-slate-400">{t('actualChargedHint')}</p>
-              </div>
+              <ActualChargedFields
+                amount={editActualCharged}
+                currency={editActualChargedCurrency}
+                onAmountChange={setEditActualCharged}
+                onCurrencyChange={setEditActualChargedCurrency}
+                inputCls={inputCls}
+              />
             )}
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>
