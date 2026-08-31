@@ -100,15 +100,35 @@ const US_STATE_NAMES: Record<string, string> = {
   DC: 'District of Columbia',
 }
 
+function isUsStateCode(part: string) {
+  const code = part.replace(/[^A-Za-z]/g, '').toUpperCase()
+  return /^[A-Z]{2}$/.test(code) && Boolean(US_STATE_NAMES[code])
+}
+
+function isIsoSubdivisionCode(part: string) {
+  return /^[A-Z]{2}-[\dA-Z]+$/i.test(part.trim())
+}
+
 function getLocationRegion(location: string) {
   const trimmed = location.trim()
   if (!trimmed) return null
 
   const commaParts = trimmed.split(',').map(part => part.trim()).filter(Boolean)
   if (commaParts.length > 1) {
+    const firstPart = commaParts[0]
     const lastPart = commaParts[commaParts.length - 1]
-    const stateCode = lastPart.replace(/[^A-Za-z]/g, '').toUpperCase()
-    return US_STATE_NAMES[stateCode] || lastPart
+
+    if (isUsStateCode(lastPart)) {
+      const stateCode = lastPart.replace(/[^A-Za-z]/g, '').toUpperCase()
+      return US_STATE_NAMES[stateCode]
+    }
+
+    // e.g. "成田市, JP-12" — show the city/locality, not the ISO region code.
+    if (isIsoSubdivisionCode(lastPart)) {
+      return firstPart
+    }
+
+    return lastPart
   }
 
   const spaceParts = trimmed.split(/\s+/).filter(Boolean)
