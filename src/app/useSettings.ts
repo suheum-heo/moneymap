@@ -230,13 +230,51 @@ function persistContextMeta(userId: string, context: Context, meta: Record<strin
   return nextMeta
 }
 
-function isMissingContextHierarchyColumn(error: { code?: string; message?: string; details?: string } | null) {
+function isMissingContextHierarchyColumn(error: { code?: string; message?: string; details?: string; hint?: string } | null) {
   if (!error) return false
-  const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
+  const message = `${error.code || ''} ${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
   return message.includes('parent_id')
     || message.includes('is_group')
-    || message.includes("'icon' column")
-    || message.includes('column contexts.icon')
+    || message.includes('icon')
+    || message.includes('pgrst204')
+}
+
+function buildContextCorePayload(ctx: Context) {
+  return {
+    name: ctx.name,
+    currency: ctx.currency,
+    home_currency: ctx.homeCurrency,
+    start_date: ctx.startDate,
+  }
+}
+
+function buildContextFullPayload(ctx: Context) {
+  return {
+    ...buildContextCorePayload(ctx),
+    parent_id: ctx.parentId || null,
+    is_group: Boolean(ctx.isGroup),
+    icon: ctx.icon || null,
+  }
+}
+
+async function persistContextRow(userId: string, ctx: Context) {
+  const { error } = await supabase.from('contexts')
+    .update(buildContextFullPayload(ctx))
+    .eq('id', ctx.id)
+    .eq('user_id', userId)
+
+  if (!error) return { usedHierarchyColumns: true as const }
+
+  if (isMissingContextHierarchyColumn(error)) {
+    const retry = await supabase.from('contexts')
+      .update(buildContextCorePayload(ctx))
+      .eq('id', ctx.id)
+      .eq('user_id', userId)
+    if (retry.error) throw retry.error
+    return { usedHierarchyColumns: false as const }
+  }
+
+  throw error
 }
 
 export function useSettings() {
@@ -418,14 +456,13 @@ export function useSettings() {
       contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
       return next
     })
-    const { error } = await supabase.from('contexts').update({
-      name: ctx.name, currency: ctx.currency,
-      home_currency: ctx.homeCurrency, start_date: ctx.startDate,
-      parent_id: ctx.parentId || null,
-      is_group: Boolean(ctx.isGroup),
-      icon: ctx.icon || null,
-    }).eq('id', ctx.id).eq('user_id', userId)
-    if (isMissingContextHierarchyColumn(error)) {
+    try {
+      const result = await persistContextRow(userId, ctx)
+      if (!result.usedHierarchyColumns) {
+        contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
+      }
+    } catch (error) {
+      console.error('Failed to persist context', error)
       contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
     }
   }, [userId])
@@ -448,16 +485,13 @@ export function useSettings() {
       return next
     })
 
-    const { error } = await supabase.from('contexts').update({
-      name: moved.name,
-      currency: moved.currency,
-      home_currency: moved.homeCurrency,
-      start_date: moved.startDate,
-      parent_id: moved.parentId || null,
-      is_group: Boolean(moved.isGroup),
-      icon: moved.icon || null,
-    }).eq('id', moved.id).eq('user_id', userId)
-    if (isMissingContextHierarchyColumn(error)) {
+    try {
+      const result = await persistContextRow(userId, moved)
+      if (!result.usedHierarchyColumns) {
+        contextMetaRef.current = persistContextMeta(userId, moved, contextMetaRef.current)
+      }
+    } catch (error) {
+      console.error('Failed to persist moved context', error)
       contextMetaRef.current = persistContextMeta(userId, moved, contextMetaRef.current)
     }
 
