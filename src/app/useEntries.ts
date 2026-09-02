@@ -347,5 +347,31 @@ export function useEntries() {
     await supabase.from('entries').delete().eq('id', id).eq('user_id', userId)
   }, [userId])
 
-  return { entries, loaded, addEntry, updateEntry, renameCategory, renamePaymentMethod, renameVenue, renameLocation, deleteEntry }
+  const moveEntriesFromContext = useCallback(async (sourceContextId: string, targetContextId: string) => {
+    if (!userId || !sourceContextId || !targetContextId || sourceContextId === targetContextId) return 0
+
+    const toMove = entries.filter(entry => entry.context === sourceContextId)
+    if (toMove.length === 0) return 0
+
+    setEntries(prev => prev.map(entry =>
+      entry.context === sourceContextId ? { ...entry, context: targetContextId } : entry,
+    ))
+
+    const { error } = await supabase.from('entries')
+      .update({ context: targetContextId })
+      .eq('user_id', userId)
+      .eq('context', sourceContextId)
+
+    if (error) {
+      setEntries(prev => prev.map(entry => {
+        if (entry.context !== targetContextId) return entry
+        return toMove.some(item => item.id === entry.id) ? { ...entry, context: sourceContextId } : entry
+      }))
+      throw error
+    }
+
+    return toMove.length
+  }, [entries, userId])
+
+  return { entries, loaded, addEntry, updateEntry, moveEntriesFromContext, renameCategory, renamePaymentMethod, renameVenue, renameLocation, deleteEntry }
 }

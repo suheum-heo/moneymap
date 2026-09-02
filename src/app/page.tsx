@@ -47,6 +47,7 @@ function AppContent({ user }: { user: User }) {
     renameVenue: renameEntryVenue,
     renameLocation: renameEntryLocation,
     deleteEntry,
+    moveEntriesFromContext,
   } = useEntries()
   const {
     contexts, activeContext, activeContextId, switchContext,
@@ -317,7 +318,7 @@ function AppContent({ user }: { user: User }) {
       {tab === 'entries' && <Entries entries={entries} items={items} month={month} onDelete={deleteEntry} onUpdate={updateEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} items={items} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={openAddEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} sortOrder={entrySortOrder || 'newest'} />}
-      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} rateSource={rateSource} effectiveRateSource={effectiveRateSource} rateFallback={rateFallback} setRateSource={setRateSource} cardFeePct={cardFeePct} setCardFeePct={setCardFeePct} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} importCategoriesFromContext={importCategoriesFromContext} renamePaymentMethod={renamePaymentMethod} renameVenue={renameVenue} renameLocation={renameLocation} />}
+      {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} rateSource={rateSource} effectiveRateSource={effectiveRateSource} rateFallback={rateFallback} setRateSource={setRateSource} cardFeePct={cardFeePct} setCardFeePct={setCardFeePct} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} importCategoriesFromContext={importCategoriesFromContext} moveEntriesFromContext={moveEntriesFromContext} renamePaymentMethod={renamePaymentMethod} renameVenue={renameVenue} renameLocation={renameLocation} />}
     </>
   )
 

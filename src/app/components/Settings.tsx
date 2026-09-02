@@ -60,6 +60,7 @@ interface Props {
   updateCategory: (id: string, name: string) => void | Promise<void>
   removeCategory: (id: string) => void
   importCategoriesFromContext: (sourceContextId: string, targetContextId: string) => void | Promise<void>
+  moveEntriesFromContext: (sourceContextId: string, targetContextId: string) => Promise<number>
   renamePaymentMethod: (from: string, to: string, contextId?: string) => void | Promise<void>
   renameVenue: (from: string, to: string, contextId?: string) => void | Promise<void>
   renameLocation: (from: string, to: string, contextId?: string) => void | Promise<void>
@@ -67,7 +68,7 @@ interface Props {
 
 type SavedDataField = 'paymentMethod' | 'venue' | 'location'
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, moveEntriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -138,8 +139,16 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [savedDataDraft, setSavedDataDraft] = useState('')
   const [savingSavedData, setSavingSavedData] = useState(false)
   const [savedDataOpen, setSavedDataOpen] = useState(false)
+  const [entrySourceContextId, setEntrySourceContextId] = useState('')
+  const [movingEntries, setMovingEntries] = useState(false)
+  const [entryImportMessage, setEntryImportMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
+  const entrySourceContexts = contexts.filter(context => context.id !== activeContext?.id)
+  const entryImportCount = useMemo(
+    () => entries.filter(entry => entry.context === entrySourceContextId).length,
+    [entries, entrySourceContextId],
+  )
   const placeSuggestions = useMemo(
     () => getContextPlaceSuggestions(entries, activeContext?.id, items),
     [entries, activeContext?.id, items],
@@ -170,6 +179,29 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
     if (!options.length) return
     if (!options.includes(recCategory)) setRecCategory(options[0])
   }, [expenseCategoryOptions, incomeCategoryOptions, recCategory, recType])
+
+  useEffect(() => {
+    if (entrySourceContexts.some(context => context.id === entrySourceContextId)) return
+    setEntrySourceContextId(entrySourceContexts[0]?.id || '')
+  }, [entrySourceContextId, entrySourceContexts])
+
+  const handleMoveEntries = async () => {
+    if (!activeContext || !entrySourceContextId || movingEntries) return
+    setEntryImportMessage(null)
+    setMovingEntries(true)
+    try {
+      const movedCount = await moveEntriesFromContext(entrySourceContextId, activeContext.id)
+      if (movedCount === 0) {
+        setEntryImportMessage({ tone: 'info', text: t('importEntriesEmpty') })
+      } else {
+        setEntryImportMessage({ tone: 'success', text: t('importEntriesSuccess', { count: movedCount }) })
+      }
+    } catch {
+      setEntryImportMessage({ tone: 'error', text: t('importEntriesFailed') })
+    } finally {
+      setMovingEntries(false)
+    }
+  }
 
   const inputCls = "app-input py-3 text-sm"
   const selCls = "app-select px-3 py-2.5 text-sm"
@@ -539,6 +571,49 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             </div>
           )}
         />
+        {activeContext && entrySourceContexts.length > 0 && (
+          <div className="app-panel-soft mb-4 flex flex-col gap-3 p-3.5">
+            <div className="app-kicker">{t('importEntries')}</div>
+            <p className="text-xs text-slate-400">{t('importEntriesHint')}</p>
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
+              <select
+                value={entrySourceContextId}
+                onChange={event => {
+                  setEntrySourceContextId(event.target.value)
+                  setEntryImportMessage(null)
+                }}
+                className="app-select min-w-0 w-full px-3 py-2.5 text-sm"
+                style={{ fontSize: '16px' }}
+              >
+                {entrySourceContexts.map(context => <option key={context.id} value={context.id}>{context.name}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => void handleMoveEntries()}
+                disabled={movingEntries || entryImportCount === 0}
+                className="app-button-secondary flex-shrink-0 px-4 py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {movingEntries ? t('loading') : t('import')}
+              </button>
+            </div>
+            {entrySourceContextId && (
+              <p className="text-xs text-slate-400">
+                {entryImportCount > 0
+                  ? t('importEntriesPreview', { count: entryImportCount })
+                  : t('importEntriesEmpty')}
+              </p>
+            )}
+            {entryImportMessage && (
+              <p className={`text-xs ${entryImportMessage.tone === 'success'
+                ? 'text-emerald-600 dark:text-emerald-300'
+                : entryImportMessage.tone === 'error'
+                  ? 'text-rose-500'
+                  : 'text-slate-400'}`}>
+                {entryImportMessage.text}
+              </p>
+            )}
+          </div>
+        )}
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">{t('newContext')}</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
