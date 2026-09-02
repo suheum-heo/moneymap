@@ -29,7 +29,7 @@ import CategorySettings from './CategorySettings'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
 import VenueLocationFields from './VenueLocationFields'
 import ContextTreeList from './ContextTreeList'
-import { getContextImportLabel, getImportableContexts, isContextGroup } from '../lib/contextTree'
+import { getContextImportLabel, getImportableContexts, isContextGroup, ContextMoveTarget } from '../lib/contextTree'
 
 interface Props {
   userEmail: string
@@ -37,6 +37,7 @@ interface Props {
   addContext: (ctx: Context) => void
   removeContext: (id: string) => boolean | Promise<boolean>
   updateContext: (ctx: Context) => void
+  moveContext: (draggedId: string, target: ContextMoveTarget) => void
   reorderContexts: (orderedIds: string[]) => void
   convert: (amount: number, from: string, to: string) => number
   activeContext?: Context
@@ -69,7 +70,7 @@ interface Props {
 
 type SavedDataField = 'paymentMethod' | 'venue' | 'location'
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, moveEntriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, moveContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, moveEntriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -98,11 +99,13 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [editCtxStartDate, setEditCtxStartDate] = useState('')
 
   const [editCtxIcon, setEditCtxIcon] = useState('')
+  const [editCtxParentId, setEditCtxParentId] = useState('')
 
   const openEditCtx = (c: Context) => {
     setEditingCtx(c)
     setEditCtxName(c.name)
     setEditCtxIcon(c.icon || '')
+    setEditCtxParentId(c.parentId || '')
     setEditCtxCurrency(c.currency)
     setEditCtxHomeCurrency(c.homeCurrency)
     setEditCtxStartDate(c.startDate)
@@ -110,10 +113,12 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
   const handleSaveCtx = () => {
     if (!editingCtx || !editCtxName.trim()) return
+    const nextParentId = isContextGroup(editingCtx, contexts) ? undefined : (editCtxParentId || undefined)
     updateContext({
       ...editingCtx,
       name: editCtxName.trim(),
       icon: editCtxIcon.trim() || undefined,
+      parentId: nextParentId,
       currency: editCtxCurrency,
       homeCurrency: editCtxHomeCurrency,
       startDate: editCtxStartDate,
@@ -544,6 +549,17 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             </div>
             {editingCtx && !isContextGroup(editingCtx, contexts) && (
               <>
+                {groupOptions.length > 0 && (
+                  <div>
+                    <label className="app-kicker block mb-2">{t('contextParent')}</label>
+                    <select value={editCtxParentId} onChange={e => setEditCtxParentId(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                      <option value="">{t('contextParentNone')}</option>
+                      {groupOptions
+                        .filter(context => context.id !== editingCtx.id)
+                        .map(context => <option key={context.id} value={context.id}>{context.icon ? `${context.icon} ` : ''}{context.name}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="app-kicker block mb-2">{t('localCurrency')}</label>
@@ -612,15 +628,17 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       {/* Contexts */}
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('contexts')}</div>
+        <p className="mb-3 text-xs text-slate-400">{t('contextDragHint')}</p>
         <ContextTreeList
           contexts={contexts}
           activeContextId={activeContext?.id}
           mode="manage"
           className="mb-4 flex flex-col gap-1"
-          getItemClassName={() => 'app-list-row flex items-center gap-2 !px-2.5 !py-2.5 transition-all'}
+          getItemClassName={(_context, state) => `app-list-row flex items-center gap-2 !px-2.5 !py-2.5 transition-all ${state.isDragging ? 'scale-[1.01] ring-4 ring-[#3182f6]/10' : ''}`}
           onEdit={openEditCtx}
           onRemove={handleRemoveContext}
           onAddChild={handleAddChildContext}
+          onMoveContext={(draggedId, target) => { void moveContext(draggedId, target) }}
         />
         {activeContext && entrySourceContexts.length > 0 && (
           <div className="app-panel-soft mb-4 flex flex-col gap-3 p-3.5">

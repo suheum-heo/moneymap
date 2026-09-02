@@ -11,6 +11,8 @@ import {
   isLeafContext,
   orderContextsDepthFirst,
   resolveActiveLeafContext,
+  applyContextMove,
+  ContextMoveTarget,
 } from './lib/contextTree'
 
 export interface ExchangeRate { from: string; to: string; rate: number }
@@ -428,6 +430,51 @@ export function useSettings() {
     }
   }, [userId])
 
+  const moveContext = useCallback(async (draggedId: string, target: ContextMoveTarget) => {
+    if (!userId) return
+    const current = contextsRef.current
+    const dragged = current.find(context => context.id === draggedId)
+    if (!dragged) return
+    const next = applyContextMove(current, draggedId, target)
+    if (next === current || next.length === 0) return
+
+    const moved = next.find(context => context.id === draggedId)
+    if (!moved) return
+
+    setContexts(() => {
+      contextsRef.current = next
+      contextMetaRef.current = persistContextMeta(userId, moved, contextMetaRef.current)
+      writeStoredContextOrder(userId, next.map(context => context.id))
+      return next
+    })
+
+    const { error } = await supabase.from('contexts').update({
+      name: moved.name,
+      currency: moved.currency,
+      home_currency: moved.homeCurrency,
+      start_date: moved.startDate,
+      parent_id: moved.parentId || null,
+      is_group: Boolean(moved.isGroup),
+      icon: moved.icon || null,
+    }).eq('id', moved.id).eq('user_id', userId)
+    if (isMissingContextHierarchyColumn(error)) {
+      contextMetaRef.current = persistContextMeta(userId, moved, contextMetaRef.current)
+    }
+
+    const orderedIds = next.map(context => context.id)
+    const first = await supabase.from('contexts')
+      .update({ sort_order: 0 })
+      .eq('id', orderedIds[0])
+      .eq('user_id', userId)
+    if (isMissingContextSortOrderColumn(first.error)) return
+    await Promise.all(orderedIds.slice(1).map((id, index) =>
+      supabase.from('contexts')
+        .update({ sort_order: index + 1 })
+        .eq('id', id)
+        .eq('user_id', userId),
+    ))
+  }, [userId])
+
   const reorderContexts = useCallback(async (orderedIds: string[]) => {
     if (!userId) return
     const nextIds = mergeOrderedContextIds(contextsRef.current, orderedIds)
@@ -503,7 +550,7 @@ export function useSettings() {
   const activeContext = resolveActiveLeafContext(contexts, activeContextId) || contexts.find(c => isLeafContext(c, contexts))
 
   return {
-    contexts, addContext, removeContext, renameContext, updateContext, reorderContexts,
+    contexts, addContext, removeContext, renameContext, updateContext, moveContext, reorderContexts,
     activeContext, activeContextId, switchContext,
     rates, updateRate, convert, loaded, ratesUpdated,
     rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct,

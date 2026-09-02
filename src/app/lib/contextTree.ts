@@ -142,3 +142,64 @@ export function resolveActiveLeafContext(contexts: Context[], activeContextId: s
 export function getImportableContexts(contexts: Context[], excludeId?: string): Context[] {
   return getLeafContexts(contexts).filter(context => context.id !== excludeId)
 }
+
+export interface ContextMoveTarget {
+  parentId?: string
+  beforeId?: string
+}
+
+export function canMoveContext(
+  contexts: Context[],
+  draggedId: string,
+  parentId?: string,
+): boolean {
+  const dragged = contexts.find(context => context.id === draggedId)
+  if (!dragged) return false
+  if (parentId === draggedId) return false
+  if (isContextGroup(dragged, contexts) && parentId) return false
+  if (!parentId) return true
+  const parent = contexts.find(context => context.id === parentId)
+  return !!parent && isContextGroup(parent, contexts)
+}
+
+export function applyContextMove(
+  contexts: Context[],
+  draggedId: string,
+  target: ContextMoveTarget,
+): Context[] {
+  const dragged = contexts.find(context => context.id === draggedId)
+  if (!dragged) return contexts
+  if (!canMoveContext(contexts, draggedId, target.parentId)) return contexts
+
+  const nextParentId = target.parentId || undefined
+  const updated = contexts.map(context => {
+    if (context.id !== draggedId) return context
+    return {
+      ...context,
+      parentId: nextParentId,
+    }
+  })
+
+  const walk = (parentId: string | undefined): Context[] => {
+    let children = getContextChildren(parentId, updated)
+    if ((parentId || undefined) === nextParentId) {
+      const others = children.filter(context => context.id !== draggedId)
+      const orderedIds = others.map(context => context.id)
+      if (target.beforeId) {
+        const idx = orderedIds.indexOf(target.beforeId)
+        if (idx >= 0) orderedIds.splice(idx, 0, draggedId)
+        else orderedIds.push(draggedId)
+      } else {
+        orderedIds.push(draggedId)
+      }
+      const byId = new Map(children.map(context => [context.id, context]))
+      children = orderedIds
+        .map(id => byId.get(id))
+        .filter((context): context is Context => Boolean(context))
+    }
+
+    return children.flatMap(child => [child, ...walk(child.id)])
+  }
+
+  return walk(undefined).map((context, index) => ({ ...context, sortOrder: index }))
+}
