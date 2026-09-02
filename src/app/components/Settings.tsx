@@ -57,6 +57,7 @@ interface Props {
   addItem: (item: RecurringItem) => void
   updateItem: (item: RecurringItem) => void | Promise<void>
   deleteItem: (id: string) => void
+  importRecurringFromContext: (sourceContextId: string, targetContextId: string, itemIds?: string[]) => Promise<number>
   categories: Category[]
   expenseCategories: string[]
   incomeCategories: string[]
@@ -72,7 +73,7 @@ interface Props {
 
 type SavedDataField = 'paymentMethod' | 'venue' | 'location'
 
-export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, moveContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, moveEntriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
+export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, moveContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, importRecurringFromContext, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, moveEntriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const expenseCategoryOptions = expenseCategories.length > 0 ? expenseCategories : EXPENSE_CATEGORIES
@@ -176,9 +177,14 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [selectedImportEntryIds, setSelectedImportEntryIds] = useState<string[]>([])
   const [movingEntries, setMovingEntries] = useState(false)
   const [entryImportMessage, setEntryImportMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null)
+  const [recurringSourceContextId, setRecurringSourceContextId] = useState('')
+  const [selectedImportRecurringIds, setSelectedImportRecurringIds] = useState<string[]>([])
+  const [importingRecurring, setImportingRecurring] = useState(false)
+  const [recurringImportMessage, setRecurringImportMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
   const entrySourceContexts = getImportableContexts(contexts, activeContext?.id)
+  const recurringSourceContexts = entrySourceContexts
   const importableEntries = useMemo(
     () => sortEntriesForDisplay(
       entries.filter(entry => entry.context === entrySourceContextId),
@@ -186,10 +192,25 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
     ),
     [entries, entrySourceContextId],
   )
+  const importableRecurring = useMemo(() => {
+    const targetKeys = new Set(
+      items
+        .filter(item => item.context === activeContext?.id)
+        .map(item => `${item.type}:${item.summary.trim().toLocaleLowerCase()}`),
+    )
+    return items
+      .filter(item => item.context === recurringSourceContextId)
+      .filter(item => !targetKeys.has(`${item.type}:${item.summary.trim().toLocaleLowerCase()}`))
+      .sort((a, b) => a.summary.localeCompare(b.summary, language, { sensitivity: 'base' }))
+  }, [activeContext?.id, items, language, recurringSourceContextId])
   const entryImportCount = importableEntries.length
   const selectedImportCount = selectedImportEntryIds.length
   const allImportSelected = entryImportCount > 0 && selectedImportCount === entryImportCount
   const selectedImportIdSet = useMemo(() => new Set(selectedImportEntryIds), [selectedImportEntryIds])
+  const recurringImportCount = importableRecurring.length
+  const selectedRecurringImportCount = selectedImportRecurringIds.length
+  const allRecurringImportSelected = recurringImportCount > 0 && selectedRecurringImportCount === recurringImportCount
+  const selectedRecurringImportIdSet = useMemo(() => new Set(selectedImportRecurringIds), [selectedImportRecurringIds])
   const placeSuggestions = useMemo(
     () => getContextPlaceSuggestions(entries, activeContext?.id, items),
     [entries, activeContext?.id, items],
@@ -227,9 +248,19 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   }, [entrySourceContextId, entrySourceContexts])
 
   useEffect(() => {
+    if (recurringSourceContexts.some(context => context.id === recurringSourceContextId)) return
+    setRecurringSourceContextId(recurringSourceContexts[0]?.id || '')
+  }, [recurringSourceContextId, recurringSourceContexts])
+
+  useEffect(() => {
     setSelectedImportEntryIds([])
     setEntryImportMessage(null)
   }, [entrySourceContextId])
+
+  useEffect(() => {
+    setSelectedImportRecurringIds([])
+    setRecurringImportMessage(null)
+  }, [recurringSourceContextId])
 
   useEffect(() => {
     const validIds = new Set(importableEntries.map(entry => entry.id))
@@ -238,6 +269,14 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       return next.length === prev.length ? prev : next
     })
   }, [importableEntries])
+
+  useEffect(() => {
+    const validIds = new Set(importableRecurring.map(item => item.id))
+    setSelectedImportRecurringIds(prev => {
+      const next = prev.filter(id => validIds.has(id))
+      return next.length === prev.length ? prev : next
+    })
+  }, [importableRecurring])
 
   const toggleImportEntry = (entryId: string) => {
     setSelectedImportEntryIds(prev =>
@@ -254,6 +293,23 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const clearImportSelection = () => {
     setSelectedImportEntryIds([])
     setEntryImportMessage(null)
+  }
+
+  const toggleImportRecurring = (itemId: string) => {
+    setSelectedImportRecurringIds(prev =>
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId],
+    )
+    setRecurringImportMessage(null)
+  }
+
+  const selectAllImportRecurring = () => {
+    setSelectedImportRecurringIds(importableRecurring.map(item => item.id))
+    setRecurringImportMessage(null)
+  }
+
+  const clearRecurringImportSelection = () => {
+    setSelectedImportRecurringIds([])
+    setRecurringImportMessage(null)
   }
 
   const handleMoveEntries = async () => {
@@ -276,6 +332,29 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       setEntryImportMessage({ tone: 'error', text: t('importEntriesFailed') })
     } finally {
       setMovingEntries(false)
+    }
+  }
+
+  const handleImportRecurring = async () => {
+    if (!activeContext || !recurringSourceContextId || importingRecurring || selectedRecurringImportCount === 0) return
+    setRecurringImportMessage(null)
+    setImportingRecurring(true)
+    try {
+      const importedCount = await importRecurringFromContext(
+        recurringSourceContextId,
+        activeContext.id,
+        selectedImportRecurringIds,
+      )
+      if (importedCount === 0) {
+        setRecurringImportMessage({ tone: 'info', text: t('importRecurringEmpty') })
+      } else {
+        setRecurringImportMessage({ tone: 'success', text: t('importRecurringSuccess', { count: importedCount }) })
+        setSelectedImportRecurringIds([])
+      }
+    } catch {
+      setRecurringImportMessage({ tone: 'error', text: t('importRecurringFailed') })
+    } finally {
+      setImportingRecurring(false)
     }
   }
 
@@ -911,6 +990,94 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           ))}
           {contextRecurring.length === 0 && <div className="app-panel-soft py-8 text-center text-xs text-slate-400">—</div>}
         </div>
+        {activeContext && recurringSourceContexts.length > 0 && (
+          <div className="app-panel-soft mb-3 flex flex-col gap-3 p-3.5">
+            <div className="app-kicker">{t('importRecurring')}</div>
+            <p className="text-xs text-slate-400">{t('importRecurringHint')}</p>
+            <select
+              value={recurringSourceContextId}
+              onChange={event => {
+                setRecurringSourceContextId(event.target.value)
+                setRecurringImportMessage(null)
+              }}
+              className="app-select min-w-0 w-full px-3 py-2.5 text-sm"
+              style={{ fontSize: '16px' }}
+            >
+              {recurringSourceContexts.map(context => (
+                <option key={context.id} value={context.id}>{getContextImportLabel(context, contexts)}</option>
+              ))}
+            </select>
+            {recurringSourceContextId && recurringImportCount > 0 && (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-slate-400">
+                    {t('importRecurringSelected', { selected: selectedRecurringImportCount, total: recurringImportCount })}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={allRecurringImportSelected ? clearRecurringImportSelection : selectAllImportRecurring}
+                    className="text-xs font-medium text-[#3182f6] dark:text-sky-300"
+                  >
+                    {allRecurringImportSelected ? t('importEntriesClear') : t('importEntriesSelectAll')}
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto rounded-[18px] border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-slate-950/40">
+                  {importableRecurring.map(item => {
+                    const checked = selectedRecurringImportIdSet.has(item.id)
+                    return (
+                      <label
+                        key={item.id}
+                        className={`flex cursor-pointer items-start gap-3 border-b border-slate-100/80 px-3 py-2.5 last:border-b-0 dark:border-white/5 ${checked ? 'bg-[#3182f6]/6' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleImportRecurring(item.id)}
+                          className="mt-1 h-4 w-4 flex-shrink-0 rounded border-slate-300 text-[#3182f6]"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">
+                              {item.summary || '—'}
+                            </span>
+                            <span className="flex-shrink-0 text-sm font-medium text-slate-700 dark:text-zinc-200">
+                              {item.amount == null ? t('amountNotSet') : formatAmount(item.amount, item.currency)}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs text-slate-400">
+                            {item.type === 'income' ? t('income2') : t('expense')}
+                            {item.category ? ` · ${item.category}` : ''}
+                            {item.paymentMethod ? ` · ${item.paymentMethod}` : ''}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            {recurringSourceContextId && recurringImportCount === 0 && (
+              <p className="text-xs text-slate-400">{t('importRecurringEmpty')}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleImportRecurring()}
+              disabled={importingRecurring || selectedRecurringImportCount === 0}
+              className="app-button-secondary w-full px-4 py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importingRecurring ? t('loading') : t('importRecurringAction', { count: selectedRecurringImportCount })}
+            </button>
+            {recurringImportMessage && (
+              <p className={`text-xs ${recurringImportMessage.tone === 'success'
+                ? 'text-emerald-600 dark:text-emerald-300'
+                : recurringImportMessage.tone === 'error'
+                  ? 'text-rose-500'
+                  : 'text-slate-400'}`}>
+                {recurringImportMessage.text}
+              </p>
+            )}
+          </div>
+        )}
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">{t('addRecurring')}</div>
           <div className="flex gap-2">

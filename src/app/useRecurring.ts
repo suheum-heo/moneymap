@@ -275,5 +275,82 @@ export function useRecurring() {
     await refreshItems()
   }, [items, refreshItems, userId])
 
-  return { items, loaded, addItem, updateItem, renameCategory, renamePaymentMethod, renameVenue, renameLocation, deleteItem }
+  const importRecurringFromContext = useCallback(async (
+    sourceContextId: string,
+    targetContextId: string,
+    itemIds?: string[],
+  ) => {
+    if (!userId || !sourceContextId || !targetContextId || sourceContextId === targetContextId) return 0
+
+    const selectedIds = itemIds
+      ? new Set(itemIds.filter(id => typeof id === 'string' && id.length > 0))
+      : null
+    if (selectedIds && selectedIds.size === 0) return 0
+
+    const sourceItems = items.filter(item =>
+      item.context === sourceContextId
+      && (!selectedIds || selectedIds.has(item.id)),
+    )
+    if (sourceItems.length === 0) return 0
+
+    const targetKeys = new Set(
+      items
+        .filter(item => item.context === targetContextId)
+        .map(item => `${item.type}:${normalizeSavedValue(item.summary)}`),
+    )
+
+    const now = Date.now()
+    const imports = sourceItems
+      .filter(item => !targetKeys.has(`${item.type}:${normalizeSavedValue(item.summary)}`))
+      .map((item, index) => ({
+        ...item,
+        id: `rec_${item.type}_${now}_${index}`,
+        context: targetContextId,
+      }))
+
+    if (imports.length === 0) return 0
+
+    setItems(prev => [...prev, ...imports])
+
+    try {
+      for (const item of imports) {
+        let includeTypeColumn = true
+        let includePlaceColumns = true
+        let includePaymentMethodColumn = true
+        let { error } = await supabase.from('recurring').insert(
+          buildRecurringInsertPayload(item, userId, includeTypeColumn, includePlaceColumns, includePaymentMethodColumn),
+        )
+        for (let attempt = 0; attempt < 3 && error; attempt += 1) {
+          const missingColumns = getMissingRecurringColumns(error)
+          if (!missingColumns) break
+          includeTypeColumn = includeTypeColumn && !missingColumns.has('type')
+          includePlaceColumns = includePlaceColumns && !missingColumns.has('venue') && !missingColumns.has('location')
+          includePaymentMethodColumn = includePaymentMethodColumn && !missingColumns.has('payment_method')
+          const fallback = await supabase.from('recurring').insert(
+            buildRecurringInsertPayload(item, userId, includeTypeColumn, includePlaceColumns, includePaymentMethodColumn),
+          )
+          error = fallback.error
+        }
+        if (error) throw error
+      }
+      await refreshItems()
+      return imports.length
+    } catch (error) {
+      setItems(prev => prev.filter(item => !imports.some(imported => imported.id === item.id)))
+      throw error
+    }
+  }, [items, refreshItems, userId])
+
+  return {
+    items,
+    loaded,
+    addItem,
+    updateItem,
+    renameCategory,
+    renamePaymentMethod,
+    renameVenue,
+    renameLocation,
+    deleteItem,
+    importRecurringFromContext,
+  }
 }
