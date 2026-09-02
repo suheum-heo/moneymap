@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Context, getCategoryColor } from '../types'
+import { getContextImportLabel, getImportableContexts } from '../lib/contextTree'
 import { Category } from '../useCategories'
 
 interface Props {
@@ -33,7 +34,7 @@ export default function CategorySettings({
 
   const expCats = categories.filter(c => c.type === 'expense')
   const incCats = categories.filter(c => c.type === 'income')
-  const sourceContexts = contexts.filter(context => context.id !== activeContext?.id)
+  const sourceContexts = getImportableContexts(contexts, activeContext?.id)
 
   const inputCls = "app-input flex-1 py-3 text-sm"
   const normalized = (value: string) => value.trim().toLocaleLowerCase()
@@ -153,7 +154,7 @@ export default function CategorySettings({
               className="app-select min-w-0 w-full px-3 py-2.5 text-sm"
               style={{ fontSize: '16px' }}
             >
-              {sourceContexts.map(context => <option key={context.id} value={context.id}>{context.name}</option>)}
+              {sourceContexts.map(context => <option key={context.id} value={context.id}>{getContextImportLabel(context, contexts)}</option>)}
             </select>
             <button
               onClick={() => {

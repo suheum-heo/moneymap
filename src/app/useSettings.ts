@@ -3,6 +3,15 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Context, normalizeCurrencyCode } from './types'
 import { supabase } from './lib/supabase'
 import { useUserId } from './UserContext'
+import {
+  flattenContextTreeIds,
+  buildContextTree,
+  getContextChildren,
+  isContextGroup,
+  isLeafContext,
+  orderContextsDepthFirst,
+  resolveActiveLeafContext,
+} from './lib/contextTree'
 
 export interface ExchangeRate { from: string; to: string; rate: number }
 export type RateSource = 'market' | 'visa' | 'mastercard'
@@ -26,6 +35,7 @@ const FALLBACK_RATES: ExchangeRate[] = [
 
 const CURRENCIES_TO_FETCH = ['USD', 'KRW', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'SGD', 'HKD', 'THB', 'VND', 'MXN', 'BRL', 'INR']
 const CONTEXT_ORDER_KEY_PREFIX = 'gagyebu-context-order'
+const CONTEXT_META_KEY_PREFIX = 'gagyebu-context-meta'
 const RATE_SOURCE_KEY = 'gagyebu-rate-source'
 const CARD_FEE_KEY = 'gagyebu-card-fee-pct'
 const RATES_KEY_PREFIX = 'gagyebu-rates'
@@ -122,28 +132,15 @@ function writeStoredContextOrder(userId: string, ids: string[]) {
 }
 
 function orderContexts(contexts: Context[], storedOrder: string[] = []): Context[] {
-  const storedRanks = new Map(storedOrder.map((id, index) => [id, index]))
-  const hasServerOrder = contexts.some(context => context.sortOrder != null)
-  return contexts
-    .map((context, index) => ({ context, index }))
-    .sort((a, b) => {
-      const aSort = a.context.sortOrder
-      const bSort = b.context.sortOrder
-      if (hasServerOrder) {
-        if (aSort != null && bSort != null && aSort !== bSort) return aSort - bSort
-        if (aSort != null) return -1
-        if (bSort != null) return 1
-      }
+  return orderContextsDepthFirst(contexts, storedOrder)
+}
 
-      const aStored = storedRanks.get(a.context.id)
-      const bStored = storedRanks.get(b.context.id)
-      if (aStored != null && bStored != null && aStored !== bStored) return aStored - bStored
-      if (aStored != null) return -1
-      if (bStored != null) return 1
-
-      return a.index - b.index
-    })
-    .map(({ context }) => context)
+function isMissingContextSortOrderColumn(error: { code?: string; message?: string; details?: string } | null) {
+  if (!error) return false
+  const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
+  return message.includes('contexts.sort_order')
+    || message.includes('column contexts.sort_order')
+    || message.includes("'sort_order' column")
 }
 
 function mergeOrderedContextIds(contexts: Context[], orderedIds: string[]) {
@@ -162,18 +159,89 @@ function mergeOrderedContextIds(contexts: Context[], orderedIds: string[]) {
   return nextIds
 }
 
-function isMissingContextSortOrderColumn(error: { code?: string; message?: string; details?: string } | null) {
+function getContextMetaKey(userId: string) {
+  return `${CONTEXT_META_KEY_PREFIX}:${userId}`
+}
+
+type ContextMeta = {
+  parentId?: string
+  isGroup?: boolean
+  icon?: string
+}
+
+function readStoredContextMeta(userId: string): Record<string, ContextMeta> {
+  try {
+    const raw = localStorage.getItem(getContextMetaKey(userId))
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeStoredContextMeta(userId: string, meta: Record<string, ContextMeta>) {
+  try {
+    localStorage.setItem(getContextMetaKey(userId), JSON.stringify(meta))
+  } catch {}
+}
+
+function mapContextRow(
+  row: {
+    id: string
+    name: string
+    currency?: string | null
+    home_currency?: string | null
+    start_date: string
+    sort_order?: number | null
+    parent_id?: string | null
+    is_group?: boolean | null
+    icon?: string | null
+  },
+  meta: Record<string, ContextMeta>,
+): Context {
+  const storedMeta = meta[row.id] || {}
+  return {
+    id: row.id,
+    name: row.name,
+    currency: normalizeCurrencyCode(row.currency || 'USD'),
+    homeCurrency: normalizeCurrencyCode(row.home_currency || row.currency || 'USD'),
+    startDate: row.start_date,
+    sortOrder: typeof row.sort_order === 'number' ? row.sort_order : undefined,
+    parentId: row.parent_id || storedMeta.parentId || undefined,
+    isGroup: row.is_group ?? storedMeta.isGroup ?? undefined,
+    icon: row.icon || storedMeta.icon || undefined,
+  }
+}
+
+function persistContextMeta(userId: string, context: Context, meta: Record<string, ContextMeta>) {
+  const nextMeta = { ...meta }
+  if (context.parentId || context.isGroup || context.icon) {
+    nextMeta[context.id] = {
+      parentId: context.parentId,
+      isGroup: context.isGroup,
+      icon: context.icon,
+    }
+  } else {
+    delete nextMeta[context.id]
+  }
+  writeStoredContextMeta(userId, nextMeta)
+  return nextMeta
+}
+
+function isMissingContextHierarchyColumn(error: { code?: string; message?: string; details?: string } | null) {
   if (!error) return false
   const message = `${error.message || ''} ${error.details || ''}`.toLowerCase()
-  return message.includes('contexts.sort_order')
-    || message.includes('column contexts.sort_order')
-    || message.includes("'sort_order' column")
+  return message.includes('parent_id')
+    || message.includes('is_group')
+    || message.includes("'icon' column")
+    || message.includes('column contexts.icon')
 }
 
 export function useSettings() {
   const userId = useUserId()
   const [contexts, setContexts] = useState<Context[]>([])
   const contextsRef = useRef<Context[]>([])
+  const contextMetaRef = useRef<Record<string, ContextMeta>>({})
   const [activeContextId, setActiveContextId] = useState<string>('')
   const [rates, setRates] = useState<ExchangeRate[]>(FALLBACK_RATES)
   const [loaded, setLoaded] = useState(false)
@@ -202,15 +270,18 @@ export function useSettings() {
     supabase.from('contexts').select('*').eq('user_id', userId)
       .then(({ data }) => {
         if (data && data.length > 0) {
-          const ctxs = orderContexts(data.map(r => ({
-            id: r.id, name: r.name, currency: normalizeCurrencyCode(r.currency || 'USD'),
-            homeCurrency: normalizeCurrencyCode(r.home_currency || r.currency || 'USD'), startDate: r.start_date,
-            sortOrder: typeof r.sort_order === 'number' ? r.sort_order : undefined,
-          })), readStoredContextOrder(userId))
+          const meta = readStoredContextMeta(userId)
+          contextMetaRef.current = meta
+          const ctxs = orderContexts(data.map(r => mapContextRow(r, meta)), readStoredContextOrder(userId))
           setContexts(ctxs)
           contextsRef.current = ctxs
           writeStoredContextOrder(userId, ctxs.map(context => context.id))
-          setActiveContextId(prev => prev || ctxs[0]?.id || '')
+          setActiveContextId(prev => {
+            const resolved = resolveActiveLeafContext(ctxs, prev || ctxs[0]?.id || '')
+            const nextId = resolved?.id || ctxs[0]?.id || ''
+            if (nextId) localStorage.setItem('gagyebu-active-context', nextId)
+            return nextId
+          })
         }
         setLoaded(true)
       })
@@ -270,40 +341,62 @@ export function useSettings() {
     if (!userId) return
     let sortOrder = 0
     setContexts(prev => {
-      sortOrder = prev.length
-      const next = [...prev, { ...ctx, sortOrder }]
-      if (prev.length === 0) {
+      const siblings = getContextChildren(ctx.parentId, prev)
+      sortOrder = siblings.length
+      const next = orderContexts([...prev, { ...ctx, sortOrder }], mergeOrderedContextIds(prev, prev.map(context => context.id)))
+      if (isLeafContext(ctx, next) && (prev.length === 0 || !resolveActiveLeafContext(prev, activeContextId))) {
         setActiveContextId(ctx.id)
         localStorage.setItem('gagyebu-active-context', ctx.id)
       }
       contextsRef.current = next
       writeStoredContextOrder(userId, next.map(context => context.id))
+      contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
       return next
     })
     const payload = {
       id: ctx.id, user_id: userId, name: ctx.name, currency: ctx.currency,
       home_currency: ctx.homeCurrency, start_date: ctx.startDate,
       sort_order: sortOrder,
+      parent_id: ctx.parentId || null,
+      is_group: Boolean(ctx.isGroup),
+      icon: ctx.icon || null,
     }
     const { error } = await supabase.from('contexts').insert(payload)
-    if (isMissingContextSortOrderColumn(error)) {
+    if (isMissingContextHierarchyColumn(error) || isMissingContextSortOrderColumn(error)) {
       await supabase.from('contexts').insert({
         id: ctx.id, user_id: userId, name: ctx.name, currency: ctx.currency,
         home_currency: ctx.homeCurrency, start_date: ctx.startDate,
       })
+      contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
     }
-  }, [userId])
+  }, [activeContextId, userId])
 
   const removeContext = useCallback(async (id: string) => {
-    if (!userId) return
+    if (!userId) return false
+    const target = contextsRef.current.find(context => context.id === id)
+    if (!target) return false
+    if (getContextChildren(id, contextsRef.current).length > 0) return false
+
+    let nextActiveId = activeContextId
     setContexts(prev => {
-      const next = prev.filter(c => c.id !== id)
+      const next = orderContexts(prev.filter(c => c.id !== id), readStoredContextOrder(userId).filter(storedId => storedId !== id))
       contextsRef.current = next
       writeStoredContextOrder(userId, next.map(context => context.id))
+      const meta = { ...contextMetaRef.current }
+      delete meta[id]
+      contextMetaRef.current = meta
+      writeStoredContextMeta(userId, meta)
+      if (activeContextId === id) {
+        nextActiveId = resolveActiveLeafContext(next, '')?.id || next[0]?.id || ''
+        setActiveContextId(nextActiveId)
+        if (nextActiveId) localStorage.setItem('gagyebu-active-context', nextActiveId)
+        else localStorage.removeItem('gagyebu-active-context')
+      }
       return next
     })
     await supabase.from('contexts').delete().eq('id', id).eq('user_id', userId)
-  }, [userId])
+    return true
+  }, [activeContextId, userId])
 
   const renameContext = useCallback(async (id: string, name: string) => {
     if (!userId) return
@@ -318,14 +411,21 @@ export function useSettings() {
   const updateContext = useCallback(async (ctx: Context) => {
     if (!userId) return
     setContexts(prev => {
-      const next = prev.map(c => c.id === ctx.id ? ctx : c)
+      const next = orderContexts(prev.map(c => c.id === ctx.id ? ctx : c), readStoredContextOrder(userId))
       contextsRef.current = next
+      contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
       return next
     })
-    await supabase.from('contexts').update({
+    const { error } = await supabase.from('contexts').update({
       name: ctx.name, currency: ctx.currency,
       home_currency: ctx.homeCurrency, start_date: ctx.startDate,
+      parent_id: ctx.parentId || null,
+      is_group: Boolean(ctx.isGroup),
+      icon: ctx.icon || null,
     }).eq('id', ctx.id).eq('user_id', userId)
+    if (isMissingContextHierarchyColumn(error)) {
+      contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
+    }
   }, [userId])
 
   const reorderContexts = useCallback(async (orderedIds: string[]) => {
@@ -335,23 +435,25 @@ export function useSettings() {
 
     setContexts(prev => {
       const byId = new Map(prev.map(context => [context.id, context]))
-      const next: Context[] = []
+      const orderedContexts: Context[] = []
       mergeOrderedContextIds(prev, nextIds).forEach(id => {
         const context = byId.get(id)
-        if (context) next.push({ ...context, sortOrder: next.length })
+        if (context) orderedContexts.push(context)
       })
+      const next = orderContexts(orderedContexts, nextIds).map((context, index) => ({ ...context, sortOrder: index }))
       contextsRef.current = next
       return next
     })
 
-    writeStoredContextOrder(userId, nextIds)
+    const depthFirstIds = flattenContextTreeIds(buildContextTree(contextsRef.current, nextIds))
+    writeStoredContextOrder(userId, depthFirstIds)
 
     const first = await supabase.from('contexts')
       .update({ sort_order: 0 })
-      .eq('id', nextIds[0])
+      .eq('id', depthFirstIds[0])
       .eq('user_id', userId)
     if (isMissingContextSortOrderColumn(first.error)) return
-    await Promise.all(nextIds.slice(1).map((id, index) =>
+    await Promise.all(depthFirstIds.slice(1).map((id, index) =>
       supabase.from('contexts')
         .update({ sort_order: index + 1 })
         .eq('id', id)
@@ -360,6 +462,8 @@ export function useSettings() {
   }, [userId])
 
   const switchContext = useCallback((id: string) => {
+    const target = contextsRef.current.find(context => context.id === id)
+    if (!target || !isLeafContext(target, contextsRef.current)) return
     setActiveContextId(id)
     localStorage.setItem('gagyebu-active-context', id)
   }, [])
@@ -396,7 +500,7 @@ export function useSettings() {
     return amount
   }, [rates])
 
-  const activeContext = contexts.find(c => c.id === activeContextId) || contexts[0]
+  const activeContext = resolveActiveLeafContext(contexts, activeContextId) || contexts.find(c => isLeafContext(c, contexts))
 
   return {
     contexts, addContext, removeContext, renameContext, updateContext, reorderContexts,

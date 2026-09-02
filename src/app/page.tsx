@@ -13,7 +13,8 @@ import Settings from './components/Settings'
 import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
-import SortableContextList from './components/SortableContextList'
+import ContextTreeList from './components/ContextTreeList'
+import { getContextDisplayName, isLeafContext } from './lib/contextTree'
 import { UserContext } from './UserContext'
 import { formatFullDate, getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
 import type { User } from '@supabase/supabase-js'
@@ -252,31 +253,23 @@ function AppContent({ user }: { user: User }) {
       <div className="mb-5 rounded-[26px] border border-slate-200/75 bg-white/88 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:border-white/10 dark:bg-slate-900/70">
         <img src="/moneymap-logo.png" alt={t('appName')} className="mb-3 h-10 w-10 rounded-2xl object-cover" />
         <div className="app-kicker mb-2">{t('appName')}</div>
-        <h1 className="text-[1.35rem] font-semibold text-slate-900 dark:text-zinc-50">{activeContext?.name || t('appName')}</h1>
+        <h1 className="text-[1.35rem] font-semibold text-slate-900 dark:text-zinc-50">{activeContext ? getContextDisplayName(activeContext, contexts) : t('appName')}</h1>
         <div className="mt-1 text-xs text-slate-400 truncate">{user.email}</div>
       </div>
       <div className="mb-3">
         <div className="app-kicker mb-2 px-2">{t('contexts')}</div>
         <div className="app-panel-soft p-2">
-          <SortableContextList
+          <ContextTreeList
             contexts={contexts}
             activeContextId={activeContextId}
-            onReorder={reorderContexts}
-            getItemClassName={(_context, state) => `mb-1 flex w-full items-center rounded-[20px] text-sm transition-all last:mb-0 ${state.isActive
-              ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
-              : 'text-slate-500 hover:bg-white/85 hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'} ${state.isDragging ? 'scale-[1.01] ring-4 ring-[#3182f6]/10' : ''}`}
-            renderContext={c => {
-              const sym = getCurrencySymbol(c.currency)
-              return (
-                <button
-                  onClick={() => { switchContext(c.id); setTab('overview') }}
-                  className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2 py-3 text-left"
-                >
-                  <span className="truncate">{c.name}</span>
-                  <span className="flex-shrink-0 text-xs opacity-60">{sym} {c.currency}</span>
-                </button>
-              )
-            }}
+            mode="switch"
+            collapsedStorageKey="gagyebu-context-tree-collapsed"
+            getItemClassName={(context, state) => `mb-1 flex w-full items-center rounded-[20px] text-sm transition-all last:mb-0 ${isLeafContext(context, contexts) && state.isActive
+                ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
+                : isLeafContext(context, contexts)
+                  ? 'text-slate-500 hover:bg-white/85 hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'
+                  : 'text-slate-700 dark:text-zinc-200'}`}
+            onSelect={context => { switchContext(context.id); setTab('overview') }}
           />
         </div>
       </div>
@@ -334,7 +327,7 @@ function AppContent({ user }: { user: User }) {
               <div className="app-kicker mb-2">{currentTabLabel}</div>
               <div className="flex items-end justify-between gap-6">
                 <div>
-                  <h2 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{activeContext?.name}</h2>
+                  <h2 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50">{activeContext ? getContextDisplayName(activeContext, contexts) : ''}</h2>
                   <p className="mt-2 text-base font-medium text-[#3182f6] dark:text-sky-300">{monthLabel}</p>
                   <p className="mt-1 text-sm text-slate-400">{formatFullDate(todayKey, language)}</p>
                 </div>
@@ -364,7 +357,7 @@ function AppContent({ user }: { user: User }) {
               className="flex-1 text-left">
               <div className="app-kicker mb-1">{currentTabLabel}</div>
               <div className="flex items-center gap-1.5 text-lg font-semibold text-slate-900 dark:text-zinc-50">
-                <span className="truncate">{activeContext?.name}</span>
+                <span className="truncate">{activeContext ? getContextDisplayName(activeContext, contexts) : ''}</span>
                 <span className="text-sm text-slate-400 flex-shrink-0">▾</span>
               </div>
               <p className="mt-1 text-sm font-medium text-[#3182f6] dark:text-sky-300">{monthLabel}</p>
@@ -401,25 +394,17 @@ function AppContent({ user }: { user: User }) {
               onClick={e => e.stopPropagation()}>
               <div className="text-xs text-slate-400 mb-3 truncate">{user.email}</div>
               <div className="app-kicker mb-3">{t('switchContext')}</div>
-              <SortableContextList
+              <ContextTreeList
                 contexts={contexts}
                 activeContextId={activeContextId}
-                onReorder={reorderContexts}
-                getItemClassName={(_context, state) => `mb-1.5 flex w-full items-center rounded-[20px] text-sm transition-all ${state.isActive
-                  ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
-                  : 'bg-white/88 text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'} ${state.isDragging ? 'scale-[1.01] ring-4 ring-[#3182f6]/10' : ''}`}
-                renderContext={c => {
-                  const sym = getCurrencySymbol(c.currency)
-                  return (
-                    <button
-                      onClick={() => { switchContext(c.id); setMobileMenuOpen(false); setTab('overview') }}
-                      className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2 py-3 text-left"
-                    >
-                      <span className="truncate">{c.name}</span>
-                      <span className="flex-shrink-0 text-xs opacity-60">{sym} {c.currency}</span>
-                    </button>
-                  )
-                }}
+                mode="switch"
+                collapsedStorageKey="gagyebu-context-tree-collapsed-mobile"
+                getItemClassName={(context, state) => `mb-1.5 flex w-full items-center rounded-[20px] text-sm transition-all ${isLeafContext(context, contexts) && state.isActive
+                    ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
+                    : isLeafContext(context, contexts)
+                      ? 'bg-white/88 text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'
+                      : 'bg-white/88 text-slate-800 dark:bg-slate-900/70 dark:text-zinc-200'}`}
+                onSelect={context => { switchContext(context.id); setMobileMenuOpen(false); setTab('overview') }}
               />
               <button onClick={() => document.getElementById('sign-out-btn')?.click()}
                 className="mt-3 w-full rounded-[18px] border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-400 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">

@@ -28,13 +28,14 @@ import LanguageSelector from './LanguageSelector'
 import CategorySettings from './CategorySettings'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
 import VenueLocationFields from './VenueLocationFields'
-import SortableContextList from './SortableContextList'
+import ContextTreeList from './ContextTreeList'
+import { getContextImportLabel, getImportableContexts, isContextGroup } from '../lib/contextTree'
 
 interface Props {
   userEmail: string
   contexts: Context[]
   addContext: (ctx: Context) => void
-  removeContext: (id: string) => void
+  removeContext: (id: string) => boolean | Promise<boolean>
   updateContext: (ctx: Context) => void
   reorderContexts: (orderedIds: string[]) => void
   convert: (amount: number, from: string, to: string) => number
@@ -82,6 +83,9 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   )
 
   const [name, setName] = useState('')
+  const [parentId, setParentId] = useState('')
+  const [groupName, setGroupName] = useState('')
+  const [groupIcon, setGroupIcon] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [homeCurrency, setHomeCurrency] = useState('USD')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 7))
@@ -93,9 +97,12 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [editCtxHomeCurrency, setEditCtxHomeCurrency] = useState('USD')
   const [editCtxStartDate, setEditCtxStartDate] = useState('')
 
+  const [editCtxIcon, setEditCtxIcon] = useState('')
+
   const openEditCtx = (c: Context) => {
     setEditingCtx(c)
     setEditCtxName(c.name)
+    setEditCtxIcon(c.icon || '')
     setEditCtxCurrency(c.currency)
     setEditCtxHomeCurrency(c.homeCurrency)
     setEditCtxStartDate(c.startDate)
@@ -103,8 +110,27 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
   const handleSaveCtx = () => {
     if (!editingCtx || !editCtxName.trim()) return
-    updateContext({ ...editingCtx, name: editCtxName.trim(), currency: editCtxCurrency, homeCurrency: editCtxHomeCurrency, startDate: editCtxStartDate })
+    updateContext({
+      ...editingCtx,
+      name: editCtxName.trim(),
+      icon: editCtxIcon.trim() || undefined,
+      currency: editCtxCurrency,
+      homeCurrency: editCtxHomeCurrency,
+      startDate: editCtxStartDate,
+    })
     setEditingCtx(null)
+  }
+
+  const handleRemoveContext = (context: Context) => {
+    void Promise.resolve(removeContext(context.id)).then(ok => {
+      if (!ok) window.alert(t('removeContextHasChildren'))
+    })
+  }
+
+  const handleAddChildContext = (parent: Context) => {
+    setParentId(parent.id)
+    setName('')
+    document.getElementById('new-context-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
   const [rateFrom, setRateFrom] = useState('USD')
@@ -144,7 +170,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [entryImportMessage, setEntryImportMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
-  const entrySourceContexts = contexts.filter(context => context.id !== activeContext?.id)
+  const entrySourceContexts = getImportableContexts(contexts, activeContext?.id)
   const entryImportCount = useMemo(
     () => entries.filter(entry => entry.context === entrySourceContextId).length,
     [entries, entrySourceContextId],
@@ -206,11 +232,36 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const inputCls = "app-input py-3 text-sm"
   const selCls = "app-select px-3 py-2.5 text-sm"
 
+  const groupOptions = contexts.filter(context => context.isGroup || isContextGroup(context, contexts))
+
   const handleAddContext = () => {
     if (!name.trim()) return
-    const ctx: Context = { id: Date.now().toString(), name: name.trim(), currency, homeCurrency, startDate }
+    const ctx: Context = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      currency,
+      homeCurrency,
+      startDate,
+      parentId: parentId || undefined,
+    }
     addContext(ctx)
     setName('')
+  }
+
+  const handleAddGroup = () => {
+    if (!groupName.trim()) return
+    const ctx: Context = {
+      id: Date.now().toString(),
+      name: groupName.trim(),
+      currency: 'USD',
+      homeCurrency: 'USD',
+      startDate: new Date().toISOString().slice(0, 7),
+      isGroup: true,
+      icon: groupIcon.trim() || undefined,
+    }
+    addContext(ctx)
+    setGroupName('')
+    setGroupIcon('')
   }
 
   const handleRecurringTypeChange = (type: EntryType) => {
@@ -486,24 +537,33 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
               <input value={editCtxName} onChange={e => setEditCtxName(e.target.value)}
                 className={inputCls} style={{ fontSize: '16px' }} autoFocus />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="app-kicker block mb-2">{t('localCurrency')}</label>
-                <select value={editCtxCurrency} onChange={e => setEditCtxCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
-                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="app-kicker block mb-2">{t('homeCurrency')}</label>
-                <select value={editCtxHomeCurrency} onChange={e => setEditCtxHomeCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
-                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
-                </select>
-              </div>
-            </div>
             <div>
-              <label className="app-kicker block mb-2">{t('startDate')}</label>
-              <LocalizedMonthPicker value={editCtxStartDate} onChange={setEditCtxStartDate} placeholder={t('startDate')} />
+              <label className="app-kicker block mb-2">{t('contextIcon')}</label>
+              <input value={editCtxIcon} onChange={e => setEditCtxIcon(e.target.value)}
+                placeholder={t('contextIconPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
             </div>
+            {editingCtx && !isContextGroup(editingCtx, contexts) && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="app-kicker block mb-2">{t('localCurrency')}</label>
+                    <select value={editCtxCurrency} onChange={e => setEditCtxCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                      {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="app-kicker block mb-2">{t('homeCurrency')}</label>
+                    <select value={editCtxHomeCurrency} onChange={e => setEditCtxHomeCurrency(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                      {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="app-kicker block mb-2">{t('startDate')}</label>
+                  <LocalizedMonthPicker value={editCtxStartDate} onChange={setEditCtxStartDate} placeholder={t('startDate')} />
+                </div>
+              </>
+            )}
             <button onClick={handleSaveCtx} className="app-button-primary w-full">{t('saveChanges')}</button>
           </div>
         </div>
@@ -552,24 +612,15 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       {/* Contexts */}
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('contexts')}</div>
-        <SortableContextList
+        <ContextTreeList
           contexts={contexts}
           activeContextId={activeContext?.id}
-          onReorder={reorderContexts}
-          className="mb-4 flex flex-col gap-2"
-          getItemClassName={(_context, state) => `app-list-row flex items-center gap-2 !px-2.5 !py-2.5 transition-all ${state.isDragging ? 'scale-[1.01] ring-4 ring-[#3182f6]/10' : ''}`}
-          renderContext={c => (
-            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{c.name}</div>
-                <div className="mt-0.5 truncate text-xs text-slate-400">{c.currency}{c.currency !== c.homeCurrency ? ` → ${c.homeCurrency}` : ''} · {t('from')} {formatMonthYear(c.startDate, language)}</div>
-              </div>
-              <div className="ml-3 flex flex-shrink-0 gap-3">
-                <button onClick={() => openEditCtx(c)} className="app-accent text-xs font-medium">{t('edit')}</button>
-                <button onClick={() => removeContext(c.id)} className="text-xs font-medium text-rose-400 dark:text-rose-300">{t('remove')}</button>
-              </div>
-            </div>
-          )}
+          mode="manage"
+          className="mb-4 flex flex-col gap-1"
+          getItemClassName={() => 'app-list-row flex items-center gap-2 !px-2.5 !py-2.5 transition-all'}
+          onEdit={openEditCtx}
+          onRemove={handleRemoveContext}
+          onAddChild={handleAddChildContext}
         />
         {activeContext && entrySourceContexts.length > 0 && (
           <div className="app-panel-soft mb-4 flex flex-col gap-3 p-3.5">
@@ -585,7 +636,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                 className="app-select min-w-0 w-full px-3 py-2.5 text-sm"
                 style={{ fontSize: '16px' }}
               >
-                {entrySourceContexts.map(context => <option key={context.id} value={context.id}>{context.name}</option>)}
+                {entrySourceContexts.map(context => <option key={context.id} value={context.id}>{getContextImportLabel(context, contexts)}</option>)}
               </select>
               <button
                 type="button"
@@ -614,10 +665,27 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             )}
           </div>
         )}
-        <div className="app-panel-soft flex flex-col gap-3 p-3.5">
+        <div className="app-panel-soft mb-4 flex flex-col gap-3 p-3.5">
+          <div className="app-kicker">{t('newContextGroup')}</div>
+          <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)}
+            placeholder={t('contextGroupExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+          <input type="text" value={groupIcon} onChange={e => setGroupIcon(e.target.value)}
+            placeholder={t('contextIconPlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+          <button onClick={handleAddGroup} className="app-button-secondary w-full">{t('addContextGroup')}</button>
+        </div>
+        <div id="new-context-form" className="app-panel-soft flex flex-col gap-3 p-3.5">
           <div className="app-kicker">{t('newContext')}</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
             placeholder={t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+          {groupOptions.length > 0 && (
+            <div>
+              <label className="app-kicker block mb-2">{t('contextParent')}</label>
+              <select value={parentId} onChange={e => setParentId(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+                <option value="">{t('contextParentNone')}</option>
+                {groupOptions.map(context => <option key={context.id} value={context.id}>{context.icon ? `${context.icon} ` : ''}{context.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="app-kicker block mb-2">{t('localCurrency')}</label>

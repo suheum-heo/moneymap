@@ -28,6 +28,9 @@ export interface Context {
   homeCurrency: string
   startDate: string
   sortOrder?: number
+  parentId?: string
+  isGroup?: boolean
+  icon?: string
 }
 
 type DefaultExpenseCategoryKey =
