@@ -1010,7 +1010,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                               <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
                               <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                                {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabel(e.location, language)}` : ''}</div>}
                                 <div className="truncate text-xs text-slate-400">{e.category}</div>
                               </div>
                               <div className="min-w-0 flex-shrink-0 text-right">
