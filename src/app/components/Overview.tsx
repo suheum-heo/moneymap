@@ -36,6 +36,7 @@ interface Props {
 
 type PeriodMode = 'all' | 'year' | 'custom'
 const PERIOD_TOTALS_EXPANDED_KEY = 'gagyebu-period-totals-expanded'
+const UNSPECIFIED_PAYMENT_METHOD = '__unspecified__'
 
 function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
   const raw = hex.replace('#', '')
@@ -153,6 +154,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   const locChartInstance = useRef<Chart | null>(null)
   const regionChartInstance = useRef<Chart | null>(null)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
+  const [expandedPaymentMethod, setExpandedPaymentMethod] = useState<string | null>(null)
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [periodMode, setPeriodMode] = useState<PeriodMode>('all')
@@ -330,6 +332,32 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     return Object.entries(cats).sort((a, b) => b[1] - a[1])
   }, [monthEntries, cur, homeCur, convert])
 
+  const byPaymentMethod = useMemo(() => {
+    const methods: Record<string, number> = {}
+    const counts: Record<string, number> = {}
+    monthEntries.filter(e => e.type === 'expense').forEach(e => {
+      const key = e.paymentMethod?.trim() || UNSPECIFIED_PAYMENT_METHOD
+      methods[key] = (methods[key] || 0) + toLocal(e)
+      counts[key] = (counts[key] || 0) + 1
+    })
+    return Object.entries(methods)
+      .sort((a, b) => b[1] - a[1])
+      .map(([key, amount]) => ({
+        key,
+        label: key === UNSPECIFIED_PAYMENT_METHOD ? t('paymentMethodUnspecified') : key,
+        amount,
+        count: counts[key] || 0,
+      }))
+  }, [monthEntries, cur, homeCur, convert, t])
+
+  const paymentMethodSummary = useMemo(() => {
+    if (byPaymentMethod.length === 0 || expenses <= 0) return ''
+    return byPaymentMethod.slice(0, 3).map(item => {
+      const pct = ((item.amount / expenses) * 100).toFixed(0)
+      return `${item.label} ${pct}%`
+    }).join(' · ')
+  }, [byPaymentMethod, expenses])
+
   const byLocation = useMemo(() => {
     const locs: Record<string, number> = {}
     monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
@@ -370,6 +398,12 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
       setExpandedLocation(null)
     }
   }, [byLocation, expandedLocation])
+
+  useEffect(() => {
+    if (expandedPaymentMethod && !byPaymentMethod.some(item => item.key === expandedPaymentMethod)) {
+      setExpandedPaymentMethod(null)
+    }
+  }, [byPaymentMethod, expandedPaymentMethod])
 
   useEffect(() => {
     if (!catChartRef.current || byCategory.length === 0) return
@@ -814,6 +848,109 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {byPaymentMethod.length > 0 && (
+        <div className="app-panel mt-5 p-4 sm:p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="app-kicker mb-2">{t('byPaymentMethod')}</div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('paymentMethodBreakdown')}</h3>
+              {paymentMethodSummary && (
+                <p className="mt-2 truncate text-sm text-slate-500 dark:text-zinc-400">{paymentMethodSummary}</p>
+              )}
+            </div>
+            <div className="flex-shrink-0 text-right text-xs text-slate-400">
+              {t('paymentMethodCount', { count: byPaymentMethod.length })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {byPaymentMethod.map((item, index) => {
+              const pctValue = expenses > 0 ? (item.amount / expenses) * 100 : 0
+              const pct = pctValue.toFixed(1)
+              const isExpanded = expandedPaymentMethod === item.key
+              const methodEntries = isExpanded
+                ? sortEntriesForDisplay(
+                  monthEntries.filter(e =>
+                    e.type === 'expense'
+                    && ((e.paymentMethod?.trim() || UNSPECIFIED_PAYMENT_METHOD) === item.key),
+                  ),
+                  sortOrder,
+                )
+                : []
+              const barColor = softenColor(
+                ['#5b8ef0', '#14b8a6', '#e7ae4b', '#d97784', '#8b7cf6', '#64748b'][index % 6],
+                isDark ? 0.08 : 0.12,
+                isDark ? 0.82 : 0.92,
+              )
+
+              return (
+                <div key={item.key} className="min-w-0 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedPaymentMethod(isExpanded ? null : item.key)}
+                    className="app-list-row w-full min-w-0 text-left transition-transform sm:hover:-translate-y-0.5"
+                  >
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{item.label}</div>
+                        <div className="mt-1 text-xs text-slate-400">
+                          {pct}% · {t('entryCount', { count: item.count })}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">{formatAmount(item.amount, cur)}</div>
+                        <div className="mt-2 text-xs text-slate-400">{isExpanded ? '▲' : '▼'}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${Math.min(pctValue, 100)}%`, background: barColor }}
+                      />
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="min-w-0 overflow-hidden rounded-[22px] border border-slate-200/75 bg-slate-50/75 px-3 py-3 dark:border-white/10 dark:bg-slate-950/50">
+                      <div className="space-y-2">
+                        {methodEntries.map(e => {
+                          const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                          const col = getCategoryColor(e.category, e.type)
+                          return (
+                            <button
+                              key={e.id}
+                              type="button"
+                              onClick={() => setEditEntry(e)}
+                              className="app-list-row flex w-full min-w-0 cursor-pointer items-center gap-3 !rounded-[20px] !px-3 !py-3 text-left transition-colors hover:border-slate-300/85 hover:bg-white/92 dark:hover:border-white/15 dark:hover:bg-slate-900/80"
+                            >
+                              <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: col }} />
+                              <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
+                                {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${e.location}` : ''}</div>}
+                                <div className="truncate text-xs text-slate-400">{e.category}</div>
+                              </div>
+                              <div className="min-w-0 flex-shrink-0 text-right">
+                                <div className="text-sm font-semibold" style={{ color: col }}>
+                                  -{formatAmount(e.amount, entryCurrency)}
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div className="px-2 pt-3 text-xs text-slate-400">
+                        {t('entryCount', { count: methodEntries.length })} · {t('total')} {formatAmount(item.amount, cur)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
