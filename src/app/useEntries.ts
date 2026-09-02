@@ -347,26 +347,41 @@ export function useEntries() {
     await supabase.from('entries').delete().eq('id', id).eq('user_id', userId)
   }, [userId])
 
-  const moveEntriesFromContext = useCallback(async (sourceContextId: string, targetContextId: string) => {
+  const moveEntriesFromContext = useCallback(async (
+    sourceContextId: string,
+    targetContextId: string,
+    entryIds?: string[],
+  ) => {
     if (!userId || !sourceContextId || !targetContextId || sourceContextId === targetContextId) return 0
 
-    const toMove = entries.filter(entry => entry.context === sourceContextId)
+    const selectedIds = entryIds
+      ? new Set(entryIds.filter(id => typeof id === 'string' && id.length > 0))
+      : null
+    if (selectedIds && selectedIds.size === 0) return 0
+
+    const toMove = entries.filter(entry =>
+      entry.context === sourceContextId
+      && (!selectedIds || selectedIds.has(entry.id)),
+    )
     if (toMove.length === 0) return 0
 
+    const movedIds = new Set(toMove.map(entry => entry.id))
     setEntries(prev => prev.map(entry =>
-      entry.context === sourceContextId ? { ...entry, context: targetContextId } : entry,
+      movedIds.has(entry.id) ? { ...entry, context: targetContextId } : entry,
     ))
 
-    const { error } = await supabase.from('entries')
+    let query = supabase.from('entries')
       .update({ context: targetContextId })
       .eq('user_id', userId)
       .eq('context', sourceContextId)
+    if (selectedIds) query = query.in('id', Array.from(movedIds))
+
+    const { error } = await query
 
     if (error) {
-      setEntries(prev => prev.map(entry => {
-        if (entry.context !== targetContextId) return entry
-        return toMove.some(item => item.id === entry.id) ? { ...entry, context: sourceContextId } : entry
-      }))
+      setEntries(prev => prev.map(entry =>
+        movedIds.has(entry.id) ? { ...entry, context: sourceContextId } : entry,
+      ))
       throw error
     }
 

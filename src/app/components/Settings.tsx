@@ -11,6 +11,7 @@ import {
   INCOME_CATEGORIES,
   formatAmount,
   formatAmountValue,
+  formatEntryDate,
   formatLocaleTime,
   formatMonthYear,
   getAmountInputProps,
@@ -19,6 +20,7 @@ import {
   getEntryFormPlaceholders,
   normalizeAmountInputValue,
   parseCurrencyInput,
+  sortEntriesForDisplay,
 } from '../types'
 import { getContextPlaceSuggestions, normalizePlaceSuggestionKey } from '../lib/placeSuggestions'
 import type { RateSource } from '../useSettings'
@@ -62,7 +64,7 @@ interface Props {
   updateCategory: (id: string, name: string) => void | Promise<void>
   removeCategory: (id: string) => void
   importCategoriesFromContext: (sourceContextId: string, targetContextId: string) => void | Promise<void>
-  moveEntriesFromContext: (sourceContextId: string, targetContextId: string) => Promise<number>
+  moveEntriesFromContext: (sourceContextId: string, targetContextId: string, entryIds?: string[]) => Promise<number>
   renamePaymentMethod: (from: string, to: string, contextId?: string) => void | Promise<void>
   renameVenue: (from: string, to: string, contextId?: string) => void | Promise<void>
   renameLocation: (from: string, to: string, contextId?: string) => void | Promise<void>
@@ -171,15 +173,23 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [savingSavedData, setSavingSavedData] = useState(false)
   const [savedDataOpen, setSavedDataOpen] = useState(false)
   const [entrySourceContextId, setEntrySourceContextId] = useState('')
+  const [selectedImportEntryIds, setSelectedImportEntryIds] = useState<string[]>([])
   const [movingEntries, setMovingEntries] = useState(false)
   const [entryImportMessage, setEntryImportMessage] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null)
 
   const contextRecurring = items.filter(i => i.context === activeContext?.id)
   const entrySourceContexts = getImportableContexts(contexts, activeContext?.id)
-  const entryImportCount = useMemo(
-    () => entries.filter(entry => entry.context === entrySourceContextId).length,
+  const importableEntries = useMemo(
+    () => sortEntriesForDisplay(
+      entries.filter(entry => entry.context === entrySourceContextId),
+      'newest',
+    ),
     [entries, entrySourceContextId],
   )
+  const entryImportCount = importableEntries.length
+  const selectedImportCount = selectedImportEntryIds.length
+  const allImportSelected = entryImportCount > 0 && selectedImportCount === entryImportCount
+  const selectedImportIdSet = useMemo(() => new Set(selectedImportEntryIds), [selectedImportEntryIds])
   const placeSuggestions = useMemo(
     () => getContextPlaceSuggestions(entries, activeContext?.id, items),
     [entries, activeContext?.id, items],
@@ -216,16 +226,51 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
     setEntrySourceContextId(entrySourceContexts[0]?.id || '')
   }, [entrySourceContextId, entrySourceContexts])
 
+  useEffect(() => {
+    setSelectedImportEntryIds([])
+    setEntryImportMessage(null)
+  }, [entrySourceContextId])
+
+  useEffect(() => {
+    const validIds = new Set(importableEntries.map(entry => entry.id))
+    setSelectedImportEntryIds(prev => {
+      const next = prev.filter(id => validIds.has(id))
+      return next.length === prev.length ? prev : next
+    })
+  }, [importableEntries])
+
+  const toggleImportEntry = (entryId: string) => {
+    setSelectedImportEntryIds(prev =>
+      prev.includes(entryId) ? prev.filter(id => id !== entryId) : [...prev, entryId],
+    )
+    setEntryImportMessage(null)
+  }
+
+  const selectAllImportEntries = () => {
+    setSelectedImportEntryIds(importableEntries.map(entry => entry.id))
+    setEntryImportMessage(null)
+  }
+
+  const clearImportSelection = () => {
+    setSelectedImportEntryIds([])
+    setEntryImportMessage(null)
+  }
+
   const handleMoveEntries = async () => {
-    if (!activeContext || !entrySourceContextId || movingEntries) return
+    if (!activeContext || !entrySourceContextId || movingEntries || selectedImportCount === 0) return
     setEntryImportMessage(null)
     setMovingEntries(true)
     try {
-      const movedCount = await moveEntriesFromContext(entrySourceContextId, activeContext.id)
+      const movedCount = await moveEntriesFromContext(
+        entrySourceContextId,
+        activeContext.id,
+        selectedImportEntryIds,
+      )
       if (movedCount === 0) {
         setEntryImportMessage({ tone: 'info', text: t('importEntriesEmpty') })
       } else {
         setEntryImportMessage({ tone: 'success', text: t('importEntriesSuccess', { count: movedCount }) })
+        setSelectedImportEntryIds([])
       }
     } catch {
       setEntryImportMessage({ tone: 'error', text: t('importEntriesFailed') })
@@ -644,34 +689,79 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           <div className="app-panel-soft mb-4 flex flex-col gap-3 p-3.5">
             <div className="app-kicker">{t('importEntries')}</div>
             <p className="text-xs text-slate-400">{t('importEntriesHint')}</p>
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
-              <select
-                value={entrySourceContextId}
-                onChange={event => {
-                  setEntrySourceContextId(event.target.value)
-                  setEntryImportMessage(null)
-                }}
-                className="app-select min-w-0 w-full px-3 py-2.5 text-sm"
-                style={{ fontSize: '16px' }}
-              >
-                {entrySourceContexts.map(context => <option key={context.id} value={context.id}>{getContextImportLabel(context, contexts)}</option>)}
-              </select>
-              <button
-                type="button"
-                onClick={() => void handleMoveEntries()}
-                disabled={movingEntries || entryImportCount === 0}
-                className="app-button-secondary flex-shrink-0 px-4 py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {movingEntries ? t('loading') : t('import')}
-              </button>
-            </div>
-            {entrySourceContextId && (
-              <p className="text-xs text-slate-400">
-                {entryImportCount > 0
-                  ? t('importEntriesPreview', { count: entryImportCount })
-                  : t('importEntriesEmpty')}
-              </p>
+            <select
+              value={entrySourceContextId}
+              onChange={event => {
+                setEntrySourceContextId(event.target.value)
+                setEntryImportMessage(null)
+              }}
+              className="app-select min-w-0 w-full px-3 py-2.5 text-sm"
+              style={{ fontSize: '16px' }}
+            >
+              {entrySourceContexts.map(context => <option key={context.id} value={context.id}>{getContextImportLabel(context, contexts)}</option>)}
+            </select>
+            {entrySourceContextId && entryImportCount > 0 && (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-slate-400">
+                    {t('importEntriesSelected', { selected: selectedImportCount, total: entryImportCount })}
+                  </p>
+                  <div className="flex flex-shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={allImportSelected ? clearImportSelection : selectAllImportEntries}
+                      className="text-xs font-medium text-[#3182f6] dark:text-sky-300"
+                    >
+                      {allImportSelected ? t('importEntriesClear') : t('importEntriesSelectAll')}
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-56 overflow-y-auto rounded-[18px] border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-slate-950/40">
+                  {importableEntries.map(entry => {
+                    const checked = selectedImportIdSet.has(entry.id)
+                    return (
+                      <label
+                        key={entry.id}
+                        className={`flex cursor-pointer items-start gap-3 border-b border-slate-100/80 px-3 py-2.5 last:border-b-0 dark:border-white/5 ${checked ? 'bg-[#3182f6]/6' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleImportEntry(entry.id)}
+                          className="mt-1 h-4 w-4 flex-shrink-0 rounded border-slate-300 text-[#3182f6]"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">
+                              {entry.summary || '—'}
+                            </span>
+                            <span className="flex-shrink-0 text-sm font-medium text-slate-700 dark:text-zinc-200">
+                              {formatAmount(entry.amount, entry.currency)}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs text-slate-400">
+                            {formatEntryDate(entry.date, language)}
+                            {entry.category ? ` · ${entry.category}` : ''}
+                            {entry.venue ? ` · ${entry.venue}` : ''}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </>
             )}
+            {entrySourceContextId && entryImportCount === 0 && (
+              <p className="text-xs text-slate-400">{t('importEntriesEmpty')}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleMoveEntries()}
+              disabled={movingEntries || selectedImportCount === 0}
+              className="app-button-secondary w-full px-4 py-2.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {movingEntries ? t('loading') : t('importEntriesAction', { count: selectedImportCount })}
+            </button>
             {entryImportMessage && (
               <p className={`text-xs ${entryImportMessage.tone === 'success'
                 ? 'text-emerald-600 dark:text-emerald-300'
