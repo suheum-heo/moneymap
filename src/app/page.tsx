@@ -16,7 +16,7 @@ import Onboarding from './components/Onboarding'
 import ContextTreeList from './components/ContextTreeList'
 import { getContextDisplayName, isLeafContext } from './lib/contextTree'
 import { UserContext } from './UserContext'
-import { formatFullDate, getCurrencySymbol, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
+import { formatFullDate, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
 import type { User } from '@supabase/supabase-js'
 
 const YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i)
