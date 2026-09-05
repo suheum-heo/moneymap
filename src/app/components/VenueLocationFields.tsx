@@ -64,14 +64,29 @@ function containsMapLink(text: string): boolean {
   return containsNaverMapLink(text) || containsGoogleMapsLink(text)
 }
 
+function extractMapsHrefFromHtml(html: string): string {
+  if (!html) return ''
+  const match = html.match(
+    /href=["'](https?:\/\/[^"']*(?:google\.com\/maps|maps\.app\.goo\.gl|maps\.google\.com|goo\.gl\/maps)[^"']*)["']/i,
+  )
+  return match?.[1] || ''
+}
+
 function getPasteText(event: React.ClipboardEvent<HTMLInputElement>) {
   const clipboard = event.clipboardData
-  return [
+  const html = clipboard.getData('text/html')
+  const candidates = [
     clipboard.getData('text/plain'),
     clipboard.getData('text'),
     clipboard.getData('URL'),
     clipboard.getData('text/uri-list'),
-  ].find(text => text.trim()) || ''
+    extractMapsHrefFromHtml(html),
+    html,
+  ]
+    .map(text => text.trim())
+    .filter(Boolean)
+
+  return candidates.find(text => containsMapLink(text)) || candidates[0] || ''
 }
 
 async function readSystemClipboardText() {
@@ -88,6 +103,7 @@ function shouldRetryMapPasteFromClipboard(value: string) {
   if (!trimmed) return false
   return /네이버\s*지도/i.test(trimmed)
     || /naver/i.test(trimmed)
+    || /google|maps\.app\.goo|goo\.gl|maps\.google/i.test(trimmed)
     || /^(서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남|서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|제주특별자치도|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도)\s+\S+/.test(trimmed)
 }
 
@@ -201,8 +217,9 @@ export default function VenueLocationFields({
       }
 
       // Optimistic fill from URL / share text while geocoding runs.
+      const optimisticAddress = hint?.address || parsed.address
       if (hint?.name || parsed.name) onVenueChange(hint?.name || parsed.name)
-      if (hint?.address) onLocationChange(toGoogleLocationArea(hint.address))
+      if (optimisticAddress) onLocationChange(toGoogleLocationArea(optimisticAddress))
 
       setLookingUp(true)
       setLookupError('')
@@ -211,23 +228,32 @@ export default function VenueLocationFields({
         const res = await fetch(`/api/google-place?url=${encodeURIComponent(url)}`)
         const data = await res.json()
         if (id !== requestId.current) return true
-        if (!res.ok || (!data?.name && !data?.location)) {
+        if (!res.ok || (!data?.name && !data?.location && !optimisticAddress)) {
           // Keep optimistic values if API fails but we already filled something.
-          if (!(hint?.name || parsed.name || hint?.address)) {
+          if (!(hint?.name || parsed.name || optimisticAddress)) {
             setLookupError(t('naverMapLookupFailed'))
           }
           return true
         }
         applyPlace({
           name: data.name || hint?.name || parsed.name || '',
-          location: data.location || (hint?.address ? toGoogleLocationArea(hint.address) : ''),
-          address: data.address || hint?.address || '',
+          location: data.location || (optimisticAddress ? toGoogleLocationArea(optimisticAddress) : ''),
+          address: data.address || optimisticAddress || '',
           placeId: data.placeId || cacheKey || '',
         })
         return true
       } catch {
-        if (id === requestId.current && !(hint?.name || parsed.name)) {
+        if (id === requestId.current && !(hint?.name || parsed.name || optimisticAddress)) {
           setLookupError(t('naverMapLookupFailed'))
+        }
+        // Keep optimistic address fill even if the network call fails.
+        if (optimisticAddress && id === requestId.current) {
+          applyPlace({
+            name: hint?.name || parsed.name || '',
+            location: toGoogleLocationArea(optimisticAddress),
+            address: optimisticAddress,
+            placeId: cacheKey || '',
+          })
         }
         return true
       } finally {

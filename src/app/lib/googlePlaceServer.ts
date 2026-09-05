@@ -140,18 +140,22 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
   if (cached) return cached
 
   let location = ''
-  let address = ''
+  let address = parsed.address || ''
   if (parsed.lat != null && parsed.lng != null) {
     try {
       const geo = await reverseGeocode(parsed.lat, parsed.lng)
       location = geo.location
-      address = geo.address
+      address = geo.address || address
     } catch {
-      // Name-only fill is still useful if geocoding fails.
+      // Name/address-only fill is still useful if geocoding fails.
     }
   }
 
-  if (!parsed.name && !location) {
+  if (!location && address) {
+    location = toGoogleLocationArea(address)
+  }
+
+  if (!parsed.name && !location && !address) {
     throw new Error('Could not parse place info')
   }
 
