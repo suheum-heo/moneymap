@@ -7,6 +7,8 @@ import {
   findGoogleMapsUrlInText,
   parseGoogleMapsUrl,
   parseGoogleShareText,
+  normalizeGooglePlaceFields,
+  splitNameAndAddress,
   toGoogleLocationArea,
   type GooglePlaceInfo,
 } from '../lib/googlePlace'
@@ -109,8 +111,11 @@ function shouldRetryMapPasteFromClipboard(value: string) {
 
 function canFillFromPastedText(text: string) {
   if (containsMapLink(text)) return true
-  const share = parseNaverShareText(text)
-  return Boolean(share?.name && share.address)
+  const naverShare = parseNaverShareText(text)
+  if (naverShare?.name && naverShare.address) return true
+  const googleShare = parseGoogleShareText(text)
+  if (googleShare?.name && googleShare.address) return true
+  return Boolean(splitNameAndAddress(text.trim()))
 }
 
 interface Props {
@@ -156,10 +161,11 @@ export default function VenueLocationFields({
 
   const applyPlace = useCallback(
     (data: PlaceInfo) => {
-      if (data.name) onVenueChange(data.name)
-      if (data.location) onLocationChange(data.location)
+      const normalized = normalizeGooglePlaceFields(data)
+      if (normalized.name) onVenueChange(normalized.name)
+      if (normalized.location) onLocationChange(normalized.location)
       triggerBoom()
-      writeClientCache(data)
+      writeClientCache({ ...data, ...normalized })
       setLookupError('')
     },
     [onLocationChange, onVenueChange, triggerBoom],
@@ -217,9 +223,13 @@ export default function VenueLocationFields({
       }
 
       // Optimistic fill from URL / share text while geocoding runs.
-      const optimisticAddress = hint?.address || parsed.address
-      if (hint?.name || parsed.name) onVenueChange(hint?.name || parsed.name)
-      if (optimisticAddress) onLocationChange(toGoogleLocationArea(optimisticAddress))
+      const optimistic = normalizeGooglePlaceFields({
+        name: hint?.name || parsed.name,
+        address: hint?.address || parsed.address,
+      })
+      const optimisticAddress = optimistic.address
+      if (optimistic.name) onVenueChange(optimistic.name)
+      if (optimistic.location) onLocationChange(optimistic.location)
 
       setLookingUp(true)
       setLookupError('')
@@ -283,6 +293,37 @@ export default function VenueLocationFields({
         return true
       }
 
+      const googleShare = parseGoogleShareText(text)
+      if (googleShare?.name && googleShare.address) {
+        applyPlace({
+          name: googleShare.name,
+          address: googleShare.address,
+          location: toGoogleLocationArea(googleShare.address),
+          placeId: googleShare.url ? parseGoogleMapsUrl(googleShare.url).placeId || '' : '',
+        })
+        setLookingUp(false)
+        // Optional URL lookup can refine coords later; share text is enough for venue/location.
+        if (googleShare.url && containsGoogleMapsLink(googleShare.url)) {
+          void lookupGoogleByUrl(googleShare.url, id, {
+            name: googleShare.name,
+            address: googleShare.address,
+          })
+        }
+        return true
+      }
+
+      const embedded = splitNameAndAddress(text)
+      if (embedded && !containsMapLink(text)) {
+        applyPlace({
+          name: embedded.name,
+          address: embedded.address,
+          location: toGoogleLocationArea(embedded.address),
+          placeId: '',
+        })
+        setLookingUp(false)
+        return true
+      }
+
       if (!containsMapLink(text)) return false
 
       if (containsNaverMapLink(text)) {
@@ -294,23 +335,9 @@ export default function VenueLocationFields({
       }
 
       if (containsGoogleMapsLink(text)) {
-        const share = parseGoogleShareText(text)
-        const url = share?.url || findGoogleMapsUrlInText(text)
+        const url = googleShare?.url || findGoogleMapsUrlInText(text)
         if (!url) return false
-
-        if (share?.name && share.address) {
-          applyPlace({
-            name: share.name,
-            address: share.address,
-            location: toGoogleLocationArea(share.address),
-            placeId: parseGoogleMapsUrl(url).placeId || '',
-          })
-          // Still geocode in background if we only had a partial address — but share is enough.
-          setLookingUp(false)
-          return true
-        }
-
-        return lookupGoogleByUrl(url, id, { name: share?.name, address: share?.address })
+        return lookupGoogleByUrl(url, id, { name: googleShare?.name, address: googleShare?.address })
       }
 
       return false
