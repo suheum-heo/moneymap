@@ -1,6 +1,7 @@
 import {
   findGoogleMapsUrlInText,
   looksLikeGoogleMapsUrl,
+  normalizeGooglePlaceFields,
   parseGoogleMapsUrl,
   toGoogleLocationArea,
   type GooglePlaceInfo,
@@ -140,27 +141,31 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
   if (cached) return cached
 
   let location = ''
-  let address = ''
+  let address = parsed.address || ''
   if (parsed.lat != null && parsed.lng != null) {
     try {
       const geo = await reverseGeocode(parsed.lat, parsed.lng)
       location = geo.location
-      address = geo.address
+      address = geo.address || address
     } catch {
-      // Name-only fill is still useful if geocoding fails.
+      // Name/address-only fill is still useful if geocoding fails.
     }
   }
 
-  if (!parsed.name && !location) {
+  if (!location && address) {
+    location = toGoogleLocationArea(address)
+  }
+
+  if (!parsed.name && !location && !address) {
     throw new Error('Could not parse place info')
   }
 
-  const info: GooglePlaceInfo = {
+  const info = normalizeGooglePlaceFields({
     name: parsed.name,
     location,
     address,
     placeId: parsed.placeId || cacheKey,
-  }
+  })
   setCached(cacheKey, info)
   if (parsed.lat != null && parsed.lng != null) {
     setCached(`geo:${parsed.lat.toFixed(4)},${parsed.lng.toFixed(4)}`, info)

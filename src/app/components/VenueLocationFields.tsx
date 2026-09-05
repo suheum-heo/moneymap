@@ -7,6 +7,8 @@ import {
   findGoogleMapsUrlInText,
   parseGoogleMapsUrl,
   parseGoogleShareText,
+  normalizeGooglePlaceFields,
+  splitNameAndAddress,
   toGoogleLocationArea,
   type GooglePlaceInfo,
 } from '../lib/googlePlace'
@@ -64,14 +66,29 @@ function containsMapLink(text: string): boolean {
   return containsNaverMapLink(text) || containsGoogleMapsLink(text)
 }
 
+function extractMapsHrefFromHtml(html: string): string {
+  if (!html) return ''
+  const match = html.match(
+    /href=["'](https?:\/\/[^"']*(?:google\.com\/maps|maps\.app\.goo\.gl|maps\.google\.com|goo\.gl\/maps)[^"']*)["']/i,
+  )
+  return match?.[1] || ''
+}
+
 function getPasteText(event: React.ClipboardEvent<HTMLInputElement>) {
   const clipboard = event.clipboardData
-  return [
+  const html = clipboard.getData('text/html')
+  const candidates = [
     clipboard.getData('text/plain'),
     clipboard.getData('text'),
     clipboard.getData('URL'),
     clipboard.getData('text/uri-list'),
-  ].find(text => text.trim()) || ''
+    extractMapsHrefFromHtml(html),
+    html,
+  ]
+    .map(text => text.trim())
+    .filter(Boolean)
+
+  return candidates.find(text => containsMapLink(text)) || candidates[0] || ''
 }
 
 async function readSystemClipboardText() {
@@ -88,13 +105,17 @@ function shouldRetryMapPasteFromClipboard(value: string) {
   if (!trimmed) return false
   return /네이버\s*지도/i.test(trimmed)
     || /naver/i.test(trimmed)
+    || /google|maps\.app\.goo|goo\.gl|maps\.google/i.test(trimmed)
     || /^(서울|부산|대구|인천|광주|대전|울산|세종|제주|경기|강원|충북|충남|전북|전남|경북|경남|서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|제주특별자치도|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도)\s+\S+/.test(trimmed)
 }
 
 function canFillFromPastedText(text: string) {
   if (containsMapLink(text)) return true
-  const share = parseNaverShareText(text)
-  return Boolean(share?.name && share.address)
+  const naverShare = parseNaverShareText(text)
+  if (naverShare?.name && naverShare.address) return true
+  const googleShare = parseGoogleShareText(text)
+  if (googleShare?.name && googleShare.address) return true
+  return Boolean(splitNameAndAddress(text.trim()))
 }
 
 interface Props {
@@ -140,10 +161,11 @@ export default function VenueLocationFields({
 
   const applyPlace = useCallback(
     (data: PlaceInfo) => {
-      if (data.name) onVenueChange(data.name)
-      if (data.location) onLocationChange(data.location)
+      const normalized = normalizeGooglePlaceFields(data)
+      if (normalized.name) onVenueChange(normalized.name)
+      if (normalized.location) onLocationChange(normalized.location)
       triggerBoom()
-      writeClientCache(data)
+      writeClientCache({ ...data, ...normalized })
       setLookupError('')
     },
     [onLocationChange, onVenueChange, triggerBoom],
@@ -201,8 +223,13 @@ export default function VenueLocationFields({
       }
 
       // Optimistic fill from URL / share text while geocoding runs.
-      if (hint?.name || parsed.name) onVenueChange(hint?.name || parsed.name)
-      if (hint?.address) onLocationChange(toGoogleLocationArea(hint.address))
+      const optimistic = normalizeGooglePlaceFields({
+        name: hint?.name || parsed.name,
+        address: hint?.address || parsed.address,
+      })
+      const optimisticAddress = optimistic.address
+      if (optimistic.name) onVenueChange(optimistic.name)
+      if (optimistic.location) onLocationChange(optimistic.location)
 
       setLookingUp(true)
       setLookupError('')
@@ -211,23 +238,32 @@ export default function VenueLocationFields({
         const res = await fetch(`/api/google-place?url=${encodeURIComponent(url)}`)
         const data = await res.json()
         if (id !== requestId.current) return true
-        if (!res.ok || (!data?.name && !data?.location)) {
+        if (!res.ok || (!data?.name && !data?.location && !optimisticAddress)) {
           // Keep optimistic values if API fails but we already filled something.
-          if (!(hint?.name || parsed.name || hint?.address)) {
+          if (!(hint?.name || parsed.name || optimisticAddress)) {
             setLookupError(t('naverMapLookupFailed'))
           }
           return true
         }
         applyPlace({
           name: data.name || hint?.name || parsed.name || '',
-          location: data.location || (hint?.address ? toGoogleLocationArea(hint.address) : ''),
-          address: data.address || hint?.address || '',
+          location: data.location || (optimisticAddress ? toGoogleLocationArea(optimisticAddress) : ''),
+          address: data.address || optimisticAddress || '',
           placeId: data.placeId || cacheKey || '',
         })
         return true
       } catch {
-        if (id === requestId.current && !(hint?.name || parsed.name)) {
+        if (id === requestId.current && !(hint?.name || parsed.name || optimisticAddress)) {
           setLookupError(t('naverMapLookupFailed'))
+        }
+        // Keep optimistic address fill even if the network call fails.
+        if (optimisticAddress && id === requestId.current) {
+          applyPlace({
+            name: hint?.name || parsed.name || '',
+            location: toGoogleLocationArea(optimisticAddress),
+            address: optimisticAddress,
+            placeId: cacheKey || '',
+          })
         }
         return true
       } finally {
@@ -257,6 +293,37 @@ export default function VenueLocationFields({
         return true
       }
 
+      const googleShare = parseGoogleShareText(text)
+      if (googleShare?.name && googleShare.address) {
+        applyPlace({
+          name: googleShare.name,
+          address: googleShare.address,
+          location: toGoogleLocationArea(googleShare.address),
+          placeId: googleShare.url ? parseGoogleMapsUrl(googleShare.url).placeId || '' : '',
+        })
+        setLookingUp(false)
+        // Optional URL lookup can refine coords later; share text is enough for venue/location.
+        if (googleShare.url && containsGoogleMapsLink(googleShare.url)) {
+          void lookupGoogleByUrl(googleShare.url, id, {
+            name: googleShare.name,
+            address: googleShare.address,
+          })
+        }
+        return true
+      }
+
+      const embedded = splitNameAndAddress(text)
+      if (embedded && !containsMapLink(text)) {
+        applyPlace({
+          name: embedded.name,
+          address: embedded.address,
+          location: toGoogleLocationArea(embedded.address),
+          placeId: '',
+        })
+        setLookingUp(false)
+        return true
+      }
+
       if (!containsMapLink(text)) return false
 
       if (containsNaverMapLink(text)) {
@@ -268,23 +335,9 @@ export default function VenueLocationFields({
       }
 
       if (containsGoogleMapsLink(text)) {
-        const share = parseGoogleShareText(text)
-        const url = share?.url || findGoogleMapsUrlInText(text)
+        const url = googleShare?.url || findGoogleMapsUrlInText(text)
         if (!url) return false
-
-        if (share?.name && share.address) {
-          applyPlace({
-            name: share.name,
-            address: share.address,
-            location: toGoogleLocationArea(share.address),
-            placeId: parseGoogleMapsUrl(url).placeId || '',
-          })
-          // Still geocode in background if we only had a partial address — but share is enough.
-          setLookingUp(false)
-          return true
-        }
-
-        return lookupGoogleByUrl(url, id, { name: share?.name, address: share?.address })
+        return lookupGoogleByUrl(url, id, { name: googleShare?.name, address: googleShare?.address })
       }
 
       return false
