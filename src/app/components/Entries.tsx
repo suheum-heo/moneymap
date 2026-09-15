@@ -224,8 +224,20 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
       ? selectedYear
       : month
 
-  const selCls = "app-select px-3 py-2.5 text-sm"
   const inputCls = "app-input py-3 text-sm"
+  // Shared chip style so selects, amount fields, and action buttons match height/radius.
+  const chipBase =
+    'h-10 box-border rounded-full border border-slate-200/85 bg-white/95 text-xs font-medium leading-none text-slate-600 outline-none transition dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+  const selectChevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
+  const chipSelectCls =
+    `${chipBase} appearance-none bg-[length:12px] bg-[position:right_12px_center] bg-no-repeat py-0 pl-3.5 pr-9`
+  const chipAmountCls =
+    `${chipBase} w-[10rem] min-w-[10rem] px-3.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`
+  const chipBtnCls =
+    `${chipBase} inline-flex items-center justify-center gap-1.5 whitespace-nowrap px-3.5 hover:border-[#cfe0ff] hover:text-[#3578e5] dark:hover:border-sky-400/25 dark:hover:text-sky-300`
+  const chipBtnActiveCls =
+    'h-10 box-border inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#b9d4ff] bg-[#eef5ff] px-3.5 text-xs font-semibold leading-none text-[#245ec6] shadow-[0_12px_22px_-18px_rgba(49,130,246,0.35)] transition dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
+
   return (
     <div className="px-4 pb-6 space-y-3">
       <EntryEditModal
@@ -290,12 +302,12 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={selCls}>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={chipSelectCls} style={{ backgroundImage: selectChevron }}>
             <option value="all">{t('allTypes')}</option>
             <option value="expense">{t('expenses')}</option>
             <option value="income">{t('income')}</option>
           </select>
-          <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className={selCls}>
+          <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className={chipSelectCls} style={{ backgroundImage: selectChevron }}>
             <option value="all">{t('allCategories')}</option>
             {allCats.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -305,39 +317,40 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
             value={minAmount}
             onChange={e => setMinAmount(e.target.value)}
             placeholder={t('minAmount')}
-            className={`${selCls} w-[7.5rem]`}
+            className={chipAmountCls}
             style={{ fontSize: '16px' }}
           />
-          <span className="text-xs text-slate-400">–</span>
+          <span className="inline-flex h-10 items-center text-xs text-slate-400" aria-hidden="true">–</span>
           <input
             type="number"
             inputMode="decimal"
             value={maxAmount}
             onChange={e => setMaxAmount(e.target.value)}
             placeholder={t('maxAmount')}
-            className={`${selCls} w-[7.5rem]`}
+            className={chipAmountCls}
             style={{ fontSize: '16px' }}
           />
           {dateScope === 'month' && (
-            <button onClick={() => setWeekOnly(v => !v)}
-              className={weekOnly ? 'app-segment app-segment-active' : 'app-button-secondary'}>
+            <button
+              type="button"
+              onClick={() => setWeekOnly(v => !v)}
+              className={weekOnly ? chipBtnActiveCls : chipBtnCls}
+            >
               {t('thisWeek')}
             </button>
           )}
           <div className="flex w-full items-center justify-end gap-2 sm:ml-auto sm:w-auto">
             {dateScope === 'month' && (
-            <button
-              type="button"
-              onClick={toggleReorderMode}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2.5 text-xs font-semibold transition-all ${reorderMode
-                ? 'border-[#b9d4ff] bg-[#eef5ff] text-[#245ec6] shadow-[0_12px_22px_-18px_rgba(49,130,246,0.35)] dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
-                : 'border-slate-200/85 bg-white/90 text-slate-500 hover:border-[#cfe0ff] hover:text-[#3578e5] dark:border-white/10 dark:bg-white/5 dark:text-slate-400 dark:hover:border-sky-400/25 dark:hover:text-sky-300'}`}
-            >
-              <span aria-hidden="true">↕</span>
-              <span>{reorderMode ? t('doneReordering') : t('reorderEntries')}</span>
-            </button>
+              <button
+                type="button"
+                onClick={toggleReorderMode}
+                className={reorderMode ? chipBtnActiveCls : chipBtnCls}
+              >
+                <span aria-hidden="true">↕</span>
+                <span>{reorderMode ? t('doneReordering') : t('reorderEntries')}</span>
+              </button>
             )}
-            <button onClick={exportCSV} className="app-button-secondary whitespace-nowrap px-4 py-2.5 text-xs">
+            <button type="button" onClick={exportCSV} className={chipBtnCls}>
               {t('exportCSV')}
             </button>
           </div>
