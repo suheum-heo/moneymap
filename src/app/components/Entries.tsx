@@ -63,6 +63,9 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   const [catFilter, setCatFilter] = useState(initialCategoryFilter)
   const [search, setSearch] = useState('')
   const [weekOnly, setWeekOnly] = useState(false)
+  const [dateScope, setDateScope] = useState<'month' | 'year' | 'all'>('month')
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [reorderMode, setReorderMode] = useState(false)
@@ -75,18 +78,40 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
 
   const weekRange = useMemo(() => getWeekRange(), [])
 
+  const selectedYear = month.slice(0, 4)
+
+  const contextEntries = useMemo(() =>
+    entries.filter(e => e.context === activeContext?.id),
+    [entries, activeContext])
+
+  const scopedEntries = useMemo(() => {
+    if (dateScope === 'all') return contextEntries
+    if (dateScope === 'year') return contextEntries.filter(e => e.date.startsWith(selectedYear))
+    return contextEntries.filter(e => e.date.startsWith(month))
+  }, [contextEntries, dateScope, month, selectedYear])
+
+  // Keep same-day reorder helpers scoped to the currently selected month.
   const monthEntries = useMemo(() =>
-    entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
-    [entries, month, activeContext])
+    contextEntries.filter(e => e.date.startsWith(month)),
+    [contextEntries, month])
 
   const allCats = useMemo(() =>
-    [...new Set(monthEntries.map(e => e.category))].sort(), [monthEntries])
+    [...new Set(scopedEntries.map(e => e.category))].sort(), [scopedEntries])
+
+  const minAmountValue = minAmount.trim() === '' ? null : Number(minAmount)
+  const maxAmountValue = maxAmount.trim() === '' ? null : Number(maxAmount)
 
   const filtered = useMemo(() => {
-    let f = monthEntries
+    let f = scopedEntries
     if (typeFilter !== 'all') f = f.filter(e => e.type === typeFilter)
     if (catFilter !== 'all') f = f.filter(e => e.category === catFilter)
     if (weekOnly) f = f.filter(e => e.date >= weekRange.start && e.date <= weekRange.end)
+    if (minAmountValue != null && Number.isFinite(minAmountValue)) {
+      f = f.filter(e => convertEntryAmount(e, cur, homeCur, cur, convert) >= minAmountValue)
+    }
+    if (maxAmountValue != null && Number.isFinite(maxAmountValue)) {
+      f = f.filter(e => convertEntryAmount(e, cur, homeCur, cur, convert) <= maxAmountValue)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       f = f.filter(e =>
@@ -94,11 +119,12 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         (e.venue || '').toLowerCase().includes(q) ||
         (e.location || '').toLowerCase().includes(q) ||
         (e.paymentMethod || '').toLowerCase().includes(q) ||
-        (e.remarks || '').toLowerCase().includes(q)
+        (e.remarks || '').toLowerCase().includes(q) ||
+        e.category.toLowerCase().includes(q)
       )
     }
     return sortEntriesForDisplay(f, sortOrder)
-  }, [monthEntries, typeFilter, catFilter, search, weekOnly, weekRange, sortOrder])
+  }, [scopedEntries, typeFilter, catFilter, search, weekOnly, weekRange, sortOrder, minAmountValue, maxAmountValue, cur, homeCur, convert])
 
   const sameDateEntriesByDate = useMemo(() => {
     const groups = new Map<string, Entry[]>()
@@ -169,7 +195,8 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `${activeContext?.name || 'entries'}-${month}${weekOnly ? '-week' : ''}.csv`; a.click()
+    const scopeLabel = dateScope === 'all' ? 'all' : dateScope === 'year' ? selectedYear : month
+    a.href = url; a.download = `${activeContext?.name || 'entries'}-${scopeLabel}${weekOnly ? '-week' : ''}.csv`; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -179,6 +206,23 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
       .filter(e => e.type === 'expense')
       .reduce((s, e) => s + convertEntryAmount(e, cur, homeCur, cur, convert), 0)
   }, [filtered, weekOnly, cur, homeCur, convert])
+
+  const filterTotals = useMemo(() => {
+    let expense = 0
+    let income = 0
+    for (const e of filtered) {
+      const amount = convertEntryAmount(e, cur, homeCur, cur, convert)
+      if (e.type === 'income') income += amount
+      else expense += amount
+    }
+    return { expense, income, net: income - expense, count: filtered.length }
+  }, [filtered, cur, homeCur, convert])
+
+  const scopeLabel = dateScope === 'all'
+    ? t('allTime')
+    : dateScope === 'year'
+      ? selectedYear
+      : month
 
   const selCls = "app-select px-3 py-2.5 text-sm"
   const inputCls = "app-input py-3 text-sm"
@@ -218,6 +262,33 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchEntries')}
           className={`${inputCls} mb-3`} style={{fontSize:'16px'}} />
 
+        <div className="mb-3 inline-flex max-w-full flex-wrap rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
+          {([
+            ['month', t('thisMonth')],
+            ['year', t('year')],
+            ['all', t('allTime')],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setDateScope(value)
+                if (value !== 'month') {
+                  setWeekOnly(false)
+                  setReorderMode(false)
+                  setDraggedId(null)
+                  setDropTargetId(null)
+                }
+              }}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${dateScope === value
+                ? 'bg-white text-slate-900 shadow-[0_8px_18px_-14px_rgba(15,23,42,0.26)] dark:bg-slate-950 dark:text-zinc-100'
+                : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-zinc-200'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={selCls}>
             <option value="all">{t('allTypes')}</option>
@@ -228,11 +299,33 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
             <option value="all">{t('allCategories')}</option>
             {allCats.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <button onClick={() => setWeekOnly(v => !v)}
-            className={weekOnly ? 'app-segment app-segment-active' : 'app-button-secondary'}>
-            {t('thisWeek')}
-          </button>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={minAmount}
+            onChange={e => setMinAmount(e.target.value)}
+            placeholder={t('minAmount')}
+            className={`${selCls} w-[7.5rem]`}
+            style={{ fontSize: '16px' }}
+          />
+          <span className="text-xs text-slate-400">–</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={maxAmount}
+            onChange={e => setMaxAmount(e.target.value)}
+            placeholder={t('maxAmount')}
+            className={`${selCls} w-[7.5rem]`}
+            style={{ fontSize: '16px' }}
+          />
+          {dateScope === 'month' && (
+            <button onClick={() => setWeekOnly(v => !v)}
+              className={weekOnly ? 'app-segment app-segment-active' : 'app-button-secondary'}>
+              {t('thisWeek')}
+            </button>
+          )}
           <div className="flex w-full items-center justify-end gap-2 sm:ml-auto sm:w-auto">
+            {dateScope === 'month' && (
             <button
               type="button"
               onClick={toggleReorderMode}
@@ -243,6 +336,7 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
               <span aria-hidden="true">↕</span>
               <span>{reorderMode ? t('doneReordering') : t('reorderEntries')}</span>
             </button>
+            )}
             <button onClick={exportCSV} className="app-button-secondary whitespace-nowrap px-4 py-2.5 text-xs">
               {t('exportCSV')}
             </button>
@@ -250,10 +344,37 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         </div>
       </div>
 
-      {weekOnly && weekTotal !== null && (
-        <div className="app-panel flex items-center justify-between gap-3 px-4 py-3">
-          <span className="app-accent text-xs font-medium">{t('thisWeek')} ({formatEntryDate(weekRange.start, language)} – {formatEntryDate(weekRange.end, language)})</span>
-          <span className="app-negative text-sm font-semibold">-{formatAmount(weekTotal, cur)}</span>
+      {(dateScope !== 'month' || weekOnly || minAmountValue != null || maxAmountValue != null || typeFilter !== 'all' || catFilter !== 'all' || search.trim()) && (
+        <div className="app-panel space-y-2 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="app-accent text-xs font-medium">
+              {weekOnly
+                ? `${t('thisWeek')} (${formatEntryDate(weekRange.start, language)} – ${formatEntryDate(weekRange.end, language)})`
+                : scopeLabel}
+            </span>
+            <span className="text-xs text-slate-400">{t('entriesInPeriod', { count: filterTotals.count })}</span>
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap gap-4 text-xs">
+              <div>
+                <div className="text-slate-400">{t('expenses')}</div>
+                <div className="app-negative font-semibold">-{formatAmount(filterTotals.expense, cur)}</div>
+              </div>
+              <div>
+                <div className="text-slate-400">{t('income')}</div>
+                <div className="font-semibold text-emerald-600 dark:text-emerald-400">+{formatAmount(filterTotals.income, cur)}</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-400">{t('total')}</div>
+              <div className={`text-sm font-semibold ${filterTotals.net < 0 ? 'app-negative' : 'app-accent'}`}>
+                {(filterTotals.net < 0 ? '-' : '') + formatAmount(Math.abs(filterTotals.net), cur)}
+              </div>
+            </div>
+          </div>
+          {weekOnly && weekTotal !== null && (
+            <div className="text-xs text-slate-400">{t('thisWeek')}: <span className="app-negative font-medium">-{formatAmount(weekTotal, cur)}</span></div>
+          )}
         </div>
       )}
 
