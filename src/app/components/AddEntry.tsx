@@ -127,9 +127,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
   const handleSubmit = async () => {
     if (savingRef.current || isSaving) return
-    if (!amount || !summary.trim()) {
-      setError(t('amountSummaryRequired', { amountLabel: t('amount'), summaryLabel: t('summary') }))
+    if (!amount) {
+      setError(t('amountRequired', { amountLabel: t('amount') }))
       return
+    }
+    if (!summary.trim()) {
+      const proceed = window.confirm(t('summaryEmptyConfirm', { summaryLabel: t('summary') }))
+      if (!proceed) return
     }
     const parsed = parseCurrencyInput(amount, primaryAmountCurrency)
     if (isNaN(parsed) || parsed <= 0) { setError(t('invalidAmount')); return }
@@ -285,6 +289,9 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
           <label className="app-kicker mb-2 block">{t('summary')}</label>
           <input type="text" value={summary} onChange={e => setSummary(e.target.value)}
             placeholder={placeholders.summary} className={inputCls} style={{ fontSize: '16px' }} />
+          {!summary.trim() && (
+            <p className="mt-1.5 text-xs text-slate-400">{t('summaryRecommended')}</p>
+          )}
         </div>
 
         {entryType === 'expense' && (

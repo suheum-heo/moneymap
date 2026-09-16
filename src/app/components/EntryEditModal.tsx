@@ -102,7 +102,11 @@ export default function EntryEditModal({
 
   const handleSave = () => {
     const parsed = parseCurrencyInput(editAmount, editCurrency)
-    if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
+    if (isNaN(parsed) || parsed <= 0) return
+    if (!editSummary.trim()) {
+      const proceed = window.confirm(t('summaryEmptyConfirm', { summaryLabel: t('summary') }))
+      if (!proceed) return
+    }
     const parsedActual = editActualCharged.trim()
       ? parseCurrencyInput(editActualCharged.trim(), editActualChargedCurrency)
       : undefined
@@ -204,6 +208,9 @@ export default function EntryEditModal({
         <div>
           <label className="app-kicker mb-2 block">{t('summary')}</label>
           <input type="text" value={editSummary} onChange={event => setEditSummary(event.target.value)} placeholder={placeholders.summary} className={inputCls} style={{ fontSize: '16px' }} />
+          {!editSummary.trim() && (
+            <p className="mt-1.5 text-xs text-slate-400">{t('summaryRecommended')}</p>
+          )}
         </div>
         <VenueLocationFields
           venue={editVenue}
