@@ -125,7 +125,11 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
   const handleSave = () => {
     if (!editEntry) return
     const parsed = parseCurrencyInput(editAmount, editCurrency)
-    if (isNaN(parsed) || parsed <= 0 || !editSummary.trim()) return
+    if (isNaN(parsed) || parsed <= 0) return
+    if (!editSummary.trim()) {
+      const proceed = window.confirm(t('summaryEmptyConfirm', { summaryLabel: t('summary') }))
+      if (!proceed) return
+    }
     const parsedActual = editActualCharged.trim()
       ? parseCurrencyInput(editActualCharged.trim(), editActualChargedCurrency)
       : undefined
@@ -227,6 +231,9 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
             <div>
               <label className="app-kicker mb-2 block">{t('summary')}</label>
               <input type="text" value={editSummary} onChange={e => setEditSummary(e.target.value)} placeholder={editPlaceholders.summary} className={inputCls} style={{fontSize:'16px'}} />
+              {!editSummary.trim() && (
+                <p className="mt-1.5 text-xs text-slate-400">{t('summaryRecommended')}</p>
+              )}
             </div>
             <VenueLocationFields
               venue={editVenue}
