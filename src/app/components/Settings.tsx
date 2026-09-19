@@ -73,6 +73,9 @@ interface Props {
 
 type SavedDataField = 'paymentMethod' | 'venue' | 'location'
 
+
+type SettingsSectionId = 'general' | 'contexts' | 'categories' | 'money' | 'account'
+
 export default function Settings({ userEmail, contexts, addContext, removeContext, updateContext, moveContext, reorderContexts, convert, activeContext, ratesUpdated, rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct, setBudget, getBudget, entries, items, addItem, updateItem, deleteItem, importRecurringFromContext, categories, expenseCategories, incomeCategories, addCategory, updateCategory, removeCategory, importCategoriesFromContext, moveEntriesFromContext, renamePaymentMethod, renameVenue, renameLocation }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
@@ -173,6 +176,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const [savedDataDraft, setSavedDataDraft] = useState('')
   const [savingSavedData, setSavingSavedData] = useState(false)
   const [savedDataOpen, setSavedDataOpen] = useState(false)
+  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId | null>(null)
   const [entrySourceContextId, setEntrySourceContextId] = useState('')
   const [selectedImportEntryIds, setSelectedImportEntryIds] = useState<string[]>([])
   const [movingEntries, setMovingEntries] = useState(false)
@@ -709,7 +713,130 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         </div>
       )}
 
+
+      {!activeSettingsSection && (
+        <div className="app-panel overflow-hidden p-0">
+          <div className="border-b border-slate-200/70 px-4 py-4 dark:border-white/10">
+            <div className="text-lg font-semibold text-slate-900 dark:text-zinc-50">{t('settings')}</div>
+            <p className="mt-1 text-xs text-slate-400">{t('settingsHubHint')}</p>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-white/5">
+            {([
+              ['general', t('settingsSectionGeneral'), t('settingsSectionGeneralDesc')],
+              ['contexts', t('settingsSectionContexts'), t('settingsSectionContextsDesc')],
+              ['categories', t('settingsSectionCategories'), t('settingsSectionCategoriesDesc')],
+              ['money', t('settingsSectionMoney'), t('settingsSectionMoneyDesc')],
+              ['account', t('settingsSectionAccount'), t('settingsSectionAccountDesc')],
+            ] as const).map(([id, title, desc]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveSettingsSection(id)}
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50/80 dark:hover:bg-white/[0.03]"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">{title}</div>
+                  <div className="mt-0.5 text-xs leading-5 text-slate-400">{desc}</div>
+                </div>
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200/80 text-slate-400 dark:border-white/10 dark:text-zinc-500" aria-hidden="true">›</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeSettingsSection && (
+        <div className="mb-1 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveSettingsSection(null)}
+            className="inline-flex h-9 items-center gap-1 rounded-full border border-slate-200/80 bg-white/90 px-3 text-xs font-semibold text-slate-600 transition hover:border-[#cfe0ff] hover:text-[#3578e5] dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:border-sky-400/25 dark:hover:text-sky-300"
+          >
+            <span aria-hidden="true">‹</span>
+            <span>{t('settingsBack')}</span>
+          </button>
+          <div className="text-sm font-semibold text-slate-900 dark:text-zinc-50">
+            {activeSettingsSection === 'general' && t('settingsSectionGeneral')}
+            {activeSettingsSection === 'contexts' && t('settingsSectionContexts')}
+            {activeSettingsSection === 'categories' && t('settingsSectionCategories')}
+            {activeSettingsSection === 'money' && t('settingsSectionMoney')}
+            {activeSettingsSection === 'account' && t('settingsSectionAccount')}
+          </div>
+        </div>
+      )}
+
+      {activeSettingsSection === 'general' && (
+        <>
       <LanguageSelector />
+      {/* Exchange rates */}
+      <div className="app-panel p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="app-kicker">{t('exchangeRates')}</div>
+          {ratesUpdated && <div className="text-xs text-slate-400">{t('updatedAt', { time: formatLocaleTime(ratesUpdated, language) })}</div>}
+        </div>
+        <div className="app-panel-soft min-w-0 overflow-hidden p-3.5">
+          <div className="mb-3">
+            <label className="app-kicker mb-2 block">{t('exchangeRateSource')}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {rateSourceOptions.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setRateSource(option.value)}
+                  className={`app-segment px-2 py-2.5 text-xs ${rateSource === option.value ? 'app-segment-active' : ''}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {rateSource !== 'market' && (
+            <div className="mb-3">
+              <label className="app-kicker mb-2 block">{t('cardFeePercent')}</label>
+              <input
+                type="number"
+                min="0"
+                max="20"
+                step="0.01"
+                value={cardFeePct}
+                onChange={e => setCardFeePct(Number(e.target.value))}
+                placeholder={t('cardFeePlaceholder')}
+                className={inputCls}
+                style={{ fontSize: '16px' }}
+              />
+              <p className="mt-1 text-xs text-slate-400">{t('cardRateHint')}</p>
+            </div>
+          )}
+          {rateFallback && (
+            <div className="mb-3 rounded-[18px] border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200">
+              {t('rateSourceFallback', {
+                requested: rateSourceOptions.find(option => option.value === rateSource)?.label || rateSource,
+                actual: rateSourceOptions.find(option => option.value === effectiveRateSource)?.label || effectiveRateSource,
+              })}
+            </div>
+          )}
+          <div className="mb-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} min-w-0 w-full truncate`} style={{ fontSize: '16px' }}>
+              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+            </select>
+            <span className="text-center text-sm text-zinc-400">→</span>
+            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={`${selCls} min-w-0 w-full truncate`} style={{ fontSize: '16px' }}>
+              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+            </select>
+          </div>
+          {rateFrom !== rateTo && (
+            <div className="text-lg font-semibold text-slate-800 dark:text-zinc-100">
+              1 {rateFrom} = {formatAmountValue(convert(1, rateFrom, rateTo), rateTo)} {rateTo}
+            </div>
+          )}
+        </div>
+      </div>
+
+        </>
+      )}
+
+      {activeSettingsSection === 'categories' && (
+        <>
       <CategorySettings
         categories={categories}
         contexts={contexts}
@@ -749,6 +876,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         )}
       </div>
 
+        </>
+      )}
+
+      {activeSettingsSection === 'contexts' && (
+        <>
       {/* Contexts */}
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('contexts')}</div>
@@ -895,6 +1027,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         </div>
       </div>
 
+        </>
+      )}
+
+      {activeSettingsSection === 'money' && (
+        <>
       {/* Recurring payments */}
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('recurringTransactions').replace('⟳ ', '')}</div>
@@ -1175,70 +1312,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         </div>
       </div>
 
-      {/* Exchange rates */}
-      <div className="app-panel p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="app-kicker">{t('exchangeRates')}</div>
-          {ratesUpdated && <div className="text-xs text-slate-400">{t('updatedAt', { time: formatLocaleTime(ratesUpdated, language) })}</div>}
-        </div>
-        <div className="app-panel-soft min-w-0 overflow-hidden p-3.5">
-          <div className="mb-3">
-            <label className="app-kicker mb-2 block">{t('exchangeRateSource')}</label>
-            <div className="grid grid-cols-3 gap-2">
-              {rateSourceOptions.map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setRateSource(option.value)}
-                  className={`app-segment px-2 py-2.5 text-xs ${rateSource === option.value ? 'app-segment-active' : ''}`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {rateSource !== 'market' && (
-            <div className="mb-3">
-              <label className="app-kicker mb-2 block">{t('cardFeePercent')}</label>
-              <input
-                type="number"
-                min="0"
-                max="20"
-                step="0.01"
-                value={cardFeePct}
-                onChange={e => setCardFeePct(Number(e.target.value))}
-                placeholder={t('cardFeePlaceholder')}
-                className={inputCls}
-                style={{ fontSize: '16px' }}
-              />
-              <p className="mt-1 text-xs text-slate-400">{t('cardRateHint')}</p>
-            </div>
-          )}
-          {rateFallback && (
-            <div className="mb-3 rounded-[18px] border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200">
-              {t('rateSourceFallback', {
-                requested: rateSourceOptions.find(option => option.value === rateSource)?.label || rateSource,
-                actual: rateSourceOptions.find(option => option.value === effectiveRateSource)?.label || effectiveRateSource,
-              })}
-            </div>
-          )}
-          <div className="mb-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-            <select value={rateFrom} onChange={e => setRateFrom(e.target.value)} className={`${selCls} min-w-0 w-full truncate`} style={{ fontSize: '16px' }}>
-              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
-            </select>
-            <span className="text-center text-sm text-zinc-400">→</span>
-            <select value={rateTo} onChange={e => setRateTo(e.target.value)} className={`${selCls} min-w-0 w-full truncate`} style={{ fontSize: '16px' }}>
-              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
-            </select>
-          </div>
-          {rateFrom !== rateTo && (
-            <div className="text-lg font-semibold text-slate-800 dark:text-zinc-100">
-              1 {rateFrom} = {formatAmountValue(convert(1, rateFrom, rateTo), rateTo)} {rateTo}
-            </div>
-          )}
-        </div>
-      </div>
+        </>
+      )}
 
+      {activeSettingsSection === 'account' && (
+        <>
       {/* Reset */}
       <div className="app-panel p-4">
         <div className="app-kicker mb-3">{t('reset')}</div>
@@ -1283,6 +1361,8 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           </div>
         </div>
       </div>
+        </>
+      )}
 
     </div>
   )
