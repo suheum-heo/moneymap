@@ -247,9 +247,14 @@ function TreeRows({
                   <span className="flex-shrink-0 text-xs opacity-60">{getCurrencySymbol(context.currency)} {context.currency}</span>
                 </button>
               ) : mode === 'switch' ? (
-                <div className="flex min-w-0 flex-1 items-center gap-2 px-1 py-2.5">
-                  <div className="truncate text-sm font-medium text-slate-700 dark:text-zinc-200">{label}</div>
-                </div>
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => children.length > 0 && toggleCollapsed(context.id)}
+                  className="flex min-w-0 flex-1 items-center gap-2 px-1 py-2 text-left"
+                >
+                  <div className="truncate text-[13px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:text-zinc-400">{label}</div>
+                </button>
               ) : (
                 <div className="flex min-w-0 flex-1 items-center gap-2 px-1 py-2">
                   {node.depth > 0 && (

@@ -391,10 +391,10 @@ function AppContent({ user }: { user: User }) {
 
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
-            <div className="app-panel absolute bottom-0 left-3 right-3 rounded-b-none rounded-t-[30px] p-4 pb-8"
+            <div className="app-panel absolute bottom-0 left-3 right-3 max-h-[85vh] overflow-y-auto rounded-b-none rounded-t-[30px] p-4 pb-8"
               onClick={e => e.stopPropagation()}>
               <div className="text-xs text-slate-400 mb-3 truncate">{user.email}</div>
-              <div className="app-kicker mb-3">{t('switchContext')}</div>
+              <div className="app-section-title mb-3">{t('switchContext')}</div>
               <ContextTreeList
                 contexts={contexts}
                 activeContextId={activeContextId}
@@ -404,7 +404,7 @@ function AppContent({ user }: { user: User }) {
                     ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
                     : isLeafContext(context, contexts)
                       ? 'bg-white/88 text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'
-                      : 'bg-white/88 text-slate-800 dark:bg-slate-900/70 dark:text-zinc-200'}`}
+                      : 'bg-transparent px-0 text-slate-500 dark:text-zinc-400'}`}
                 onSelect={context => { switchContext(context.id); setMobileMenuOpen(false); setTab('overview') }}
               />
               <button onClick={() => document.getElementById('sign-out-btn')?.click()}
