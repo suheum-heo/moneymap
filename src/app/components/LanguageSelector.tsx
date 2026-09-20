@@ -44,7 +44,7 @@ export default function LanguageSelector({ variant = 'panel' }: Props) {
 
   return (
     <div className="app-panel p-4 sm:p-5">
-      <div className="app-kicker mb-3">{t('language')}</div>
+      <div className="app-section-title mb-3">{t('language')}</div>
       <div className="grid grid-cols-2 gap-2">
         {LANGUAGES.map(lang => (
           <button
