@@ -38,6 +38,9 @@ const FALLBACK_RATES: ExchangeRate[] = [
 const CURRENCIES_TO_FETCH = ['USD', 'KRW', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'SGD', 'HKD', 'THB', 'VND', 'MXN', 'BRL', 'INR']
 const CONTEXT_ORDER_KEY_PREFIX = 'gagyebu-context-order'
 const CONTEXT_META_KEY_PREFIX = 'gagyebu-context-meta'
+/** Cross-device fallback while contexts.parent_id / is_group / icon are missing in DB. */
+const AUTH_CONTEXT_META_KEY = 'moneymap_context_meta'
+const AUTH_CONTEXT_ORDER_KEY = 'moneymap_context_order'
 const RATE_SOURCE_KEY = 'gagyebu-rate-source'
 const CARD_FEE_KEY = 'gagyebu-card-fee-pct'
 const RATES_KEY_PREFIX = 'gagyebu-rates'
@@ -171,11 +174,29 @@ type ContextMeta = {
   icon?: string
 }
 
+function normalizeContextMeta(value: unknown): Record<string, ContextMeta> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const next: Record<string, ContextMeta> = {}
+  for (const [id, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!id || !entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+    const record = entry as Record<string, unknown>
+    const meta: ContextMeta = {}
+    if (typeof record.parentId === 'string' && record.parentId) meta.parentId = record.parentId
+    if (typeof record.isGroup === 'boolean') meta.isGroup = record.isGroup
+    if (typeof record.icon === 'string' && record.icon) meta.icon = record.icon
+    if (meta.parentId || meta.isGroup || meta.icon) next[id] = meta
+  }
+  return next
+}
+
+function normalizeContextOrder(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string' && !!id) : []
+}
+
 function readStoredContextMeta(userId: string): Record<string, ContextMeta> {
   try {
     const raw = localStorage.getItem(getContextMetaKey(userId))
-    const parsed = raw ? JSON.parse(raw) : {}
-    return parsed && typeof parsed === 'object' ? parsed : {}
+    return normalizeContextMeta(raw ? JSON.parse(raw) : {})
   } catch {
     return {}
   }
@@ -185,6 +206,88 @@ function writeStoredContextMeta(userId: string, meta: Record<string, ContextMeta
   try {
     localStorage.setItem(getContextMetaKey(userId), JSON.stringify(meta))
   } catch {}
+}
+
+function mergeContextMeta(
+  primary: Record<string, ContextMeta>,
+  secondary: Record<string, ContextMeta>,
+): Record<string, ContextMeta> {
+  const ids = new Set([...Object.keys(primary), ...Object.keys(secondary)])
+  const merged: Record<string, ContextMeta> = {}
+  ids.forEach(id => {
+    const a = primary[id] || {}
+    const b = secondary[id] || {}
+    const next: ContextMeta = {
+      parentId: a.parentId || b.parentId,
+      isGroup: a.isGroup ?? b.isGroup,
+      icon: a.icon || b.icon,
+    }
+    if (next.parentId || next.isGroup || next.icon) merged[id] = next
+  })
+  return merged
+}
+
+function contextMetaEquals(a: Record<string, ContextMeta>, b: Record<string, ContextMeta>) {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function contextOrderEquals(a: string[], b: string[]) {
+  return a.length === b.length && a.every((id, index) => id === b[index])
+}
+
+async function readAuthContextHierarchy(): Promise<{
+  meta: Record<string, ContextMeta>
+  order: string[]
+}> {
+  try {
+    const { data } = await supabase.auth.getUser()
+    const userMeta = data.user?.user_metadata || {}
+    return {
+      meta: normalizeContextMeta(userMeta[AUTH_CONTEXT_META_KEY]),
+      order: normalizeContextOrder(userMeta[AUTH_CONTEXT_ORDER_KEY]),
+    }
+  } catch {
+    return { meta: {}, order: [] }
+  }
+}
+
+let authHierarchySyncTimer: ReturnType<typeof setTimeout> | null = null
+let authHierarchySyncPending: { meta: Record<string, ContextMeta>; order: string[] } | null = null
+
+async function flushAuthContextHierarchySync() {
+  const pending = authHierarchySyncPending
+  authHierarchySyncPending = null
+  if (!pending) return
+  try {
+    await supabase.auth.updateUser({
+      data: {
+        [AUTH_CONTEXT_META_KEY]: pending.meta,
+        [AUTH_CONTEXT_ORDER_KEY]: pending.order,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to sync context hierarchy to account', error)
+  }
+}
+
+function scheduleAuthContextHierarchySync(meta: Record<string, ContextMeta>, order: string[]) {
+  authHierarchySyncPending = { meta, order }
+  if (authHierarchySyncTimer) clearTimeout(authHierarchySyncTimer)
+  authHierarchySyncTimer = setTimeout(() => {
+    authHierarchySyncTimer = null
+    void flushAuthContextHierarchySync()
+  }, 400)
+}
+
+function persistLocalContextHierarchy(
+  userId: string,
+  meta: Record<string, ContextMeta>,
+  order: string[],
+  options?: { syncAuth?: boolean },
+) {
+  writeStoredContextMeta(userId, meta)
+  writeStoredContextOrder(userId, order)
+  if (options?.syncAuth !== false) scheduleAuthContextHierarchySync(meta, order)
 }
 
 function mapContextRow(
@@ -226,7 +329,7 @@ function persistContextMeta(userId: string, context: Context, meta: Record<strin
   } else {
     delete nextMeta[context.id]
   }
-  writeStoredContextMeta(userId, nextMeta)
+  persistLocalContextHierarchy(userId, nextMeta, readStoredContextOrder(userId))
   return nextMeta
 }
 
@@ -296,7 +399,29 @@ export function useSettings() {
   }, [contexts])
 
   useEffect(() => {
+    const onHide = () => {
+      if (authHierarchySyncTimer) {
+        clearTimeout(authHierarchySyncTimer)
+        authHierarchySyncTimer = null
+      }
+      void flushAuthContextHierarchySync()
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') onHide()
+    }
+    window.addEventListener('pagehide', onHide)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', onHide)
+      document.removeEventListener('visibilitychange', onVisibility)
+      onHide()
+    }
+  }, [])
+
+  useEffect(() => {
     if (!userId) { setLoaded(true); return }
+
+    let cancelled = false
 
     try {
       const a = localStorage.getItem('gagyebu-active-context')
@@ -307,25 +432,43 @@ export function useSettings() {
       setCardFeePctState(storedCardFeePct)
     } catch {}
 
-    supabase.from('contexts').select('*').eq('user_id', userId)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          const meta = readStoredContextMeta(userId)
-          contextMetaRef.current = meta
-          const ctxs = orderContexts(data.map(r => mapContextRow(r, meta)), readStoredContextOrder(userId))
-          setContexts(ctxs)
-          contextsRef.current = ctxs
-          writeStoredContextOrder(userId, ctxs.map(context => context.id))
-          setActiveContextId(prev => {
-            const resolved = resolveActiveLeafContext(ctxs, prev || ctxs[0]?.id || '')
-            const nextId = resolved?.id || ctxs[0]?.id || ''
-            if (nextId) localStorage.setItem('gagyebu-active-context', nextId)
-            return nextId
-          })
-        }
-        setLoaded(true)
-      })
+    ;(async () => {
+      const [{ data }, authHierarchy] = await Promise.all([
+        supabase.from('contexts').select('*').eq('user_id', userId),
+        readAuthContextHierarchy(),
+      ])
+      if (cancelled) return
 
+      if (data && data.length > 0) {
+        const localMeta = readStoredContextMeta(userId)
+        const localOrder = readStoredContextOrder(userId)
+        const meta = mergeContextMeta(authHierarchy.meta, localMeta)
+        const order = authHierarchy.order.length > 0 ? authHierarchy.order : localOrder
+        contextMetaRef.current = meta
+
+        const ctxs = orderContexts(data.map(r => mapContextRow(r, meta)), order)
+        setContexts(ctxs)
+        contextsRef.current = ctxs
+        const nextOrder = ctxs.map(context => context.id)
+        persistLocalContextHierarchy(userId, meta, nextOrder, {
+          syncAuth: !contextMetaEquals(meta, authHierarchy.meta)
+            || !contextOrderEquals(nextOrder, authHierarchy.order)
+            || !contextMetaEquals(meta, localMeta)
+            || !contextOrderEquals(order, localOrder),
+        })
+        setActiveContextId(prev => {
+          const resolved = resolveActiveLeafContext(ctxs, prev || ctxs[0]?.id || '')
+          const nextId = resolved?.id || ctxs[0]?.id || ''
+          if (nextId) localStorage.setItem('gagyebu-active-context', nextId)
+          return nextId
+        })
+      }
+      setLoaded(true)
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [userId])
 
   useEffect(() => {
@@ -389,7 +532,8 @@ export function useSettings() {
         localStorage.setItem('gagyebu-active-context', ctx.id)
       }
       contextsRef.current = next
-      writeStoredContextOrder(userId, next.map(context => context.id))
+      const nextOrder = next.map(context => context.id)
+      writeStoredContextOrder(userId, nextOrder)
       contextMetaRef.current = persistContextMeta(userId, ctx, contextMetaRef.current)
       return next
     })
@@ -421,11 +565,10 @@ export function useSettings() {
     setContexts(prev => {
       const next = orderContexts(prev.filter(c => c.id !== id), readStoredContextOrder(userId).filter(storedId => storedId !== id))
       contextsRef.current = next
-      writeStoredContextOrder(userId, next.map(context => context.id))
       const meta = { ...contextMetaRef.current }
       delete meta[id]
       contextMetaRef.current = meta
-      writeStoredContextMeta(userId, meta)
+      persistLocalContextHierarchy(userId, meta, next.map(context => context.id))
       if (activeContextId === id) {
         nextActiveId = resolveActiveLeafContext(next, '')?.id || next[0]?.id || ''
         setActiveContextId(nextActiveId)
@@ -480,8 +623,9 @@ export function useSettings() {
 
     setContexts(() => {
       contextsRef.current = next
-      contextMetaRef.current = persistContextMeta(userId, moved, contextMetaRef.current)
-      writeStoredContextOrder(userId, next.map(context => context.id))
+      const nextMeta = persistContextMeta(userId, moved, contextMetaRef.current)
+      contextMetaRef.current = nextMeta
+      persistLocalContextHierarchy(userId, nextMeta, next.map(context => context.id))
       return next
     })
 
@@ -527,7 +671,7 @@ export function useSettings() {
     })
 
     const depthFirstIds = flattenContextTreeIds(buildContextTree(contextsRef.current, nextIds))
-    writeStoredContextOrder(userId, depthFirstIds)
+    persistLocalContextHierarchy(userId, contextMetaRef.current, depthFirstIds)
 
     const first = await supabase.from('contexts')
       .update({ sort_order: 0 })
