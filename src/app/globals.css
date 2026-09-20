@@ -224,12 +224,12 @@ textarea {
 
   /* Panel / block titles — readable cousin of app-kicker */
   .app-section-title {
-    @apply text-[13px] font-semibold uppercase tracking-[0.08em];
-    color: #475569;
+    @apply text-sm font-bold uppercase tracking-[0.06em];
+    color: #334155;
   }
 
   html.dark .app-section-title {
-    color: #94a3b8;
+    color: #cbd5e1;
   }
 
   .app-negative {
