@@ -139,14 +139,14 @@ export default function CategorySettings({
 
   return (
     <div className="app-panel p-4 sm:p-5">
-      <div className="app-kicker mb-3">{t('categoriesLabel')}</div>
+      <div className="app-section-title mb-3">{t('categoriesLabel')}</div>
 
       {renderCategoryGroup(expCats, t('expenses'))}
       {renderCategoryGroup(incCats, t('income'))}
 
       {activeContext && sourceContexts.length > 0 && (
         <div className="app-panel-soft mb-3 flex flex-col gap-3 p-4">
-          <div className="app-kicker">{t('importCategories')}</div>
+          <div className="app-section-title">{t('importCategories')}</div>
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
             <select
               value={sourceContextId}
@@ -171,7 +171,7 @@ export default function CategorySettings({
 
       {/* Add new */}
       <div className="app-panel-soft flex flex-col gap-3 p-4">
-        <div className="app-kicker">{t('addCategory')}</div>
+        <div className="app-section-title">{t('addCategory')}</div>
         <div className="flex gap-2">
           <select value={newType} onChange={e => setNewType(e.target.value as 'expense' | 'income')}
             className="app-select flex-shrink-0 px-3 py-2.5 text-sm"

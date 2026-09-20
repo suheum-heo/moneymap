@@ -771,7 +771,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       {/* Exchange rates */}
       <div className="app-panel p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="app-kicker">{t('exchangeRates')}</div>
+          <div className="app-section-title">{t('exchangeRates')}</div>
           {ratesUpdated && <div className="text-xs text-slate-400">{t('updatedAt', { time: formatLocaleTime(ratesUpdated, language) })}</div>}
         </div>
         <div className="app-panel-soft min-w-0 overflow-hidden p-3.5">
@@ -854,7 +854,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           aria-expanded={savedDataOpen}
         >
           <div className="min-w-0">
-            <div className="app-kicker">{t('savedData')}</div>
+            <div className="app-section-title">{t('savedData')}</div>
             <div className="mt-1 truncate text-xs text-slate-400">{savedDataSummary}</div>
           </div>
           <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200/80 text-sm text-slate-400 dark:border-white/10 dark:text-zinc-500">
@@ -883,7 +883,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         <>
       {/* Contexts */}
       <div className="app-panel p-4">
-        <div className="app-kicker mb-3">{t('contexts')}</div>
+        <div className="app-section-title mb-3">{t('contexts')}</div>
         <p className="mb-3 text-xs text-slate-400">{t('contextDragHint')}</p>
         <ContextTreeList
           contexts={contexts}
@@ -898,7 +898,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         />
         {activeContext && entrySourceContexts.length > 0 && (
           <div className="app-panel-soft mb-4 flex flex-col gap-3 p-3.5">
-            <div className="app-kicker">{t('importEntries')}</div>
+            <div className="app-section-title">{t('importEntries')}</div>
             <p className="text-xs text-slate-400">{t('importEntriesHint')}</p>
             <select
               value={entrySourceContextId}
@@ -985,7 +985,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           </div>
         )}
         <div className="app-panel-soft mb-4 flex flex-col gap-3 p-3.5">
-          <div className="app-kicker">{t('newContextGroup')}</div>
+          <div className="app-section-title">{t('newContextGroup')}</div>
           <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)}
             placeholder={t('contextGroupExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           <input type="text" value={groupIcon} onChange={e => setGroupIcon(e.target.value)}
@@ -993,7 +993,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           <button onClick={handleAddGroup} className="app-button-secondary w-full">{t('addContextGroup')}</button>
         </div>
         <div id="new-context-form" className="app-panel-soft flex flex-col gap-3 p-3.5">
-          <div className="app-kicker">{t('newContext')}</div>
+          <div className="app-section-title">{t('newContext')}</div>
           <input type="text" value={name} onChange={e => setName(e.target.value)}
             placeholder={t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           {groupOptions.length > 0 && (
@@ -1034,7 +1034,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         <>
       {/* Recurring payments */}
       <div className="app-panel p-4">
-        <div className="app-kicker mb-3">{t('recurringTransactions').replace('⟳ ', '')}</div>
+        <div className="app-section-title mb-3">{t('recurringTransactions').replace('⟳ ', '')}</div>
         <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {contextRecurring.map(item => (
@@ -1129,7 +1129,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         </div>
         {activeContext && recurringSourceContexts.length > 0 && (
           <div className="app-panel-soft mb-3 flex flex-col gap-3 p-3.5">
-            <div className="app-kicker">{t('importRecurring')}</div>
+            <div className="app-section-title">{t('importRecurring')}</div>
             <p className="text-xs text-slate-400">{t('importRecurringHint')}</p>
             <select
               value={recurringSourceContextId}
@@ -1216,7 +1216,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           </div>
         )}
         <div className="app-panel-soft flex flex-col gap-3 p-3.5">
-          <div className="app-kicker">{t('addRecurring')}</div>
+          <div className="app-section-title">{t('addRecurring')}</div>
           <div className="flex gap-2">
             {(['expense', 'income'] as const).map(type => (
               <button key={type} onClick={() => handleRecurringTypeChange(type)}
@@ -1280,7 +1280,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
       {/* Budgets */}
       <div className="app-panel p-4">
-        <div className="app-kicker mb-3">{t('monthlyBudgets')}</div>
+        <div className="app-section-title mb-3">{t('monthlyBudgets')}</div>
         <p className="text-xs text-slate-400 mb-3">{activeContext?.name}</p>
         <div className="flex flex-col gap-2 mb-3">
           {expenseCategoryOptions.map(cat => {
@@ -1319,7 +1319,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
         <>
       {/* Reset */}
       <div className="app-panel p-4">
-        <div className="app-kicker mb-3">{t('reset')}</div>
+        <div className="app-section-title mb-3">{t('reset')}</div>
         <div className="app-panel-soft p-3.5">
           <p className="text-xs text-slate-400 mb-3">{t('resetLocalSettingsDescription')}</p>
           <button onClick={() => {
@@ -1343,7 +1343,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       </div>
 
       <div className="app-panel p-4">
-        <div className="app-kicker mb-3 text-rose-400 dark:text-rose-300">{t('dangerZone')}</div>
+        <div className="app-section-title mb-3 text-rose-500 dark:text-rose-300">{t('dangerZone')}</div>
         <div className="app-panel-soft border border-rose-200/70 bg-rose-50/70 p-3.5 dark:border-rose-400/15 dark:bg-rose-500/10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
