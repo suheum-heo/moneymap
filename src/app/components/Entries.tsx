@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Entry,
@@ -16,6 +16,8 @@ import {
 } from '../types'
 import type { RecurringItem } from '../useRecurring'
 import EntryEditModal from './EntryEditModal'
+
+const ENTRIES_PAGE_SIZE = 20
 
 interface Props {
   entries: Entry[]
@@ -71,6 +73,8 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   const [reorderMode, setReorderMode] = useState(false)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const listTopRef = useRef<HTMLDivElement | null>(null)
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -138,6 +142,44 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
     })
     return groups
   }, [monthEntries, sortOrder])
+
+  // Reorder needs every same-day sibling visible, so skip paging while reordering.
+  const pageSize = reorderMode ? Math.max(filtered.length, 1) : ENTRIES_PAGE_SIZE
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const pageStart = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize
+  const pageEnd = Math.min(filtered.length, pageStart + pageSize)
+  const pagedEntries = useMemo(
+    () => filtered.slice(pageStart, pageEnd),
+    [filtered, pageStart, pageEnd],
+  )
+  const showPagination = !reorderMode && filtered.length > ENTRIES_PAGE_SIZE
+
+  useEffect(() => {
+    setPage(1)
+  }, [
+    typeFilter,
+    catFilter,
+    search,
+    weekOnly,
+    dateScope,
+    minAmount,
+    maxAmount,
+    month,
+    activeContext?.id,
+    sortOrder,
+    reorderMode,
+  ])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
+
+  const goToPage = (nextPage: number) => {
+    const clamped = Math.min(Math.max(1, nextPage), totalPages)
+    setPage(clamped)
+    listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const openEdit = (e: Entry) => setEditEntry(e)
 
@@ -391,11 +433,13 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         </div>
       )}
 
+      <div ref={listTopRef} />
+
       {filtered.length === 0 ? (
         <div className="app-panel py-12 text-center text-sm text-slate-400">{t('noEntriesFound')}</div>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtered.map(e => {
+          {pagedEntries.map(e => {
             const entryCurrency = getEntryCurrency(e, cur, homeCur)
             const col = getCategoryColor(e.category, e.type)
             const badgeStyle = getCategoryBadgeStyle(e.category, e.type)
@@ -520,6 +564,33 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
               </div>
             )
           })}
+
+          {showPagination && (
+            <div className="app-panel flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-slate-400">
+                <div>{t('entriesPageRange', { start: pageStart + 1, end: pageEnd, count: filtered.length })}</div>
+                <div className="mt-0.5">{t('entriesPage', { page: currentPage, total: totalPages })}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className={`${chipBtnCls} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200/85 disabled:hover:text-slate-600 dark:disabled:hover:border-white/10 dark:disabled:hover:text-slate-300`}
+                >
+                  {t('entriesPagePrev')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  className={`${chipBtnCls} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200/85 disabled:hover:text-slate-600 dark:disabled:hover:border-white/10 dark:disabled:hover:text-slate-300`}
+                >
+                  {t('entriesPageNext')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
