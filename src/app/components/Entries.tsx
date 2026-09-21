@@ -19,6 +19,36 @@ import EntryEditModal from './EntryEditModal'
 
 const ENTRIES_PAGE_SIZE = 20
 
+/** Compact page list: 1 … 4 5 6 … 20 */
+function getVisiblePageNumbers(current: number, total: number): Array<number | 'ellipsis'> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+
+  const pages = new Set<number>([1, total, current])
+  for (let delta = 1; delta <= 1; delta++) {
+    if (current - delta > 1) pages.add(current - delta)
+    if (current + delta < total) pages.add(current + delta)
+  }
+  // Keep a bit more context near the ends
+  if (current <= 3) {
+    pages.add(2)
+    pages.add(3)
+    pages.add(4)
+  }
+  if (current >= total - 2) {
+    pages.add(total - 1)
+    pages.add(total - 2)
+    pages.add(total - 3)
+  }
+
+  const sorted = Array.from(pages).filter(page => page >= 1 && page <= total).sort((a, b) => a - b)
+  const result: Array<number | 'ellipsis'> = []
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - sorted[index - 1] > 1) result.push('ellipsis')
+    result.push(page)
+  })
+  return result
+}
+
 interface Props {
   entries: Entry[]
   items?: RecurringItem[]
@@ -154,6 +184,10 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
     [filtered, pageStart, pageEnd],
   )
   const showPagination = !reorderMode && filtered.length > ENTRIES_PAGE_SIZE
+  const visiblePageNumbers = useMemo(
+    () => getVisiblePageNumbers(currentPage, totalPages),
+    [currentPage, totalPages],
+  )
 
   useEffect(() => {
     setPage(1)
@@ -566,12 +600,12 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
           })}
 
           {showPagination && (
-            <div className="app-panel flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs text-slate-400">
-                <div>{t('entriesPageRange', { start: pageStart + 1, end: pageEnd, count: filtered.length })}</div>
-                <div className="mt-0.5">{t('entriesPage', { page: currentPage, total: totalPages })}</div>
+            <div className="app-panel flex flex-col gap-3 px-4 py-3">
+              <div className="flex flex-col gap-1 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+                <span>{t('entriesPageRange', { start: pageStart + 1, end: pageEnd, count: filtered.length })}</span>
+                <span>{t('entriesPage', { page: currentPage, total: totalPages })}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-between">
                 <button
                   type="button"
                   onClick={() => goToPage(currentPage - 1)}
@@ -580,6 +614,32 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
                 >
                   {t('entriesPagePrev')}
                 </button>
+                <div className="flex flex-wrap items-center justify-center gap-1">
+                  {visiblePageNumbers.map((item, index) => (
+                    item === 'ellipsis' ? (
+                      <span
+                        key={`ellipsis-${index}`}
+                        className="inline-flex h-10 min-w-8 items-center justify-center px-1 text-xs text-slate-400"
+                        aria-hidden="true"
+                      >
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => goToPage(item)}
+                        aria-current={item === currentPage ? 'page' : undefined}
+                        aria-label={t('entriesPage', { page: item, total: totalPages })}
+                        className={item === currentPage
+                          ? 'inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-[#b9d4ff] bg-[#eef5ff] px-3 text-xs font-semibold text-[#245ec6] shadow-[0_12px_22px_-18px_rgba(49,130,246,0.35)] dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
+                          : `${chipBtnCls} min-w-10 px-3`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={() => goToPage(currentPage + 1)}
