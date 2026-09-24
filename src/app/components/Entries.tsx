@@ -55,11 +55,13 @@ interface Props {
   month: string
   onDelete: (id: string) => void
   onUpdate: (entry: Entry) => void
+  onAdd?: (entry: Entry) => Promise<void> | void
   initialTypeFilter?: string
   initialCategoryFilter?: string
   sortOrder: EntrySortOrder
   onSortOrderChange: (sortOrder: EntrySortOrder) => void
   activeContext?: Context
+  contexts?: Context[]
   convert: (amount: number, from: string, to: string) => number
   expenseCategories: string[]
   incomeCategories: string[]
@@ -88,7 +90,7 @@ function formatManualOrderCreatedAt(index: number, total: number, sortOrder: Ent
   return new Date(baseMs + orderedIndex).toISOString()
 }
 
-export default function Entries({ entries, items = [], month, onDelete, onUpdate, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, convert, expenseCategories, incomeCategories }: Props) {
+export default function Entries({ entries, items = [], month, onDelete, onUpdate, onAdd, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, contexts = [], convert, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
@@ -321,10 +323,13 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         entries={entries}
         items={items}
         activeContext={activeContext}
+        contexts={contexts}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
+        sortOrder={sortOrder}
         onClose={() => setEditEntry(null)}
         onUpdate={onUpdate}
+        onAdd={onAdd}
       />
 
       <div className="app-panel p-4">

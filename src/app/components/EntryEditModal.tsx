@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Context,
   Entry,
+  EntrySortOrder,
   EXPENSE_CATEGORIES,
   getAmountInputProps,
   getCurrencySymbol,
@@ -17,6 +18,8 @@ import {
 } from '../types'
 import type { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
+import { addEntryCopiesToContexts, getCopyTargetContexts } from '../lib/entryCopy'
+import { getContextImportLabel } from '../lib/contextTree'
 import VenueLocationFields from './VenueLocationFields'
 import ActualChargedFields from './ActualChargedFields'
 
@@ -25,10 +28,13 @@ interface Props {
   entries: Entry[]
   items?: RecurringItem[]
   activeContext?: Context
+  contexts?: Context[]
   expenseCategories: string[]
   incomeCategories: string[]
+  sortOrder?: EntrySortOrder
   onClose: () => void
   onUpdate: (entry: Entry) => void
+  onAdd?: (entry: Entry) => Promise<void> | void
 }
 
 function daysInMonth(month: number, year: number) {
@@ -40,10 +46,13 @@ export default function EntryEditModal({
   entries,
   items = [],
   activeContext,
+  contexts = [],
   expenseCategories,
   incomeCategories,
+  sortOrder = 'newest',
   onClose,
   onUpdate,
+  onAdd,
 }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
@@ -60,9 +69,17 @@ export default function EntryEditModal({
   const [editType, setEditType] = useState<'expense' | 'income'>('expense')
   const [editActualCharged, setEditActualCharged] = useState('')
   const [editActualChargedCurrency, setEditActualChargedCurrency] = useState('USD')
+  const [copyTargetIds, setCopyTargetIds] = useState<string[]>([])
+  const [copyError, setCopyError] = useState('')
+  const [copyStatus, setCopyStatus] = useState('')
+  const [isCopying, setIsCopying] = useState(false)
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
+  const copyTargets = useMemo(
+    () => getCopyTargetContexts(contexts, entry?.context || activeContext?.id),
+    [contexts, entry?.context, activeContext?.id],
+  )
 
   useEffect(() => {
     if (!entry) return
@@ -80,6 +97,9 @@ export default function EntryEditModal({
     setEditType(entry.type)
     setEditActualCharged(entry.homeAmount == null ? '' : entry.homeAmount.toString())
     setEditActualChargedCurrency(getEntryHomeAmountCurrency(entry, homeCur) || homeCur)
+    setCopyTargetIds([])
+    setCopyError('')
+    setCopyStatus('')
   }, [entry, homeCur])
 
   const placeSuggestions = useMemo(
@@ -100,13 +120,9 @@ export default function EntryEditModal({
   const inputCls = 'app-input py-3 text-sm'
   const miniSelCls = 'app-select w-full px-3 py-2.5 text-sm'
 
-  const handleSave = () => {
+  const buildEditedEntry = (): Entry | null => {
     const parsed = parseCurrencyInput(editAmount, editCurrency)
-    if (isNaN(parsed) || parsed <= 0) return
-    if (!editSummary.trim()) {
-      const proceed = window.confirm(t('summaryEmptyConfirm', { summaryLabel: t('summary') }))
-      if (!proceed) return
-    }
+    if (isNaN(parsed) || parsed <= 0) return null
     const parsedActual = editActualCharged.trim()
       ? parseCurrencyInput(editActualCharged.trim(), editActualChargedCurrency)
       : undefined
@@ -115,10 +131,10 @@ export default function EntryEditModal({
       editActualCharged.trim() &&
       (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)
     ) {
-      return
+      return null
     }
     const dateStr = `${editYear}-${String(editMonth + 1).padStart(2, '0')}-${String(editDay).padStart(2, '0')}`
-    onUpdate({
+    return {
       ...entry,
       type: editType,
       date: dateStr,
@@ -134,8 +150,48 @@ export default function EntryEditModal({
       homeAmountCurrency: canEditActualCharged && parsedActual && editActualChargedCurrency !== homeCur
         ? editActualChargedCurrency
         : undefined,
-    })
+    }
+  }
+
+  const handleSave = () => {
+    if (!editSummary.trim()) {
+      const proceed = window.confirm(t('summaryEmptyConfirm', { summaryLabel: t('summary') }))
+      if (!proceed) return
+    }
+    const next = buildEditedEntry()
+    if (!next) return
+    onUpdate(next)
     onClose()
+  }
+
+  const toggleCopyTarget = (id: string) => {
+    setCopyTargetIds(prev => (prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]))
+    setCopyError('')
+    setCopyStatus('')
+  }
+
+  const handleCopy = async () => {
+    if (!onAdd) return
+    if (copyTargetIds.length === 0) {
+      setCopyError(t('selectCopyContextsError'))
+      return
+    }
+    const next = buildEditedEntry()
+    if (!next) return
+    setIsCopying(true)
+    setCopyError('')
+    setCopyStatus('')
+    try {
+      // Keep source entry as-is; copy uses current form values without requiring Save first.
+      const count = await addEntryCopiesToContexts(next, copyTargetIds, entries, onAdd, sortOrder)
+      setCopyStatus(t('copyEntrySuccess', { count }))
+      setCopyTargetIds([])
+    } catch (error) {
+      console.error('Failed to copy entry', error)
+      setCopyError(t('copyEntryFailed'))
+    } finally {
+      setIsCopying(false)
+    }
   }
 
   return (
@@ -143,7 +199,7 @@ export default function EntryEditModal({
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-4 backdrop-blur-sm md:items-center"
       onClick={onClose}
     >
-      <div className="app-panel w-full max-w-lg p-5" onClick={event => event.stopPropagation()}>
+      <div className="app-panel max-h-[90vh] w-full max-w-lg overflow-y-auto p-5" onClick={event => event.stopPropagation()}>
         <div className="mb-1 flex items-center justify-between">
           <div>
             <div className="app-kicker mb-2">{t('entries')}</div>
@@ -240,7 +296,51 @@ export default function EntryEditModal({
           <label className="app-kicker mb-2 block">{t('remarks')}</label>
           <input type="text" value={editRemarks} onChange={event => setEditRemarks(event.target.value)} placeholder={placeholders.remarks} className={inputCls} style={{ fontSize: '16px' }} />
         </div>
-        <button onClick={handleSave} className="app-button-primary mt-1 w-full">{t('saveChanges')}</button>
+
+        {onAdd && copyTargets.length > 0 && (
+          <div className="mt-3 space-y-3 rounded-[18px] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/5">
+            <div>
+              <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{t('copyEntryToContext')}</div>
+              <div className="mt-0.5 text-xs text-slate-400">{t('alsoAddToOtherContextsHint')}</div>
+            </div>
+            <div className="flex flex-col gap-2">
+              {copyTargets.map(context => {
+                const checked = copyTargetIds.includes(context.id)
+                return (
+                  <label
+                    key={context.id}
+                    className={`flex cursor-pointer items-center gap-3 rounded-[16px] border px-3 py-2.5 text-sm transition ${
+                      checked
+                        ? 'border-[#b9d4ff] bg-[#eef5ff] text-[#245ec6] dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
+                        : 'border-slate-200/80 bg-white/90 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleCopyTarget(context.id)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#3182f6] focus:ring-[#3182f6]"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{getContextImportLabel(context, contexts)}</span>
+                    <span className="flex-shrink-0 text-xs opacity-60">{context.currency}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {copyError && <div className="text-xs text-rose-500">{copyError}</div>}
+            {copyStatus && <div className="text-xs text-emerald-600 dark:text-emerald-400">{copyStatus}</div>}
+            <button
+              type="button"
+              onClick={handleCopy}
+              disabled={isCopying || copyTargetIds.length === 0}
+              className="app-button-secondary w-full disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isCopying ? t('loading') : t('copyEntryAction', { count: Math.max(copyTargetIds.length, 1) })}
+            </button>
+          </div>
+        )}
+
+        <button onClick={handleSave} className="app-button-primary mt-3 w-full">{t('saveChanges')}</button>
         <datalist id="edit-venue-list">{placeSuggestions.venues.map(venue => <option key={venue} value={venue} />)}</datalist>
         <datalist id="edit-location-list">{placeSuggestions.locations.map(location => <option key={location} value={location} />)}</datalist>
         <datalist id="edit-payment-method-list">{placeSuggestions.paymentMethods.map(method => <option key={method} value={method} />)}</datalist>
