@@ -18,7 +18,7 @@ import {
 } from '../types'
 import type { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
-import { addEntryCopiesToContexts, getCopyTargetContexts } from '../lib/entryCopy'
+import { addEntryCopiesToContexts, createCopyGroupId, findCopiedContextIds, getCopyTargetContexts } from '../lib/entryCopy'
 import { getContextImportLabel } from '../lib/contextTree'
 import VenueLocationFields from './VenueLocationFields'
 import ActualChargedFields from './ActualChargedFields'
@@ -80,6 +80,14 @@ export default function EntryEditModal({
     () => getCopyTargetContexts(contexts, entry?.context || activeContext?.id),
     [contexts, entry?.context, activeContext?.id],
   )
+  const alreadyCopiedIds = useMemo(
+    () => (entry ? findCopiedContextIds(entry, entries) : []),
+    [entry, entries],
+  )
+  const pendingCopyIds = useMemo(
+    () => copyTargetIds.filter(id => !alreadyCopiedIds.includes(id)),
+    [copyTargetIds, alreadyCopiedIds],
+  )
 
   useEffect(() => {
     if (!entry) return
@@ -101,6 +109,11 @@ export default function EntryEditModal({
     setCopyError('')
     setCopyStatus('')
   }, [entry, homeCur])
+
+  useEffect(() => {
+    const valid = new Set(copyTargets.map(context => context.id))
+    setCopyTargetIds(prev => prev.filter(id => valid.has(id) && !alreadyCopiedIds.includes(id)))
+  }, [copyTargets, alreadyCopiedIds])
 
   const placeSuggestions = useMemo(
     () => getContextPlaceSuggestions(entries, activeContext?.id, items),
@@ -165,6 +178,7 @@ export default function EntryEditModal({
   }
 
   const toggleCopyTarget = (id: string) => {
+    if (alreadyCopiedIds.includes(id)) return
     setCopyTargetIds(prev => (prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]))
     setCopyError('')
     setCopyStatus('')
@@ -172,7 +186,7 @@ export default function EntryEditModal({
 
   const handleCopy = async () => {
     if (!onAdd) return
-    if (copyTargetIds.length === 0) {
+    if (pendingCopyIds.length === 0) {
       setCopyError(t('selectCopyContextsError'))
       return
     }
@@ -182,9 +196,20 @@ export default function EntryEditModal({
     setCopyError('')
     setCopyStatus('')
     try {
-      // Keep source entry as-is; copy uses current form values without requiring Save first.
-      const count = await addEntryCopiesToContexts(next, copyTargetIds, entries, onAdd, sortOrder)
-      setCopyStatus(t('copyEntrySuccess', { count }))
+      const groupId = next.copyGroupId || createCopyGroupId()
+      const sourceWithGroup = { ...next, copyGroupId: groupId }
+      if (!entry.copyGroupId || entry.copyGroupId !== groupId) {
+        onUpdate(sourceWithGroup)
+      }
+      const result = await addEntryCopiesToContexts(
+        sourceWithGroup,
+        pendingCopyIds,
+        entries.map(item => (item.id === entry.id ? sourceWithGroup : item)),
+        onAdd,
+        sortOrder,
+        groupId,
+      )
+      setCopyStatus(t('copyEntrySuccess', { count: result.added }))
       setCopyTargetIds([])
     } catch (error) {
       console.error('Failed to copy entry', error)
@@ -305,24 +330,30 @@ export default function EntryEditModal({
             </div>
             <div className="flex flex-col gap-2">
               {copyTargets.map(context => {
-                const checked = copyTargetIds.includes(context.id)
+                const alreadyCopied = alreadyCopiedIds.includes(context.id)
+                const checked = alreadyCopied || copyTargetIds.includes(context.id)
                 return (
                   <label
                     key={context.id}
-                    className={`flex cursor-pointer items-center gap-3 rounded-[16px] border px-3 py-2.5 text-sm transition ${
-                      checked
-                        ? 'border-[#b9d4ff] bg-[#eef5ff] text-[#245ec6] dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
-                        : 'border-slate-200/80 bg-white/90 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300'
+                    className={`flex items-center gap-3 rounded-[16px] border px-3 py-2.5 text-sm transition ${
+                      alreadyCopied
+                        ? 'cursor-default border-emerald-200/90 bg-emerald-50/90 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200'
+                        : checked
+                          ? 'cursor-pointer border-[#b9d4ff] bg-[#eef5ff] text-[#245ec6] dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
+                          : 'cursor-pointer border-slate-200/80 bg-white/90 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
+                      disabled={alreadyCopied}
                       onChange={() => toggleCopyTarget(context.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-[#3182f6] focus:ring-[#3182f6]"
+                      className="h-4 w-4 rounded border-slate-300 text-[#3182f6] focus:ring-[#3182f6] disabled:opacity-80"
                     />
                     <span className="min-w-0 flex-1 truncate">{getContextImportLabel(context, contexts)}</span>
-                    <span className="flex-shrink-0 text-xs opacity-60">{context.currency}</span>
+                    <span className="flex-shrink-0 text-xs opacity-70">
+                      {alreadyCopied ? t('copyEntryAlreadyCopied') : context.currency}
+                    </span>
                   </label>
                 )
               })}
@@ -332,10 +363,10 @@ export default function EntryEditModal({
             <button
               type="button"
               onClick={handleCopy}
-              disabled={isCopying || copyTargetIds.length === 0}
-              className="app-button-secondary w-full disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isCopying || pendingCopyIds.length === 0}
+              className="app-button-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isCopying ? t('loading') : t('copyEntryAction', { count: Math.max(copyTargetIds.length, 1) })}
+              {isCopying ? t('loading') : t('copyEntryAction', { count: Math.max(pendingCopyIds.length, 1) })}
             </button>
           </div>
         )}

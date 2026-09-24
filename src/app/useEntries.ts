@@ -24,6 +24,7 @@ function decodeEntryPayment(
   let encodedPaymentMethod = ''
   let encodedTime = ''
   let encodedHomeAmountCurrency = ''
+  let encodedCopyGroupId = ''
 
   if (match?.[1] && match.index != null) {
     cleanRemarks = remarks.slice(0, match.index).trimEnd()
@@ -32,14 +33,17 @@ function decodeEntryPayment(
         paymentMethod?: unknown
         time?: unknown
         homeAmountCurrency?: unknown
+        copyGroupId?: unknown
       }
       encodedPaymentMethod = typeof parsed.paymentMethod === 'string' ? parsed.paymentMethod : ''
       encodedTime = typeof parsed.time === 'string' ? parsed.time : ''
       encodedHomeAmountCurrency = typeof parsed.homeAmountCurrency === 'string' ? parsed.homeAmountCurrency : ''
+      encodedCopyGroupId = typeof parsed.copyGroupId === 'string' ? parsed.copyGroupId : ''
     } catch {
       encodedPaymentMethod = ''
       encodedTime = ''
       encodedHomeAmountCurrency = ''
+      encodedCopyGroupId = ''
     }
   }
 
@@ -50,6 +54,7 @@ function decodeEntryPayment(
     homeAmountCurrency: typeof rawHomeAmountCurrency === 'string' && rawHomeAmountCurrency.trim()
       ? rawHomeAmountCurrency
       : encodedHomeAmountCurrency,
+    copyGroupId: encodedCopyGroupId.trim() || undefined,
   }
 }
 
@@ -58,17 +63,20 @@ function encodeEntryRemarks(
   paymentMethod: string,
   time = '',
   homeAmountCurrency = '',
+  copyGroupId = '',
 ) {
   const decoded = decodeEntryPayment(remarks, '')
   const cleanRemarks = decoded.remarks.trim()
   const cleanPaymentMethod = paymentMethod.trim()
   const cleanTime = time.trim()
   const cleanHomeAmountCurrency = homeAmountCurrency.trim()
-  if (!cleanPaymentMethod && !cleanTime && !cleanHomeAmountCurrency) return cleanRemarks
+  const cleanCopyGroupId = copyGroupId.trim() || decoded.copyGroupId || ''
+  if (!cleanPaymentMethod && !cleanTime && !cleanHomeAmountCurrency && !cleanCopyGroupId) return cleanRemarks
   const metadata = JSON.stringify({
     ...(cleanPaymentMethod ? { paymentMethod: cleanPaymentMethod } : {}),
     ...(cleanTime ? { time: cleanTime } : {}),
     ...(cleanHomeAmountCurrency ? { homeAmountCurrency: cleanHomeAmountCurrency } : {}),
+    ...(cleanCopyGroupId ? { copyGroupId: cleanCopyGroupId } : {}),
   })
   return `${cleanRemarks}${cleanRemarks ? '\n' : ''}${PAYMENT_META_PREFIX}${metadata}${PAYMENT_META_SUFFIX}`
 }
@@ -112,12 +120,14 @@ function buildEntryRemarksPayload(
   includeTimeColumn: boolean,
   includeHomeAmountCurrencyColumn: boolean,
 ) {
-  if (includePaymentMethodColumn && includeTimeColumn && includeHomeAmountCurrencyColumn) return entry.remarks
+  const needsMetaFallback = !includePaymentMethodColumn || !includeTimeColumn || !includeHomeAmountCurrencyColumn
+  if (!needsMetaFallback && !entry.copyGroupId) return entry.remarks
   return encodeEntryRemarks(
     entry.remarks,
     includePaymentMethodColumn ? '' : entry.paymentMethod || '',
     includeTimeColumn ? '' : entry.time || '',
     includeHomeAmountCurrencyColumn ? '' : entry.homeAmountCurrency || '',
+    entry.copyGroupId || '',
   )
 }
 
@@ -187,6 +197,7 @@ export function useEntries() {
               homeAmountCurrency: decoded.homeAmountCurrency
                 ? normalizeCurrencyCode(decoded.homeAmountCurrency)
                 : undefined,
+              copyGroupId: decoded.copyGroupId,
             }
           })()
         })))
