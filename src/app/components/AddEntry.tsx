@@ -17,6 +17,8 @@ import {
 } from '../types'
 import { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
+import { addEntryCopiesToContexts, getCopyTargetContexts } from '../lib/entryCopy'
+import { getContextImportLabel } from '../lib/contextTree'
 import VenueLocationFields from './VenueLocationFields'
 import ActualChargedFields from './ActualChargedFields'
 
@@ -26,6 +28,7 @@ interface Props {
   entries?: Entry[]
   defaultDate?: string | null
   activeContext?: Context
+  contexts?: Context[]
   items: RecurringItem[]
   expenseCategories: string[]
   incomeCategories: string[]
@@ -40,7 +43,7 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, items, expenseCategories, incomeCategories, sortOrder = 'newest' }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, contexts = [], items, expenseCategories, incomeCategories, sortOrder = 'newest' }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const contextCur = activeContext?.currency || 'USD'
@@ -69,7 +72,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const savingRef = useRef(false)
   const [showRecurring, setShowRecurring] = useState(false)
   const [showCurrencyOverride, setShowCurrencyOverride] = useState(false)
+  const [alsoCopyEnabled, setAlsoCopyEnabled] = useState(false)
+  const [copyTargetIds, setCopyTargetIds] = useState<string[]>([])
   const contextRecurring = items.filter(i => i.context === activeContext?.id && i.type === entryType)
+  const copyTargets = useMemo(
+    () => getCopyTargetContexts(contexts, activeContext?.id),
+    [contexts, activeContext?.id],
+  )
 
   useEffect(() => {
     if (savingRef.current || isSaving) return
@@ -125,6 +134,16 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setShowRecurring(false)
   }
 
+  useEffect(() => {
+    const valid = new Set(copyTargets.map(context => context.id))
+    setCopyTargetIds(prev => prev.filter(id => valid.has(id)))
+    if (copyTargets.length === 0) setAlsoCopyEnabled(false)
+  }, [copyTargets])
+
+  const toggleCopyTarget = (id: string) => {
+    setCopyTargetIds(prev => (prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]))
+  }
+
   const handleSubmit = async () => {
     if (savingRef.current || isSaving) return
     if (!amount) {
@@ -143,6 +162,10 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       : undefined
     if (actualCharged.trim() && (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)) {
       setError(t('invalidAmount'))
+      return
+    }
+    if (alsoCopyEnabled && copyTargetIds.length === 0) {
+      setError(t('selectCopyContextsError'))
       return
     }
     setError('')
@@ -177,8 +200,12 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
     try {
       await onAdd(entry)
+      if (alsoCopyEnabled && copyTargetIds.length > 0) {
+        await addEntryCopiesToContexts(entry, copyTargetIds, [...entries, entry], onAdd, sortOrder)
+      }
       setSummary(''); setAmount(''); setVenue(''); setLocation(''); setPaymentMethod(''); setRemarks('')
       setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')
+      setAlsoCopyEnabled(false); setCopyTargetIds([])
       onDone()
     } catch (err) {
       console.error('Failed to save entry', err)
@@ -331,12 +358,62 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
 
         {error && <div className="text-xs text-rose-500">{error}</div>}
 
+        {copyTargets.length > 0 && (
+          <div className="app-panel-soft space-y-3 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={alsoCopyEnabled}
+                onChange={e => {
+                  setAlsoCopyEnabled(e.target.checked)
+                  if (!e.target.checked) setCopyTargetIds([])
+                }}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-[#3182f6] focus:ring-[#3182f6]"
+              />
+              <span>
+                <span className="block text-sm font-medium text-slate-800 dark:text-zinc-100">{t('alsoAddToOtherContexts')}</span>
+                <span className="mt-0.5 block text-xs text-slate-400">{t('alsoAddToOtherContextsHint')}</span>
+              </span>
+            </label>
+            {alsoCopyEnabled && (
+              <div className="flex flex-col gap-2">
+                {copyTargets.map(context => {
+                  const checked = copyTargetIds.includes(context.id)
+                  return (
+                    <label
+                      key={context.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-[16px] border px-3 py-2.5 text-sm transition ${
+                        checked
+                          ? 'border-[#b9d4ff] bg-[#eef5ff] text-[#245ec6] dark:border-sky-400/25 dark:bg-sky-500/10 dark:text-sky-200'
+                          : 'border-slate-200/80 bg-white/90 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCopyTarget(context.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-[#3182f6] focus:ring-[#3182f6]"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{getContextImportLabel(context, contexts)}</span>
+                      <span className="flex-shrink-0 text-xs opacity-60">{context.currency}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleSubmit}
           disabled={isSaving}
           className="app-button-primary mt-1 w-full disabled:cursor-not-allowed disabled:opacity-60">
-          {isSaving ? t('loading') : t('addEntry')}
+          {isSaving
+            ? t('loading')
+            : alsoCopyEnabled && copyTargetIds.length > 0
+              ? t('addEntryAndCopy', { count: copyTargetIds.length })
+              : t('addEntry')}
         </button>
 
         <datalist id="venue-list">{placeSuggestions.venues.map(v => <option key={v} value={v} />)}</datalist>

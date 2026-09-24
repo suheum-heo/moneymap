@@ -26,8 +26,10 @@ interface Props {
   month: string
   onNavigate: (tab: string, filter?: string, categoryFilter?: string) => void
   onUpdate: (entry: Entry) => void
+  onAdd?: (entry: Entry) => Promise<void> | void
   sortOrder: EntrySortOrder
   activeContext?: Context
+  contexts?: Context[]
   convert: (amount: number, from: string, to: string) => number
   getBudget: (context: string, category: string) => number | null
   expenseCategories: string[]
@@ -224,7 +226,7 @@ function getEntryMonth(date: string) {
   return date.slice(0, 7)
 }
 
-export default function Overview({ entries, items = [], month, onNavigate, onUpdate, sortOrder, activeContext, convert, getBudget, expenseCategories, incomeCategories }: Props) {
+export default function Overview({ entries, items = [], month, onNavigate, onUpdate, onAdd, sortOrder, activeContext, contexts = [], convert, getBudget, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const catChartRef = useRef<HTMLCanvasElement>(null)
@@ -656,10 +658,13 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         entries={entries}
         items={items}
         activeContext={activeContext}
+        contexts={contexts}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
+        sortOrder={sortOrder}
         onClose={() => setEditEntry(null)}
         onUpdate={onUpdate}
+        onAdd={onAdd}
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
