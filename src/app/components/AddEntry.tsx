@@ -17,7 +17,7 @@ import {
 } from '../types'
 import { RecurringItem } from '../useRecurring'
 import { getContextPlaceSuggestions } from '../lib/placeSuggestions'
-import { addEntryCopiesToContexts, getCopyTargetContexts } from '../lib/entryCopy'
+import { addEntryCopiesToContexts, createCopyGroupId, getCopyTargetContexts } from '../lib/entryCopy'
 import { getContextImportLabel } from '../lib/contextTree'
 import VenueLocationFields from './VenueLocationFields'
 import ActualChargedFields from './ActualChargedFields'
@@ -179,6 +179,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       entry => entry.date === date && entry.context === (activeContext?.id || ''),
     )
     const createdAt = new Date().toISOString()
+    const shouldCopy = alsoCopyEnabled && copyTargetIds.length > 0
+    const copyGroupId = shouldCopy ? createCopyGroupId() : undefined
     const entry: Entry = {
       id: Date.now().toString(),
       type: entryType,
@@ -196,12 +198,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       createdAt,
       homeAmount: parsedActual,
       homeAmountCurrency: parsedActual && actualChargedCurrency !== homeCur ? actualChargedCurrency : undefined,
+      copyGroupId,
     }
 
     try {
       await onAdd(entry)
-      if (alsoCopyEnabled && copyTargetIds.length > 0) {
-        await addEntryCopiesToContexts(entry, copyTargetIds, [...entries, entry], onAdd, sortOrder)
+      if (shouldCopy) {
+        await addEntryCopiesToContexts(entry, copyTargetIds, [...entries, entry], onAdd, sortOrder, copyGroupId)
       }
       setSummary(''); setAmount(''); setVenue(''); setLocation(''); setPaymentMethod(''); setRemarks('')
       setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')

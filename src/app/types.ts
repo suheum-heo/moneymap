@@ -19,6 +19,8 @@ export interface Entry {
   createdAt?: string
   homeAmount?: number
   homeAmountCurrency?: string
+  /** Shared across an entry and its copies in other contexts. */
+  copyGroupId?: string
 }
 
 export interface Context {
