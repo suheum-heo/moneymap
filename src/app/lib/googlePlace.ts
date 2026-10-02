@@ -121,9 +121,14 @@ export function looksLikeStreetAddress(text: string): boolean {
   return false
 }
 
+const CITY_STATE_ZIP_TAIL_RE =
+  /,\s*[A-Za-z .'-]+,\s*[A-Z]{2}(?:\s+\d{5}(?:-\d{4})?)?\s*$/
+
 /**
  * Split "Café Bilboquet, 26 E 60th St, New York, NY 10022" into venue + street address.
- * Common in Google Maps share cards / place path titles.
+ * Also handles airport/terminal pins without a street number:
+ * "The Dearborn, ORD Terminal 5, Chicago, IL 60666".
+ * Common in Google Maps share cards / place path titles / q= shortlinks.
  */
 export function splitNameAndAddress(text: string): { name: string; address: string } | null {
   const cleaned = text.replace(/\s+/g, ' ').trim()
@@ -149,6 +154,21 @@ export function splitNameAndAddress(text: string): { name: string; address: stri
     const address = spaced[1].trim()
     if (name && !/^\d/.test(name) && address) {
       return { name, address }
+    }
+  }
+
+  // "Name, ORD Terminal 5, Chicago, IL 60666" / "Name, Chicago, IL 60666"
+  // (no street number — common for airport, mall, and campus pins)
+  if (CITY_STATE_ZIP_TAIL_RE.test(cleaned)) {
+    const parts = cleaned.split(',').map(p => p.trim()).filter(Boolean)
+    // Need venue + city + state(+zip). Reject bare "City, ST ZIP".
+    if (parts.length >= 3) {
+      const firstComma = cleaned.indexOf(',')
+      const name = cleaned.slice(0, firstComma).trim()
+      const address = cleaned.slice(firstComma + 1).trim()
+      if (name && address && !/^\d/.test(name) && CITY_STATE_ZIP_TAIL_RE.test(`, ${address}`)) {
+        return { name, address }
+      }
     }
   }
 
