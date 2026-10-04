@@ -1,4 +1,5 @@
 import {
+  extractAddressFromGoogleSearchHtml,
   findGoogleMapsUrlInText,
   looksLikeGoogleMapsUrl,
   normalizeGooglePlaceFields,
@@ -86,20 +87,25 @@ function stateCodeFromAddress(addr: Record<string, string>): string {
   )
 }
 
-/** Prefer real municipalities; never treat "X County" as the city label. */
+/**
+ * Prefer real municipalities only.
+ * Hamlets/neighbourhoods (e.g. "Adams Crossroads") and counties are too granular
+ * or wrong for expense "location" and must not win over a Google city hint.
+ */
 function localityFromAddress(addr: Record<string, string>): string {
-  const primary =
+  return (
     addr.city ||
     addr.town ||
     addr.village ||
     addr.municipality ||
-    addr.city_district ||
-    addr.suburb ||
     ''
-  if (primary) return primary
-  const weak = addr.hamlet || addr.neighbourhood || addr.county || ''
-  if (weak && /\bCounty\b/i.test(weak)) return ''
-  return weak
+  )
+}
+
+function stateNameFromCode(code: string): string {
+  const upper = code.toUpperCase()
+  const entry = Object.entries(US_STATE_ABBR).find(([, abbr]) => abbr === upper)
+  return entry?.[0] || ''
 }
 
 function isWeakLocality(name: string): boolean {
@@ -253,37 +259,97 @@ async function photonReverse(lat: number, lng: number): Promise<GeoResult | null
   }
 }
 
+/**
+ * Ask Google Maps search for the listing address (same source users see in Maps).
+ * Query must be specific (include city or state) — bare venue names match the wrong place.
+ */
+async function lookupGoogleMapsListing(
+  name: string,
+  qualifier: string,
+): Promise<GeoResult | null> {
+  const qName = name.trim()
+  const qQual = qualifier.trim()
+  if (!qName || !qQual) return null
+
+  const query = `${qName} ${qQual}`
+  const endpoint =
+    `https://www.google.com/search?tbm=map&hl=en&gl=us&q=${encodeURIComponent(query)}`
+
+  try {
+    const res = await fetch(endpoint, {
+      headers: {
+        'User-Agent': BROWSER_UA,
+        'Accept-Language': 'en-US,en;q=0.9',
+        Accept: 'text/html,application/xhtml+xml',
+      },
+      signal: AbortSignal.timeout(10000),
+      next: { revalidate: 86400 },
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+    const address = extractAddressFromGoogleSearchHtml(html)
+    if (!address) return null
+
+    // Require the qualifier (city or state name) to appear in the address.
+    const qualLower = qQual.toLowerCase()
+    if (!address.toLowerCase().includes(qualLower)) {
+      // State abbreviation qualifier: "GA" should match ", GA "
+      if (!(qualLower.length === 2 && new RegExp(`,\\s*${qualLower}\\s+\\d{5}`, 'i').test(address))) {
+        return null
+      }
+    }
+
+    const location = toGoogleLocationArea(address)
+    if (!hasStrongCityLocation(location)) return null
+    return { location, address }
+  } catch {
+    return null
+  }
+}
+
+function stateCodeFromLocation(location: string): string {
+  const parts = location.split(',').map(p => p.trim()).filter(Boolean)
+  if (parts.length === 0) return ''
+  const tail = parts[parts.length - 1]
+  if (/^[A-Z]{2}$/.test(tail)) return tail
+  return US_STATE_ABBR[tail] || ''
+}
+
 async function reverseGeocode(
   lat: number,
   lng: number,
   hintName?: string,
-): Promise<GeoResult> {
-  const cacheKey = `geo:${lat.toFixed(4)},${lng.toFixed(4)}:${(hintName || '').toLowerCase()}`
-  const cached = getCached(cacheKey)
-  if (cached) return { location: cached.location, address: cached.address }
-
+): Promise<GeoResult & { stateCode: string; stateName: string }> {
   // 1) Named place near the pin (Arte → Suwanee) before bare reverse.
   if (hintName) {
     try {
       const named = await nominatimSearchNear(hintName, lat, lng)
       if (named && hasStrongCityLocation(named.location)) {
-        return named
+        const stateCode = stateCodeFromLocation(named.location)
+        return {
+          ...named,
+          stateCode,
+          stateName: stateNameFromCode(stateCode),
+        }
       }
     } catch {
       // fall through
     }
   }
 
-  // 2) Nominatim reverse
+  // 2) Nominatim reverse (city/town only — hamlets ignored → often state-only)
   let geo = await nominatimReverse(lat, lng)
+  let stateCode = stateCodeFromLocation(geo.location)
 
-  // 3) County-only / state-only → Photon (often has the municipality OSM reverse misses)
+  // 3) Weak / state-only → Photon
   if (!hasStrongCityLocation(geo.location)) {
     const photon = await photonReverse(lat, lng)
-    if (photon && hasStrongCityLocation(photon.location)) geo = photon
+    if (photon && hasStrongCityLocation(photon.location)) {
+      geo = photon
+      stateCode = stateCodeFromLocation(photon.location) || stateCode
+    }
   }
 
-  // Prefer bare "GA" over "Gwinnett County, GA" if every geocoder only knows the county.
   if (!hasStrongCityLocation(geo.location) && /\bCounty\b/i.test(geo.location)) {
     const stateOnly = geo.location.split(',').slice(1).join(',').trim()
     if (stateOnly) {
@@ -291,10 +357,15 @@ async function reverseGeocode(
         location: stateOnly,
         address: geo.address.replace(/^[A-Za-z .'-]+ County,\s*/i, ''),
       }
+      stateCode = stateCodeFromLocation(stateOnly) || stateOnly
     }
   }
 
-  return geo
+  return {
+    ...geo,
+    stateCode,
+    stateName: stateNameFromCode(stateCode),
+  }
 }
 
 export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<GooglePlaceInfo> {
@@ -312,14 +383,53 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
 
   let location = ''
   let address = parsed.address || ''
-  if (parsed.lat != null && parsed.lng != null) {
+  const cityHint = parsed.cityHint || ''
+
+  /*
+   * Source priority for venue location:
+   * 1) Address already in the Maps URL / share text
+   * 2) Google Maps listing search (name + city hint from place title)
+   * 3) OSM place search near the pin
+   * 4) Google listing search with name + state (from reverse)
+   * 5) OSM/Photon reverse municipality fields (never hamlet/county)
+   * 6) City hint + state as last resort
+   */
+  if (!address && parsed.name && cityHint) {
+    const listed = await lookupGoogleMapsListing(parsed.name, cityHint)
+    if (listed) {
+      address = listed.address
+      location = listed.location
+    }
+  }
+
+  if ((!location || !address) && parsed.lat != null && parsed.lng != null) {
     try {
       const geo = await reverseGeocode(parsed.lat, parsed.lng, parsed.name)
-      location = geo.location
-      address = geo.address || address
+      if (!address && geo.address) address = geo.address
+      if (!location && hasStrongCityLocation(geo.location)) location = geo.location
+
+      // Listing search with state when city hint was missing/failed (Arte + Georgia).
+      if ((!location || !hasStrongCityLocation(location)) && parsed.name && geo.stateName) {
+        const listed = await lookupGoogleMapsListing(parsed.name, geo.stateName)
+        if (listed) {
+          address = listed.address || address
+          location = listed.location
+        }
+      }
+
+      // Place-title city hint + reverse state beats OSM hamlets.
+      if ((!location || !hasStrongCityLocation(location)) && cityHint && geo.stateCode) {
+        location = `${cityHint}, ${geo.stateCode}`
+      } else if (!location && geo.location) {
+        location = geo.location
+      }
     } catch {
       // Name/address-only fill is still useful if geocoding fails.
     }
+  }
+
+  if (!location && cityHint) {
+    location = cityHint
   }
 
   if (!location && address) {
@@ -337,8 +447,5 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
     placeId: parsed.placeId || cacheKey,
   })
   setCached(cacheKey, info)
-  if (parsed.lat != null && parsed.lng != null) {
-    setCached(`geo:${parsed.lat.toFixed(4)},${parsed.lng.toFixed(4)}:${parsed.name.toLowerCase()}`, info)
-  }
   return info
 }

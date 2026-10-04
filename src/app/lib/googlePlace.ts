@@ -14,6 +14,8 @@ export interface GoogleShareParse {
 export interface ParsedGoogleMapsUrl {
   name: string
   address: string
+  /** City taken from Google place titles like "Jang Su Jang- Duluth". */
+  cityHint: string
   lat: number | null
   lng: number | null
   placeId: string
@@ -96,6 +98,53 @@ function decodePlaceName(raw: string): string {
   } catch {
     return raw.replace(/\+/g, ' ').replace(/\s+/g, ' ').trim()
   }
+}
+
+/**
+ * Google place path titles often append the city: "Jang Su Jang- Duluth".
+ * Keep the venue name clean and surface the city as a hint for geocoding.
+ */
+export function splitVenueAndCitySuffix(text: string): { name: string; city: string } | null {
+  const cleaned = text.replace(/\s+/g, ' ').trim()
+  if (!cleaned || cleaned.length < 5) return null
+
+  const match = cleaned.match(/^(.+?)\s*[-–—]\s+([A-Za-z][A-Za-z .']{1,40})$/)
+  if (!match) return null
+
+  const name = match[1].replace(/[-–—\s]+$/g, '').trim()
+  const city = match[2].replace(/\.$/, '').trim()
+  if (!name || !city) return null
+  if (/\d/.test(city)) return null
+  if (city.split(/\s+/).length > 4) return null
+  if (/^[A-Z]{2}$/.test(city)) return null
+  // Avoid chopping brand-style titles ("In-N-Out") — require a space after the dash.
+  if (name.length < 2) return null
+  return { name, city }
+}
+
+/** Pull a US-style street address out of a Google Maps search (tbm=map) HTML body. */
+export function extractAddressFromGoogleSearchHtml(html: string): string | null {
+  if (!html) return null
+  const matches = html.match(/\d{1,6}\s+[A-Za-z0-9 .#'/-]+,\s*[A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?/g)
+  if (!matches?.length) return null
+
+  // Prefer the most common full address in the payload (Google repeats the listing).
+  const counts = new Map<string, number>()
+  for (const raw of matches) {
+    const addr = raw.replace(/\s+/g, ' ').trim()
+    if (looksLikeStreetAddress(addr) || /,\s*[A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5}/.test(addr)) {
+      counts.set(addr, (counts.get(addr) || 0) + 1)
+    }
+  }
+  let best: string | null = null
+  let bestCount = 0
+  for (const [addr, count] of counts) {
+    if (count > bestCount) {
+      best = addr
+      bestCount = count
+    }
+  }
+  return best
 }
 
 const STREET_ADDRESS_TAIL_RE =
@@ -188,7 +237,10 @@ function streetLineFromAddress(address: string): string {
     .trim()
 }
 
-function applyNameOrAddress(decoded: string, current: { name: string; address: string }) {
+function applyNameOrAddress(
+  decoded: string,
+  current: { name: string; address: string; cityHint: string },
+) {
   const split = splitNameAndAddress(decoded)
   if (split) {
     if (!current.name) current.name = split.name
@@ -199,13 +251,19 @@ function applyNameOrAddress(decoded: string, current: { name: string; address: s
     if (!current.address) current.address = decoded
     return
   }
+  const citySuffix = splitVenueAndCitySuffix(decoded)
+  if (citySuffix) {
+    if (!current.name) current.name = citySuffix.name
+    if (!current.cityHint) current.cityHint = citySuffix.city
+    return
+  }
   if (!current.name) current.name = decoded
 }
 
 /** Extract place name / address / coords / ids from a (possibly resolved) Google Maps URL. */
 export function parseGoogleMapsUrl(urlText: string): ParsedGoogleMapsUrl {
   const url = coerceGoogleMapsUrl(urlText.trim())
-  const current = { name: '', address: '' }
+  const current = { name: '', address: '', cityHint: '' }
   let lat: number | null = null
   let lng: number | null = null
   let placeId = ''
@@ -254,7 +312,7 @@ export function parseGoogleMapsUrl(urlText: string): ParsedGoogleMapsUrl {
   const ftid = url.match(/!1s(0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)/)
   if (ftid?.[1] && !placeId) placeId = ftid[1]
 
-  let { name, address } = current
+  let { name, address, cityHint } = current
 
   if (!placeId && lat != null && lng != null) {
     placeId = `geo:${lat.toFixed(5)},${lng.toFixed(5)}`
@@ -268,7 +326,7 @@ export function parseGoogleMapsUrl(urlText: string): ParsedGoogleMapsUrl {
     name = streetLineFromAddress(address)
   }
 
-  return { name, address, lat, lng, placeId, url }
+  return { name, address, cityHint, lat, lng, placeId, url }
 }
 
 /**
