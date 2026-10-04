@@ -74,11 +74,68 @@ async function resolveGoogleMapsUrl(url: string): Promise<string> {
   }
 }
 
-async function reverseGeocode(lat: number, lng: number): Promise<{ location: string; address: string }> {
-  const cacheKey = `geo:${lat.toFixed(4)},${lng.toFixed(4)}`
-  const cached = getCached(cacheKey)
-  if (cached) return { location: cached.location, address: cached.address }
+type GeoResult = { location: string; address: string }
 
+function stateCodeFromAddress(addr: Record<string, string>): string {
+  const stateName = addr.state || ''
+  return (
+    (addr['ISO3166-2-lvl4'] || '').replace(/^US-/i, '') ||
+    US_STATE_ABBR[stateName] ||
+    (stateName.length === 2 ? stateName.toUpperCase() : '') ||
+    ''
+  )
+}
+
+/** Prefer real municipalities; never treat "X County" as the city label. */
+function localityFromAddress(addr: Record<string, string>): string {
+  const primary =
+    addr.city ||
+    addr.town ||
+    addr.village ||
+    addr.municipality ||
+    addr.city_district ||
+    addr.suburb ||
+    ''
+  if (primary) return primary
+  const weak = addr.hamlet || addr.neighbourhood || addr.county || ''
+  if (weak && /\bCounty\b/i.test(weak)) return ''
+  return weak
+}
+
+function isWeakLocality(name: string): boolean {
+  if (!name.trim()) return true
+  return /\bCounty\b/i.test(name)
+}
+
+/** True when location looks like "Suwanee, GA", not "GA" or "Gwinnett County, GA". */
+function hasStrongCityLocation(location: string): boolean {
+  const parts = location.split(',').map(p => p.trim()).filter(Boolean)
+  if (parts.length < 2) return false
+  const city = parts[0]
+  if (!city || isWeakLocality(city)) return false
+  if (/^[A-Z]{2}$/.test(city)) return false
+  return true
+}
+
+function formatGeoResult(addr: Record<string, string>, displayName = ''): GeoResult {
+  const city = localityFromAddress(addr)
+  const stateName = addr.state || ''
+  const stateCode = stateCodeFromAddress(addr) || (stateName.length === 2 ? stateName : '')
+
+  let location = ''
+  if (city && stateCode) location = `${city}, ${stateCode}`
+  else if (city && stateName) location = `${city}, ${stateName}`
+  else if (stateCode || stateName) location = stateCode || stateName
+  else location = toGoogleLocationArea(displayName)
+
+  const road = [addr.house_number, addr.road || addr.street].filter(Boolean).join(' ')
+  const address =
+    [road, city, stateCode || stateName].filter(Boolean).join(', ') || displayName || ''
+
+  return { location, address }
+}
+
+async function nominatimReverse(lat: number, lng: number): Promise<GeoResult> {
   const endpoint =
     `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(String(lat))}` +
     `&lon=${encodeURIComponent(String(lng))}&format=json&zoom=16&addressdetails=1`
@@ -100,31 +157,144 @@ async function reverseGeocode(lat: number, lng: number): Promise<{ location: str
     display_name?: string
     address?: Record<string, string>
   }
-  const addr = data.address || {}
-  const city =
-    addr.city ||
-    addr.town ||
-    addr.village ||
-    addr.municipality ||
-    addr.hamlet ||
-    addr.county ||
-    ''
-  const stateName = addr.state || ''
-  const stateCode =
-    (addr['ISO3166-2-lvl4'] || '').replace(/^US-/i, '') ||
-    US_STATE_ABBR[stateName] ||
-    ''
+  return formatGeoResult(data.address || {}, data.display_name || '')
+}
 
-  let location = ''
-  if (city && stateCode) location = `${city}, ${stateCode}`
-  else if (city && stateName) location = `${city}, ${stateName}`
-  else if (stateCode || stateName) location = stateCode || stateName
-  else location = toGoogleLocationArea(data.display_name || '')
+/** When reverse only has a county, a nearby named place often has the town (e.g. Suwanee). */
+async function nominatimSearchNear(
+  name: string,
+  lat: number,
+  lng: number,
+): Promise<GeoResult | null> {
+  const q = name.trim()
+  if (!q || q.length < 2) return null
 
-  const road = [addr.house_number, addr.road].filter(Boolean).join(' ')
-  const address = [road, city, stateCode || stateName].filter(Boolean).join(', ') || data.display_name || ''
+  const delta = 0.02 // ~2km
+  const viewbox = [lng - delta, lat + delta, lng + delta, lat - delta].join(',')
+  const endpoint =
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}` +
+    `&format=json&limit=5&addressdetails=1` +
+    `&viewbox=${encodeURIComponent(viewbox)}&bounded=1`
 
-  return { location, address }
+  const res = await fetch(endpoint, {
+    headers: {
+      'User-Agent': NOMINATIM_UA,
+      Accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(8000),
+    next: { revalidate: 86400 },
+  })
+  if (!res.ok) return null
+
+  const rows = await res.json() as Array<{
+    lat?: string
+    lon?: string
+    display_name?: string
+    address?: Record<string, string>
+  }>
+  if (!Array.isArray(rows) || rows.length === 0) return null
+
+  let best: GeoResult | null = null
+  let bestDist = Infinity
+  for (const row of rows) {
+    const rLat = parseFloat(row.lat || '')
+    const rLng = parseFloat(row.lon || '')
+    if (!Number.isFinite(rLat) || !Number.isFinite(rLng)) continue
+    const dist = Math.hypot(rLat - lat, rLng - lng)
+    if (dist > 0.03) continue // ~3km
+    const geo = formatGeoResult(row.address || {}, row.display_name || '')
+    if (!hasStrongCityLocation(geo.location)) continue
+    if (dist < bestDist) {
+      bestDist = dist
+      best = geo
+    }
+  }
+  return best
+}
+
+async function photonReverse(lat: number, lng: number): Promise<GeoResult | null> {
+  const endpoint =
+    `https://photon.komoot.io/reverse?lat=${encodeURIComponent(String(lat))}` +
+    `&lon=${encodeURIComponent(String(lng))}`
+
+  try {
+    const res = await fetch(endpoint, {
+      headers: { Accept: 'application/json', 'User-Agent': NOMINATIM_UA },
+      signal: AbortSignal.timeout(8000),
+      next: { revalidate: 86400 },
+    })
+    if (!res.ok) return null
+
+    const data = await res.json() as {
+      features?: Array<{ properties?: Record<string, string> }>
+    }
+    const props = data.features?.[0]?.properties
+    if (!props) return null
+
+    const addr: Record<string, string> = {
+      house_number: props.housenumber || '',
+      road: props.street || '',
+      city: props.city || '',
+      town: props.city || '',
+      county: props.county || '',
+      state: props.state || '',
+      postcode: props.postcode || '',
+      country: props.country || '',
+    }
+    // Photon often returns state as "GA" already.
+    if (addr.state.length === 2) {
+      addr['ISO3166-2-lvl4'] = `US-${addr.state.toUpperCase()}`
+    }
+    const geo = formatGeoResult(addr)
+    if (!hasStrongCityLocation(geo.location)) return null
+    return geo
+  } catch {
+    return null
+  }
+}
+
+async function reverseGeocode(
+  lat: number,
+  lng: number,
+  hintName?: string,
+): Promise<GeoResult> {
+  const cacheKey = `geo:${lat.toFixed(4)},${lng.toFixed(4)}:${(hintName || '').toLowerCase()}`
+  const cached = getCached(cacheKey)
+  if (cached) return { location: cached.location, address: cached.address }
+
+  // 1) Named place near the pin (Arte → Suwanee) before bare reverse.
+  if (hintName) {
+    try {
+      const named = await nominatimSearchNear(hintName, lat, lng)
+      if (named && hasStrongCityLocation(named.location)) {
+        return named
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // 2) Nominatim reverse
+  let geo = await nominatimReverse(lat, lng)
+
+  // 3) County-only / state-only → Photon (often has the municipality OSM reverse misses)
+  if (!hasStrongCityLocation(geo.location)) {
+    const photon = await photonReverse(lat, lng)
+    if (photon && hasStrongCityLocation(photon.location)) geo = photon
+  }
+
+  // Prefer bare "GA" over "Gwinnett County, GA" if every geocoder only knows the county.
+  if (!hasStrongCityLocation(geo.location) && /\bCounty\b/i.test(geo.location)) {
+    const stateOnly = geo.location.split(',').slice(1).join(',').trim()
+    if (stateOnly) {
+      geo = {
+        location: stateOnly,
+        address: geo.address.replace(/^[A-Za-z .'-]+ County,\s*/i, ''),
+      }
+    }
+  }
+
+  return geo
 }
 
 export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<GooglePlaceInfo> {
@@ -144,7 +314,7 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
   let address = parsed.address || ''
   if (parsed.lat != null && parsed.lng != null) {
     try {
-      const geo = await reverseGeocode(parsed.lat, parsed.lng)
+      const geo = await reverseGeocode(parsed.lat, parsed.lng, parsed.name)
       location = geo.location
       address = geo.address || address
     } catch {
@@ -168,7 +338,7 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
   })
   setCached(cacheKey, info)
   if (parsed.lat != null && parsed.lng != null) {
-    setCached(`geo:${parsed.lat.toFixed(4)},${parsed.lng.toFixed(4)}`, info)
+    setCached(`geo:${parsed.lat.toFixed(4)},${parsed.lng.toFixed(4)}:${parsed.name.toLowerCase()}`, info)
   }
   return info
 }
