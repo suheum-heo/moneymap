@@ -31,7 +31,15 @@ import CategorySettings from './CategorySettings'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
 import VenueLocationFields from './VenueLocationFields'
 import ContextTreeList from './ContextTreeList'
-import { getContextImportLabel, getImportableContexts, isContextGroup, ContextMoveTarget } from '../lib/contextTree'
+import {
+  canAcceptTripChild,
+  canHoldEntries,
+  getContextImportLabel,
+  getImportableContexts,
+  isContextGroup,
+  isFolderGroup,
+  ContextMoveTarget,
+} from '../lib/contextTree'
 
 interface Props {
   userEmail: string
@@ -141,6 +149,16 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   }
 
   const handleAddChildContext = (parent: Context) => {
+    // Folder groups: add a normal spendable ledger underneath.
+    setParentId(parent.id)
+    setName('')
+    setLeafIcon('')
+    setCreatingTrip(false)
+    document.getElementById('new-context-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  const handleAddTrip = (parent: Context) => {
+    // Spendable ledger: add a trip subcontext (expenses roll up to the parent).
     setParentId(parent.id)
     setName('')
     setLeafIcon('✈️')
@@ -369,10 +387,25 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const inputCls = "app-input py-3 text-sm"
   const selCls = "app-select px-3 py-2.5 text-sm"
 
-  const groupOptions = contexts.filter(context => context.isGroup || isContextGroup(context, contexts))
+  // New ledger under a folder group only.
+  const folderParentOptions = contexts.filter(isFolderGroup)
+  // Trips nest under a spendable ledger (e.g. Hidden Money), not under a folder.
+  const tripParentOptions = contexts.filter(
+    context => canHoldEntries(context) && canAcceptTripChild(context, contexts),
+  )
+  // Edit can reparent under a folder or a spendable trip-host.
+  const editParentOptions = contexts.filter(context => {
+    if (editingCtx && context.id === editingCtx.id) return false
+    if (isFolderGroup(context)) return true
+    return canHoldEntries(context) && canAcceptTripChild(context, contexts)
+  })
+  const createParentOptions = creatingTrip ? tripParentOptions : folderParentOptions
 
   const handleAddContext = () => {
     if (!name.trim()) return
+    // Trips must sit under a spendable parent so Overview can roll them up.
+    if (creatingTrip && !parentId) return
+    if (creatingTrip && !tripParentOptions.some(context => context.id === parentId)) return
     const ctx: Context = {
       id: Date.now().toString(),
       name: name.trim(),
@@ -684,14 +717,17 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             </div>
             {editingCtx && !isContextGroup(editingCtx, contexts) && (
               <>
-                {groupOptions.length > 0 && (
+                {editParentOptions.length > 0 && (
                   <div>
                     <label className="app-kicker block mb-2">{t('contextParent')}</label>
                     <select value={editCtxParentId} onChange={e => setEditCtxParentId(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
                       <option value="">{t('contextParentNone')}</option>
-                      {groupOptions
-                        .filter(context => context.id !== editingCtx.id)
-                        .map(context => <option key={context.id} value={context.id}>{context.icon ? `${context.icon} ` : ''}{context.name}</option>)}
+                      {editParentOptions.map(context => (
+                        <option key={context.id} value={context.id}>
+                          {context.icon ? `${context.icon} ` : ''}{context.name}
+                          {canHoldEntries(context) ? ` (${t('tripParentHint')})` : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
@@ -901,6 +937,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           onEdit={openEditCtx}
           onRemove={handleRemoveContext}
           onAddChild={handleAddChildContext}
+          onAddTrip={handleAddTrip}
           onMoveContext={(draggedId, target) => { void moveContext(draggedId, target) }}
         />
         {activeContext && entrySourceContexts.length > 0 && (
@@ -1005,7 +1042,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             <p className="text-xs text-slate-400">{t('newTripHint')}</p>
           )}
           <input type="text" value={name} onChange={e => setName(e.target.value)}
-            placeholder={t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+            placeholder={creatingTrip ? t('tripExamplePlaceholder') : t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           <input
             type="text"
             value={leafIcon}
@@ -1014,9 +1051,11 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             className={inputCls}
             style={{ fontSize: '16px' }}
           />
-          {groupOptions.length > 0 && (
+          {createParentOptions.length > 0 && (
             <div>
-              <label className="app-kicker block mb-2">{t('contextParent')}</label>
+              <label className="app-kicker block mb-2">
+                {creatingTrip ? t('tripParent') : t('contextParent')}
+              </label>
               <select
                 value={parentId}
                 onChange={e => {
@@ -1026,8 +1065,14 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                 className={`${selCls} w-full`}
                 style={{ fontSize: '16px' }}
               >
-                <option value="">{t('contextParentNone')}</option>
-                {groupOptions.map(context => <option key={context.id} value={context.id}>{context.icon ? `${context.icon} ` : ''}{context.name}</option>)}
+                <option value="">
+                  {creatingTrip ? t('tripParentRequired') : t('contextParentNone')}
+                </option>
+                {createParentOptions.map(context => (
+                  <option key={context.id} value={context.id}>
+                    {context.icon ? `${context.icon} ` : ''}{context.name}
+                  </option>
+                ))}
               </select>
             </div>
           )}

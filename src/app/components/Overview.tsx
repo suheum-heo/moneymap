@@ -17,7 +17,7 @@ import type { RecurringItem } from '../useRecurring'
 import EntryEditModal from './EntryEditModal'
 import ChevronDownIcon from './ChevronDownIcon'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
-import { looksLikeTripContext } from '../lib/contextTree'
+import { entryBelongsToContext, hasContextChildren, looksLikeTripContext } from '../lib/contextTree'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -264,9 +264,11 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   const tooltipTitle = isDark ? '#f8fafc' : '#0f172a'
   const tooltipBody = isDark ? '#dbe4ef' : '#334155'
 
-  const contextEntries = useMemo(() =>
-    entries.filter(e => e.context === activeContext?.id),
-    [entries, activeContext?.id])
+  // Overview rolls up trip children into spendable parents (e.g. Hidden Money + Japan).
+  const contextEntries = useMemo(() => {
+    if (!activeContext) return []
+    return entries.filter(e => entryBelongsToContext(e, activeContext.id, contexts, true))
+  }, [entries, activeContext, contexts])
 
   const availableMonths = useMemo(() =>
     [...new Set(contextEntries.map(e => getEntryMonth(e.date)).filter(value => /^\d{4}-\d{2}$/.test(value)))].sort(),
@@ -304,8 +306,8 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   }, [periodExpanded])
 
   const monthEntries = useMemo(() =>
-    entries.filter(e => e.date.startsWith(month) && e.context === activeContext?.id),
-    [entries, month, activeContext])
+    contextEntries.filter(e => e.date.startsWith(month)),
+    [contextEntries, month])
 
   const toLocal = (e: Entry) => convertEntryAmount(e, cur, homeCur, cur, convert)
 
@@ -398,8 +400,8 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   }, [month])
 
   const lastMonthEntries = useMemo(() =>
-    entries.filter(e => e.date.startsWith(lastMonth) && e.context === activeContext?.id),
-    [entries, lastMonth, activeContext])
+    contextEntries.filter(e => e.date.startsWith(lastMonth)),
+    [contextEntries, lastMonth])
 
   const lastMonthExpenses = useMemo(() =>
     lastMonthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toLocal(e), 0),
@@ -662,6 +664,9 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   ]
 
   const isTripContext = looksLikeTripContext(activeContext, contexts || [])
+  const hasTripChildren = Boolean(
+    activeContext && !isTripContext && hasContextChildren(activeContext, contexts || []),
+  )
   const tripLabel = activeContext
     ? `${activeContext.icon ? `${activeContext.icon} ` : ''}${activeContext.name}`
     : ''
@@ -702,6 +707,10 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
             )}
           </div>
         </button>
+      )}
+
+      {hasTripChildren && (
+        <p className="mb-3 text-xs text-slate-400">{t('includesTripSpend')}</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">
