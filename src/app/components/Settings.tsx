@@ -158,10 +158,10 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   }
 
   const handleAddTrip = (parent: Context) => {
-    // Spendable ledger: add a trip subcontext (expenses roll up to the parent).
+    // Spendable ledger: add a nested subcontext (expenses roll up to the parent).
     setParentId(parent.id)
     setName('')
-    setLeafIcon('✈️')
+    setLeafIcon('')
     setCreatingTrip(true)
     document.getElementById('new-context-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
@@ -725,7 +725,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                       {editParentOptions.map(context => (
                         <option key={context.id} value={context.id}>
                           {context.icon ? `${context.icon} ` : ''}{context.name}
-                          {canHoldEntries(context) ? ` (${t('tripParentHint')})` : ''}
+                          {canHoldEntries(context) ? ` (${t('subcontextParentHint')})` : ''}
                         </option>
                       ))}
                     </select>
@@ -1037,12 +1037,12 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           <button onClick={handleAddGroup} className="app-button-secondary w-full">{t('addContextGroup')}</button>
         </div>
         <div id="new-context-form" className="app-panel-soft flex flex-col gap-3 p-3.5">
-          <div className="app-section-title">{creatingTrip ? t('newTrip') : t('newContext')}</div>
+          <div className="app-section-title">{creatingTrip ? t('newSubcontext') : t('newContext')}</div>
           {creatingTrip && (
-            <p className="text-xs text-slate-400">{t('newTripHint')}</p>
+            <p className="text-xs text-slate-400">{t('newSubcontextHint')}</p>
           )}
           <input type="text" value={name} onChange={e => setName(e.target.value)}
-            placeholder={creatingTrip ? t('tripExamplePlaceholder') : t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+            placeholder={creatingTrip ? t('subcontextExamplePlaceholder') : t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
           <input
             type="text"
             value={leafIcon}
@@ -1054,7 +1054,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           {createParentOptions.length > 0 && (
             <div>
               <label className="app-kicker block mb-2">
-                {creatingTrip ? t('tripParent') : t('contextParent')}
+                {creatingTrip ? t('subcontextParent') : t('contextParent')}
               </label>
               <select
                 value={parentId}
@@ -1066,7 +1066,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
                 style={{ fontSize: '16px' }}
               >
                 <option value="">
-                  {creatingTrip ? t('tripParentRequired') : t('contextParentNone')}
+                  {creatingTrip ? t('subcontextParentRequired') : t('contextParentNone')}
                 </option>
                 {createParentOptions.map(context => (
                   <option key={context.id} value={context.id}>
@@ -1095,7 +1095,7 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             <LocalizedMonthPicker value={startDate} onChange={setStartDate} placeholder={t('startDate')} />
           </div>
           <button onClick={handleAddContext} className="app-button-primary w-full">
-            {creatingTrip ? t('addTrip') : t('addContext')}
+            {creatingTrip ? t('addSubcontext') : t('addContext')}
           </button>
         </div>
       </div>

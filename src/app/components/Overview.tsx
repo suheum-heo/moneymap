@@ -663,11 +663,12 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     { label: t('net'), value: (periodNet < 0 ? '-' : '') + fmt(periodNet), sub: fmtHome(periodNetHome), color: periodNet < 0 ? 'app-negative' : 'app-accent' },
   ]
 
-  const isTripContext = looksLikeTripContext(activeContext, contexts || [])
-  const hasTripChildren = Boolean(
-    activeContext && !isTripContext && hasContextChildren(activeContext, contexts || []),
+  // Nested ledger under a spendable parent (daily list, trip, etc.) — not always a "trip".
+  const isNestedLedger = looksLikeTripContext(activeContext, contexts || [])
+  const hasNestedChildren = Boolean(
+    activeContext && !isNestedLedger && hasContextChildren(activeContext, contexts || []),
   )
-  const tripLabel = activeContext
+  const contextLabel = activeContext
     ? `${activeContext.icon ? `${activeContext.icon} ` : ''}${activeContext.name}`
     : ''
 
@@ -687,15 +688,15 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         onAdd={onAdd}
       />
 
-      {isTripContext && (
+      {isNestedLedger && (
         <button
           type="button"
           onClick={() => onNavigate('entries', 'expense')}
           className="app-panel mb-3 flex w-full items-end justify-between gap-4 p-5 text-left transition-transform hover:-translate-y-0.5"
         >
           <div className="min-w-0">
-            <div className="app-kicker mb-2">{t('spentOnThisTrip')}</div>
-            <div className="truncate text-sm font-medium text-slate-700 dark:text-zinc-200">{tripLabel}</div>
+            <div className="app-kicker mb-2">{t('totalSpent')}</div>
+            <div className="truncate text-sm font-medium text-slate-700 dark:text-zinc-200">{contextLabel}</div>
             <div className="mt-1 text-xs text-slate-400">{t('allTime')}</div>
           </div>
           <div className="flex-shrink-0 text-right">
@@ -709,8 +710,8 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         </button>
       )}
 
-      {hasTripChildren && (
-        <p className="mb-3 text-xs text-slate-400">{t('includesTripSpend')}</p>
+      {hasNestedChildren && (
+        <p className="mb-3 text-xs text-slate-400">{t('includesNestedSpend')}</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -739,10 +740,10 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
           aria-expanded={periodExpanded}
         >
           <div className="min-w-0 flex-1">
-            <div className="app-kicker mb-2">{isTripContext ? t('tripTotal') : t('periodTotals')}</div>
+            <div className="app-kicker mb-2">{isNestedLedger ? t('allTimeTotal') : t('periodTotals')}</div>
             <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:gap-3">
               <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-zinc-50">
-                {isTripContext && periodMode === 'all' ? t('spentOnThisTrip') : periodLabel}
+                {isNestedLedger && periodMode === 'all' ? t('totalSpent') : periodLabel}
               </h3>
               <span className="text-xs text-slate-400">{t('entriesInPeriod', { count: periodEntries.length })}</span>
             </div>

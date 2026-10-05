@@ -297,10 +297,10 @@ function TreeRows({
                         type="button"
                         onClick={() => onAddTrip(context)}
                         className="app-accent text-xs font-medium"
-                        title={t('newTrip')}
-                        aria-label={t('newTrip')}
+                        title={t('newSubcontext')}
+                        aria-label={t('newSubcontext')}
                       >
-                        {t('newTrip')}
+                        {t('newSubcontext')}
                       </button>
                     )}
                     {onEdit && (
