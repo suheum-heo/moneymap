@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
     const cleaned = findGoogleMapsUrlInText(url) || url
     const place = await fetchGooglePlaceFromUrl(cleaned)
     return NextResponse.json(place, {
-      headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' },
+      // Keep CDN cache short so location-fix deploys are visible quickly.
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Lookup failed'
