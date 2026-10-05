@@ -17,6 +17,16 @@ export function isLeafContext(context: Context, contexts: Context[]): boolean {
   return !isContextGroup(context, contexts)
 }
 
+/** Leaf nested under a group, or marked with an icon — treat as a trip ledger. */
+export function looksLikeTripContext(context: Context | undefined, contexts: Context[] = []): boolean {
+  if (!context) return false
+  if (contexts.length > 0 && isContextGroup(context, contexts)) return false
+  if (context.isGroup) return false
+  if (context.parentId) return true
+  if (context.icon) return true
+  return false
+}
+
 export function getLeafContexts(contexts: Context[]): Context[] {
   return contexts.filter(context => isLeafContext(context, contexts))
 }

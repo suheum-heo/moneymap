@@ -91,6 +91,8 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
 
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState('')
+  const [leafIcon, setLeafIcon] = useState('')
+  const [creatingTrip, setCreatingTrip] = useState(false)
   const [groupName, setGroupName] = useState('')
   const [groupIcon, setGroupIcon] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -141,6 +143,8 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
   const handleAddChildContext = (parent: Context) => {
     setParentId(parent.id)
     setName('')
+    setLeafIcon('✈️')
+    setCreatingTrip(true)
     document.getElementById('new-context-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
@@ -376,9 +380,12 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
       homeCurrency,
       startDate,
       parentId: parentId || undefined,
+      icon: leafIcon.trim() || undefined,
     }
     addContext(ctx)
     setName('')
+    setLeafIcon('')
+    setCreatingTrip(false)
   }
 
   const handleAddGroup = () => {
@@ -993,13 +1000,32 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
           <button onClick={handleAddGroup} className="app-button-secondary w-full">{t('addContextGroup')}</button>
         </div>
         <div id="new-context-form" className="app-panel-soft flex flex-col gap-3 p-3.5">
-          <div className="app-section-title">{t('newContext')}</div>
+          <div className="app-section-title">{creatingTrip ? t('newTrip') : t('newContext')}</div>
+          {creatingTrip && (
+            <p className="text-xs text-slate-400">{t('newTripHint')}</p>
+          )}
           <input type="text" value={name} onChange={e => setName(e.target.value)}
             placeholder={t('contextExamplePlaceholder')} className={inputCls} style={{ fontSize: '16px' }} />
+          <input
+            type="text"
+            value={leafIcon}
+            onChange={e => setLeafIcon(e.target.value)}
+            placeholder={t('contextIconPlaceholder')}
+            className={inputCls}
+            style={{ fontSize: '16px' }}
+          />
           {groupOptions.length > 0 && (
             <div>
               <label className="app-kicker block mb-2">{t('contextParent')}</label>
-              <select value={parentId} onChange={e => setParentId(e.target.value)} className={`${selCls} w-full`} style={{ fontSize: '16px' }}>
+              <select
+                value={parentId}
+                onChange={e => {
+                  setParentId(e.target.value)
+                  if (!e.target.value) setCreatingTrip(false)
+                }}
+                className={`${selCls} w-full`}
+                style={{ fontSize: '16px' }}
+              >
                 <option value="">{t('contextParentNone')}</option>
                 {groupOptions.map(context => <option key={context.id} value={context.id}>{context.icon ? `${context.icon} ` : ''}{context.name}</option>)}
               </select>
@@ -1023,7 +1049,9 @@ export default function Settings({ userEmail, contexts, addContext, removeContex
             <label className="app-kicker block mb-2">{t('startDate')}</label>
             <LocalizedMonthPicker value={startDate} onChange={setStartDate} placeholder={t('startDate')} />
           </div>
-          <button onClick={handleAddContext} className="app-button-primary w-full">{t('addContext')}</button>
+          <button onClick={handleAddContext} className="app-button-primary w-full">
+            {creatingTrip ? t('addTrip') : t('addContext')}
+          </button>
         </div>
       </div>
 
