@@ -16,6 +16,11 @@ export interface ParsedGoogleMapsUrl {
   address: string
   /** City taken from Google place titles like "Jang Su Jang- Duluth". */
   cityHint: string
+  /**
+   * More specific query Google embedded in the Maps URL (`!15s…`),
+   * e.g. "Starbucks atl conc t gate 8" — better for listing lookup than the bare place title.
+   */
+  searchQuery: string
   lat: number | null
   lng: number | null
   placeId: string
@@ -120,6 +125,36 @@ export function splitVenueAndCitySuffix(text: string): { name: string; city: str
   // Avoid chopping brand-style titles ("In-N-Out") — require a space after the dash.
   if (name.length < 2) return null
   return { name, city }
+}
+
+/**
+ * Decode Google's `!15s…` place-search blob into a human query string.
+ * These often include disambiguators the place title omits (airport concourse, etc.).
+ */
+export function extractGoogleMapsSearchQuery(urlText: string): string | null {
+  const match = urlText.match(/!15s([A-Za-z0-9_-]+)/)
+  if (!match?.[1]) return null
+
+  let b64 = match[1].replace(/-/g, '+').replace(/_/g, '/')
+  while (b64.length % 4) b64 += '='
+
+  try {
+    const raw = typeof atob === 'function'
+      ? atob(b64)
+      : Buffer.from(b64, 'base64').toString('binary')
+    const runs = raw.match(/[\x20-\x7e]{4,}/g) || []
+    const skip = /^(coffee_shop|restaurant|store|establishment|food|point_of_interest)$/i
+    for (const run of runs) {
+      const cleaned = run.replace(/^["'\s]+|["'\s]+$/g, '').replace(/\s+/g, ' ').trim()
+      if (!cleaned || skip.test(cleaned)) continue
+      if (!/[a-zA-Z]/.test(cleaned)) continue
+      if (cleaned.length < 4) continue
+      return cleaned
+    }
+  } catch {
+    return null
+  }
+  return null
 }
 
 /** Pull a US-style street address out of a Google Maps search (tbm=map) HTML body. */
@@ -313,6 +348,7 @@ export function parseGoogleMapsUrl(urlText: string): ParsedGoogleMapsUrl {
   if (ftid?.[1] && !placeId) placeId = ftid[1]
 
   let { name, address, cityHint } = current
+  const searchQuery = extractGoogleMapsSearchQuery(url) || ''
 
   if (!placeId && lat != null && lng != null) {
     placeId = `geo:${lat.toFixed(5)},${lng.toFixed(5)}`
@@ -326,7 +362,7 @@ export function parseGoogleMapsUrl(urlText: string): ParsedGoogleMapsUrl {
     name = streetLineFromAddress(address)
   }
 
-  return { name, address, cityHint, lat, lng, placeId, url }
+  return { name, address, cityHint, searchQuery, lat, lng, placeId, url }
 }
 
 /**
