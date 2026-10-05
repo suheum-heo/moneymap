@@ -7,8 +7,7 @@ import {
   flattenContextTreeIds,
   buildContextTree,
   getContextChildren,
-  isContextGroup,
-  isLeafContext,
+  canHoldEntries,
   orderContextsDepthFirst,
   resolveActiveLeafContext,
   applyContextMove,
@@ -527,7 +526,7 @@ export function useSettings() {
       const siblings = getContextChildren(ctx.parentId, prev)
       sortOrder = siblings.length
       const next = orderContexts([...prev, { ...ctx, sortOrder }], mergeOrderedContextIds(prev, prev.map(context => context.id)))
-      if (isLeafContext(ctx, next) && (prev.length === 0 || !resolveActiveLeafContext(prev, activeContextId))) {
+      if (canHoldEntries(ctx) && (prev.length === 0 || !resolveActiveLeafContext(prev, activeContextId))) {
         setActiveContextId(ctx.id)
         localStorage.setItem('gagyebu-active-context', ctx.id)
       }
@@ -688,7 +687,7 @@ export function useSettings() {
 
   const switchContext = useCallback((id: string) => {
     const target = contextsRef.current.find(context => context.id === id)
-    if (!target || !isLeafContext(target, contextsRef.current)) return
+    if (!target || !canHoldEntries(target)) return
     setActiveContextId(id)
     localStorage.setItem('gagyebu-active-context', id)
   }, [])
@@ -725,7 +724,7 @@ export function useSettings() {
     return amount
   }, [rates])
 
-  const activeContext = resolveActiveLeafContext(contexts, activeContextId) || contexts.find(c => isLeafContext(c, contexts))
+  const activeContext = resolveActiveLeafContext(contexts, activeContextId) || contexts.find(c => canHoldEntries(c))
 
   return {
     contexts, addContext, removeContext, renameContext, updateContext, moveContext, reorderContexts,

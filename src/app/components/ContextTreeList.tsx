@@ -7,10 +7,11 @@ import {
   ContextMoveTarget,
   ContextTreeNode,
   buildContextTree,
+  canAcceptTripChild,
+  canHoldEntries,
   canMoveContext,
   getTreePrefix,
-  isContextGroup,
-  isLeafContext,
+  isFolderGroup,
 } from '../lib/contextTree'
 
 interface RenderState {
@@ -31,6 +32,7 @@ interface Props {
   onEdit?: (context: Context) => void
   onRemove?: (context: Context) => void
   onAddChild?: (parent: Context) => void
+  onAddTrip?: (parent: Context) => void
   onMoveContext?: (draggedId: string, target: ContextMoveTarget) => void
 }
 
@@ -68,11 +70,12 @@ function resolveDropIntent(
   const target = contexts.find(context => context.id === targetId)
   if (!dragged || !target) return null
 
-  const targetIsGroup = isContextGroup(target, contexts)
-  const draggedIsGroup = isContextGroup(dragged, contexts)
+  const targetIsFolder = isFolderGroup(target)
+  const draggedIsFolder = isFolderGroup(dragged)
+  const canNestIntoTarget = canAcceptTripChild(target, contexts)
 
-  if (draggedIsGroup) {
-    if (targetIsGroup) {
+  if (draggedIsFolder) {
+    if (targetIsFolder) {
       return {
         highlightId: targetId,
         mode: afterTarget ? 'after' : 'before',
@@ -83,7 +86,8 @@ function resolveDropIntent(
     return null
   }
 
-  if (targetIsGroup) {
+  // Nest into folder / spendable parent only when not explicitly placing after it.
+  if (canNestIntoTarget && !afterTarget) {
     if (!canMoveContext(contexts, draggedId, target.id)) return null
     return {
       highlightId: targetId,
@@ -140,6 +144,7 @@ function TreeRows({
   onEdit,
   onRemove,
   onAddChild,
+  onAddTrip,
   draggingId,
   dropIntent,
   onDragHandleDown,
@@ -158,6 +163,7 @@ function TreeRows({
   onEdit?: (context: Context) => void
   onRemove?: (context: Context) => void
   onAddChild?: (parent: Context) => void
+  onAddTrip?: (parent: Context) => void
   draggingId: string | null
   dropIntent: DropIntent | null
   onDragHandleDown: (event: React.PointerEvent<HTMLButtonElement>, id: string) => void
@@ -170,7 +176,10 @@ function TreeRows({
     <>
       {nodes.map(node => {
         const { context, children } = node
-        const isGroup = isContextGroup(context, allContexts)
+        const isFolder = isFolderGroup(context)
+        const hasChildren = children.length > 0
+        const spendable = canHoldEntries(context)
+        const acceptTrip = canAcceptTripChild(context, allContexts)
         const isExpanded = !collapsedIds.has(context.id)
         const isActive = context.id === activeContextId
         const isDragging = context.id === draggingId
@@ -191,7 +200,7 @@ function TreeRows({
           <div key={context.id}>
             <div
               data-context-id={context.id}
-              data-context-group={isGroup ? '1' : '0'}
+              data-context-group={acceptTrip ? '1' : '0'}
               className={`${getItemClassName?.(context, state) || ''} ${dropRing} ${isDragging ? 'opacity-55' : ''}`}
             >
               {mode === 'manage' ? (
@@ -207,7 +216,7 @@ function TreeRows({
                 >
                   <span aria-hidden="true">⋮⋮</span>
                 </button>
-              ) : isGroup && children.length > 0 ? (
+              ) : hasChildren ? (
                 <button
                   type="button"
                   aria-expanded={isExpanded}
@@ -220,7 +229,7 @@ function TreeRows({
                 <span className="flex h-10 w-8 flex-shrink-0 items-center justify-center text-xs text-transparent">·</span>
               )}
 
-              {mode === 'manage' && isGroup && children.length > 0 && (
+              {mode === 'manage' && hasChildren && (
                 <button
                   type="button"
                   aria-expanded={isExpanded}
@@ -231,7 +240,7 @@ function TreeRows({
                 </button>
               )}
 
-              {mode === 'switch' && isLeafContext(context, allContexts) ? (
+              {mode === 'switch' && spendable ? (
                 <button
                   type="button"
                   onClick={() => onSelect?.(context)}
@@ -251,7 +260,7 @@ function TreeRows({
                 <button
                   type="button"
                   aria-expanded={isExpanded}
-                  onClick={() => children.length > 0 && toggleCollapsed(context.id)}
+                  onClick={() => hasChildren && toggleCollapsed(context.id)}
                   className="flex min-w-0 flex-1 items-center gap-2 px-1 py-2 text-left"
                 >
                   <div className="truncate text-[13px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:text-zinc-400">{label}</div>
@@ -265,22 +274,33 @@ function TreeRows({
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{label}</div>
-                    {!isGroup && (
+                    {spendable && (
                       <div className="mt-0.5 truncate text-xs text-slate-400">
                         {context.currency}{context.currency !== context.homeCurrency ? ` → ${context.homeCurrency}` : ''}
                       </div>
                     )}
                   </div>
                   <div className="ml-2 flex flex-shrink-0 items-center gap-2">
-                    {isGroup && onAddChild && (
+                    {isFolder && onAddChild && (
                       <button
                         type="button"
                         onClick={() => onAddChild(context)}
                         className="app-accent text-xs font-medium"
-                        title={t('newTrip')}
-                        aria-label={t('newTrip')}
+                        title={t('addContext')}
+                        aria-label={t('addContext')}
                       >
-                        {t('newTrip')}
+                        +
+                      </button>
+                    )}
+                    {!isFolder && acceptTrip && onAddTrip && (
+                      <button
+                        type="button"
+                        onClick={() => onAddTrip(context)}
+                        className="app-accent text-xs font-medium"
+                        title={t('newSubcontext')}
+                        aria-label={t('newSubcontext')}
+                      >
+                        {t('newSubcontext')}
                       </button>
                     )}
                     {onEdit && (
@@ -298,7 +318,7 @@ function TreeRows({
               )}
             </div>
 
-            {isGroup && isExpanded && children.length > 0 && (
+            {hasChildren && isExpanded && (
               <TreeRows
                 nodes={children}
                 allContexts={allContexts}
@@ -311,6 +331,7 @@ function TreeRows({
                 onEdit={onEdit}
                 onRemove={onRemove}
                 onAddChild={onAddChild}
+                onAddTrip={onAddTrip}
                 draggingId={draggingId}
                 dropIntent={dropIntent}
                 onDragHandleDown={onDragHandleDown}
@@ -337,6 +358,7 @@ export default function ContextTreeList({
   onEdit,
   onRemove,
   onAddChild,
+  onAddTrip,
   onMoveContext,
 }: Props) {
   const { t } = useTranslation()
@@ -461,9 +483,10 @@ export default function ContextTreeList({
           return next
         })
       } else if (intent && intent.mode !== 'into') {
-        // keep before/after for group reorder when dragging groups, or leaf after group => top-level after group
+        // After a top-level folder: place spendable ledger at top level after that folder.
         const dragged = contextsRef.current.find(context => context.id === drag.id)
-        if (dragged && isLeafContext(dragged, contextsRef.current)) {
+        const target = contextsRef.current.find(context => context.id === targetId)
+        if (dragged && canHoldEntries(dragged) && target && isFolderGroup(target) && !target.parentId) {
           intent = {
             highlightId: targetId,
             mode: 'after',
@@ -512,7 +535,7 @@ export default function ContextTreeList({
             if (event.clientY > rect.bottom + 8) return
             // Top-level drop strip: move leaf out of group
             const dragged = contextsRef.current.find(context => context.id === drag.id)
-            if (!dragged || isContextGroup(dragged, contextsRef.current)) return
+            if (!dragged || isFolderGroup(dragged)) return
             drag.changed = true
             setDropIntent({
               highlightId: '__root__',
@@ -541,6 +564,7 @@ export default function ContextTreeList({
         onEdit={onEdit}
         onRemove={onRemove}
         onAddChild={onAddChild}
+        onAddTrip={onAddTrip}
         draggingId={draggingId}
         dropIntent={dropIntent}
         onDragHandleDown={handlePointerDown}

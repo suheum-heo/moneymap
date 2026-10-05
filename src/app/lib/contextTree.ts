@@ -1,4 +1,4 @@
-import { Context } from '../types'
+import { Context, Entry } from '../types'
 
 export interface ContextTreeNode {
   context: Context
@@ -8,23 +8,55 @@ export interface ContextTreeNode {
   ancestorContinues: boolean[]
 }
 
-export function isContextGroup(context: Context, contexts: Context[]): boolean {
-  if (context.isGroup) return true
+/** Folder-only organizer (`isGroup`). Not spendable. */
+export function isFolderGroup(context: Context): boolean {
+  return Boolean(context.isGroup)
+}
+
+/**
+ * Folder group for nesting UI.
+ * Only explicit `isGroup` counts — having children no longer makes a spendable
+ * ledger into a non-selectable folder.
+ */
+export function isContextGroup(context: Context, _contexts: Context[] = []): boolean {
+  return isFolderGroup(context)
+}
+
+export function hasContextChildren(context: Context, contexts: Context[]): boolean {
   return contexts.some(child => child.parentId === context.id)
 }
 
-export function isLeafContext(context: Context, contexts: Context[]): boolean {
-  return !isContextGroup(context, contexts)
+/** Spendable ledger (may still have trip children). */
+export function canHoldEntries(context: Context): boolean {
+  return !isFolderGroup(context)
 }
 
-/** Leaf nested under a group, or marked with an icon — treat as a trip ledger. */
+/** Tree leaf chrome: spendable with no children. */
+export function isLeafContext(context: Context, contexts: Context[]): boolean {
+  return canHoldEntries(context) && !hasContextChildren(context, contexts)
+}
+
+/**
+ * Trip = spendable child of another spendable ledger
+ * (e.g. Travel → Hidden Money → Japan).
+ * Nested directly under a folder group is a normal ledger, not a trip.
+ */
 export function looksLikeTripContext(context: Context | undefined, contexts: Context[] = []): boolean {
-  if (!context) return false
-  if (contexts.length > 0 && isContextGroup(context, contexts)) return false
-  if (context.isGroup) return false
-  if (context.parentId) return true
-  if (context.icon) return true
-  return false
+  if (!context || !canHoldEntries(context)) return false
+  const parent = getContextParent(context, contexts)
+  if (!parent) return false
+  return canHoldEntries(parent)
+}
+
+/** Folder groups, or spendable parents that are not themselves trips. */
+export function canAcceptTripChild(parent: Context, contexts: Context[]): boolean {
+  if (isFolderGroup(parent)) return true
+  if (!canHoldEntries(parent)) return false
+  return !looksLikeTripContext(parent, contexts)
+}
+
+export function getSpendableContexts(contexts: Context[]): Context[] {
+  return contexts.filter(canHoldEntries)
 }
 
 export function getLeafContexts(contexts: Context[]): Context[] {
@@ -38,6 +70,29 @@ export function getContextChildren(parentId: string | undefined, contexts: Conte
 export function getContextParent(context: Context, contexts: Context[]): Context | undefined {
   if (!context.parentId) return undefined
   return contexts.find(item => item.id === context.parentId)
+}
+
+export function getContextSubtreeIds(rootId: string, contexts: Context[]): string[] {
+  const ids: string[] = []
+  const walk = (id: string) => {
+    ids.push(id)
+    contexts.forEach(child => {
+      if (child.parentId === id) walk(child.id)
+    })
+  }
+  walk(rootId)
+  return ids
+}
+
+/** Own entries only, or parent + all descendant trips when rollup is on. */
+export function entryBelongsToContext(
+  entry: Entry,
+  contextId: string,
+  contexts: Context[],
+  rollup = false,
+): boolean {
+  if (!rollup) return entry.context === contextId
+  return getContextSubtreeIds(contextId, contexts).includes(entry.context)
 }
 
 export function getContextBreadcrumb(context: Context, contexts: Context[]): Context[] {
@@ -126,31 +181,32 @@ export function orderContextsDepthFirst(contexts: Context[], storedOrder: string
   return flattenContextTree(buildContextTree(contexts, storedOrder))
 }
 
+/** Prefer the selected spendable context; folders resolve to a spendable descendant. */
 export function resolveActiveLeafContext(contexts: Context[], activeContextId: string): Context | undefined {
-  const leaves = getLeafContexts(contexts)
-  if (leaves.length === 0) return undefined
+  const spendable = getSpendableContexts(contexts)
+  if (spendable.length === 0) return undefined
 
   const selected = contexts.find(context => context.id === activeContextId)
-  if (selected && isLeafContext(selected, contexts)) return selected
+  if (selected && canHoldEntries(selected)) return selected
 
   const selectedParentTrail = selected ? getContextBreadcrumb(selected, contexts) : []
   const preferredParentId = selected?.isGroup ? selected.id : selected?.parentId
   if (preferredParentId) {
-    const siblingLeaf = leaves.find(leaf => leaf.parentId === preferredParentId)
-    if (siblingLeaf) return siblingLeaf
+    const child = spendable.find(item => item.parentId === preferredParentId)
+    if (child) return child
   }
 
   if (selectedParentTrail.length > 0) {
     const trailIds = new Set(selectedParentTrail.map(context => context.id))
-    const relatedLeaf = leaves.find(leaf => leaf.parentId && trailIds.has(leaf.parentId))
-    if (relatedLeaf) return relatedLeaf
+    const related = spendable.find(item => item.parentId && trailIds.has(item.parentId))
+    if (related) return related
   }
 
-  return leaves[0]
+  return spendable[0]
 }
 
 export function getImportableContexts(contexts: Context[], excludeId?: string): Context[] {
-  return getLeafContexts(contexts).filter(context => context.id !== excludeId)
+  return getSpendableContexts(contexts).filter(context => context.id !== excludeId)
 }
 
 export interface ContextMoveTarget {
@@ -166,10 +222,13 @@ export function canMoveContext(
   const dragged = contexts.find(context => context.id === draggedId)
   if (!dragged) return false
   if (parentId === draggedId) return false
-  if (isContextGroup(dragged, contexts) && parentId) return false
+  // Folder groups stay top-level.
+  if (isFolderGroup(dragged) && parentId) return false
   if (!parentId) return true
   const parent = contexts.find(context => context.id === parentId)
-  return !!parent && isContextGroup(parent, contexts)
+  if (!parent) return false
+  // Nest under folder groups or spendable ledgers (not under trips).
+  return canAcceptTripChild(parent, contexts)
 }
 
 export function applyContextMove(

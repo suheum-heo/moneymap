@@ -14,7 +14,7 @@ import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
 import ContextTreeList from './components/ContextTreeList'
-import { getContextDisplayName, isLeafContext } from './lib/contextTree'
+import { canHoldEntries, getContextDisplayName } from './lib/contextTree'
 import { UserContext } from './UserContext'
 import { formatFullDate, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
 import type { User } from '@supabase/supabase-js'
@@ -265,9 +265,9 @@ function AppContent({ user }: { user: User }) {
             activeContextId={activeContextId}
             mode="switch"
             collapsedStorageKey="gagyebu-context-tree-collapsed"
-            getItemClassName={(context, state) => `mb-1 flex w-full items-center rounded-[20px] text-sm transition-all last:mb-0 ${isLeafContext(context, contexts) && state.isActive
+            getItemClassName={(context, state) => `mb-1 flex w-full items-center rounded-[20px] text-sm transition-all last:mb-0 ${canHoldEntries(context) && state.isActive
                 ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
-                : isLeafContext(context, contexts)
+                : canHoldEntries(context)
                   ? 'text-slate-500 hover:bg-white/85 hover:text-slate-900 dark:hover:bg-slate-900/80 dark:hover:text-zinc-100'
                   : 'text-slate-700 dark:text-zinc-200'}`}
             onSelect={context => { switchContext(context.id); setTab('overview') }}
@@ -400,9 +400,9 @@ function AppContent({ user }: { user: User }) {
                 activeContextId={activeContextId}
                 mode="switch"
                 collapsedStorageKey="gagyebu-context-tree-collapsed-mobile"
-                getItemClassName={(context, state) => `mb-1.5 flex w-full items-center rounded-[20px] text-sm transition-all ${isLeafContext(context, contexts) && state.isActive
+                getItemClassName={(context, state) => `mb-1.5 flex w-full items-center rounded-[20px] text-sm transition-all ${canHoldEntries(context) && state.isActive
                     ? 'border border-[#d6e6ff] bg-white text-[#245ec6] shadow-[0_12px_24px_-20px_rgba(49,130,246,0.42)] dark:border-sky-400/20 dark:bg-slate-950/90 dark:text-sky-200'
-                    : isLeafContext(context, contexts)
+                    : canHoldEntries(context)
                       ? 'bg-white/88 text-slate-700 dark:bg-slate-900/70 dark:text-zinc-300'
                       : 'bg-transparent px-0 text-slate-500 dark:text-zinc-400'}`}
                 onSelect={context => { switchContext(context.id); setMobileMenuOpen(false); setTab('overview') }}
