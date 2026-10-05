@@ -261,19 +261,17 @@ async function photonReverse(lat: number, lng: number): Promise<GeoResult | null
 
 /**
  * Ask Google Maps search for the listing address (same source users see in Maps).
- * Query must be specific (include city or state) — bare venue names match the wrong place.
+ * Prefer specific queries (URL `!15s` text, or name + city/state) — bare chain names are ambiguous.
  */
-async function lookupGoogleMapsListing(
-  name: string,
-  qualifier: string,
+async function lookupGoogleMapsListingQuery(
+  query: string,
+  mustInclude?: string,
 ): Promise<GeoResult | null> {
-  const qName = name.trim()
-  const qQual = qualifier.trim()
-  if (!qName || !qQual) return null
+  const q = query.trim()
+  if (q.length < 4) return null
 
-  const query = `${qName} ${qQual}`
   const endpoint =
-    `https://www.google.com/search?tbm=map&hl=en&gl=us&q=${encodeURIComponent(query)}`
+    `https://www.google.com/search?tbm=map&hl=en&gl=us&q=${encodeURIComponent(q)}`
 
   try {
     const res = await fetch(endpoint, {
@@ -290,12 +288,12 @@ async function lookupGoogleMapsListing(
     const address = extractAddressFromGoogleSearchHtml(html)
     if (!address) return null
 
-    // Require the qualifier (city or state name) to appear in the address.
-    const qualLower = qQual.toLowerCase()
-    if (!address.toLowerCase().includes(qualLower)) {
-      // State abbreviation qualifier: "GA" should match ", GA "
-      if (!(qualLower.length === 2 && new RegExp(`,\\s*${qualLower}\\s+\\d{5}`, 'i').test(address))) {
-        return null
+    if (mustInclude) {
+      const needle = mustInclude.trim().toLowerCase()
+      if (needle && !address.toLowerCase().includes(needle)) {
+        if (!(needle.length === 2 && new RegExp(`,\\s*${needle}\\s+\\d{5}`, 'i').test(address))) {
+          return null
+        }
       }
     }
 
@@ -305,6 +303,16 @@ async function lookupGoogleMapsListing(
   } catch {
     return null
   }
+}
+
+async function lookupGoogleMapsListing(
+  name: string,
+  qualifier: string,
+): Promise<GeoResult | null> {
+  const qName = name.trim()
+  const qQual = qualifier.trim()
+  if (!qName || !qQual) return null
+  return lookupGoogleMapsListingQuery(`${qName} ${qQual}`, qQual)
 }
 
 function stateCodeFromLocation(location: string): string {
@@ -384,16 +392,25 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
   let location = ''
   let address = parsed.address || ''
   const cityHint = parsed.cityHint || ''
+  const searchQuery = parsed.searchQuery || ''
 
   /*
-   * Source priority for venue location:
+   * Source priority for venue location (Google listing beats OSM city labels):
    * 1) Address already in the Maps URL / share text
-   * 2) Google Maps listing search (name + city hint from place title)
-   * 3) OSM place search near the pin
-   * 4) Google listing search with name + state (from reverse)
-   * 5) OSM/Photon reverse municipality fields (never hamlet/county)
-   * 6) City hint + state as last resort
+   * 2) Google listing via URL search query (`!15s`, e.g. airport gate text)
+   * 3) Google listing via name + city hint from place title
+   * 4) OSM near/reverse only to learn state (and as weak fallback)
+   * 5) Google listing via name + state — preferred over OSM's city
+   * 6) OSM/Photon municipality / city hint + state
    */
+  if (!address && searchQuery) {
+    const listed = await lookupGoogleMapsListingQuery(searchQuery)
+    if (listed) {
+      address = listed.address
+      location = listed.location
+    }
+  }
+
   if (!address && parsed.name && cityHint) {
     const listed = await lookupGoogleMapsListing(parsed.name, cityHint)
     if (listed) {
@@ -402,20 +419,28 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
     }
   }
 
-  if ((!location || !address) && parsed.lat != null && parsed.lng != null) {
+  if (parsed.lat != null && parsed.lng != null) {
     try {
       const geo = await reverseGeocode(parsed.lat, parsed.lng, parsed.name)
-      if (!address && geo.address) address = geo.address
-      if (!location && hasStrongCityLocation(geo.location)) location = geo.location
 
-      // Listing search with state when city hint was missing/failed (Arte + Georgia).
-      if ((!location || !hasStrongCityLocation(location)) && parsed.name && geo.stateName) {
+      // Prefer Google's published city/address over OSM (College Park vs Atlanta at ATL).
+      if (parsed.name && geo.stateName) {
         const listed = await lookupGoogleMapsListing(parsed.name, geo.stateName)
         if (listed) {
           address = listed.address || address
           location = listed.location
         }
       }
+      if ((!location || !address) && searchQuery && geo.stateName) {
+        const listed = await lookupGoogleMapsListingQuery(`${searchQuery} ${geo.stateName}`)
+        if (listed) {
+          address = listed.address || address
+          location = listed.location
+        }
+      }
+
+      if (!address && geo.address) address = geo.address
+      if (!location && hasStrongCityLocation(geo.location)) location = geo.location
 
       // Place-title city hint + reverse state beats OSM hamlets.
       if ((!location || !hasStrongCityLocation(location)) && cityHint && geo.stateCode) {
