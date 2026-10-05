@@ -27,7 +27,8 @@ import {
 
 type PlaceInfo = NaverPlaceInfo | GooglePlaceInfo
 
-const CLIENT_CACHE_KEY = 'map-place-cache-v1'
+// Bump when place-lookup semantics change so stale wrong cities (e.g. College Park) are dropped.
+const CLIENT_CACHE_KEY = 'map-place-cache-v2'
 
 function readClientCache(placeId: string): PlaceInfo | null {
   if (!placeId) return null

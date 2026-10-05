@@ -75,7 +75,7 @@ async function resolveGoogleMapsUrl(url: string): Promise<string> {
   }
 }
 
-type GeoResult = { location: string; address: string }
+type GeoResult = { location: string; address: string; postcode?: string }
 
 function stateCodeFromAddress(addr: Record<string, string>): string {
   const stateName = addr.state || ''
@@ -127,6 +127,7 @@ function formatGeoResult(addr: Record<string, string>, displayName = ''): GeoRes
   const city = localityFromAddress(addr)
   const stateName = addr.state || ''
   const stateCode = stateCodeFromAddress(addr) || (stateName.length === 2 ? stateName : '')
+  const postcode = (addr.postcode || '').match(/\d{5}/)?.[0] || ''
 
   let location = ''
   if (city && stateCode) location = `${city}, ${stateCode}`
@@ -138,7 +139,37 @@ function formatGeoResult(addr: Record<string, string>, displayName = ''): GeoRes
   const address =
     [road, city, stateCode || stateName].filter(Boolean).join(', ') || displayName || ''
 
-  return { location, address }
+  return { location, address, postcode: postcode || undefined }
+}
+
+/** USPS-style postal city from ZIP — matches Google mailing cities (30320 → Atlanta, not College Park). */
+async function lookupUsZipCity(postcode: string): Promise<string | null> {
+  const zip = (postcode || '').match(/\d{5}/)?.[0]
+  if (!zip) return null
+  try {
+    const res = await fetch(`https://api.zippopotam.us/us/${zip}`, {
+      headers: { Accept: 'application/json', 'User-Agent': NOMINATIM_UA },
+      signal: AbortSignal.timeout(6000),
+      next: { revalidate: 86400 * 30 },
+    })
+    if (!res.ok) return null
+    const data = await res.json() as {
+      places?: Array<{ 'place name'?: string; 'state abbreviation'?: string }>
+    }
+    const place = data.places?.[0]
+    const city = (place?.['place name'] || '').trim()
+    const state = (place?.['state abbreviation'] || '').trim().toUpperCase()
+    if (!city || !state) return null
+    // Skip APO/AMF-style postal labels that are not real city names.
+    if (/^amf\b/i.test(city) || /^apo\b/i.test(city) || /^fpo\b/i.test(city)) return null
+    return `${city}, ${state}`
+  } catch {
+    return null
+  }
+}
+
+function postcodeFromAddress(address: string): string {
+  return address.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] || ''
 }
 
 async function nominatimReverse(lat: number, lng: number): Promise<GeoResult> {
@@ -247,6 +278,7 @@ async function photonReverse(lat: number, lng: number): Promise<GeoResult | null
       postcode: props.postcode || '',
       country: props.country || '',
     }
+    // keep postcode through formatGeoResult
     // Photon often returns state as "GA" already.
     if (addr.state.length === 2) {
       addr['ISO3166-2-lvl4'] = `US-${addr.state.toUpperCase()}`
@@ -348,12 +380,13 @@ async function reverseGeocode(
   // 2) Nominatim reverse (city/town only — hamlets ignored → often state-only)
   let geo = await nominatimReverse(lat, lng)
   let stateCode = stateCodeFromLocation(geo.location)
+  const postcode = geo.postcode
 
   // 3) Weak / state-only → Photon
   if (!hasStrongCityLocation(geo.location)) {
     const photon = await photonReverse(lat, lng)
     if (photon && hasStrongCityLocation(photon.location)) {
-      geo = photon
+      geo = { ...photon, postcode: photon.postcode || postcode }
       stateCode = stateCodeFromLocation(photon.location) || stateCode
     }
   }
@@ -364,6 +397,7 @@ async function reverseGeocode(
       geo = {
         location: stateOnly,
         address: geo.address.replace(/^[A-Za-z .'-]+ County,\s*/i, ''),
+        postcode: geo.postcode || postcode,
       }
       stateCode = stateCodeFromLocation(stateOnly) || stateOnly
     }
@@ -371,6 +405,7 @@ async function reverseGeocode(
 
   return {
     ...geo,
+    postcode: geo.postcode || postcode,
     stateCode,
     stateName: stateNameFromCode(stateCode),
   }
@@ -393,21 +428,29 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
   let address = parsed.address || ''
   const cityHint = parsed.cityHint || ''
   const searchQuery = parsed.searchQuery || ''
+  let trustedCity = false // URL address or Google listing — don't let ZIP/OSM override
 
   /*
-   * Source priority for venue location (Google listing beats OSM city labels):
-   * 1) Address already in the Maps URL / share text
-   * 2) Google listing via URL search query (`!15s`, e.g. airport gate text)
-   * 3) Google listing via name + city hint from place title
-   * 4) OSM near/reverse only to learn state (and as weak fallback)
-   * 5) Google listing via name + state — preferred over OSM's city
-   * 6) OSM/Photon municipality / city hint + state
+   * Source priority for venue location:
+   * 1) Address already in the Maps URL / share text (city from that address)
+   * 2) Google listing scrape (works locally; often blocked from Vercel)
+   * 3) US ZIP postal city (zippopotam) — reliable on serverless; beats OSM town
+   * 4) OSM/Photon municipality / city hint + state
    */
+  if (address) {
+    const fromAddr = toGoogleLocationArea(address)
+    if (hasStrongCityLocation(fromAddr)) {
+      location = fromAddr
+      trustedCity = true
+    }
+  }
+
   if (!address && searchQuery) {
     const listed = await lookupGoogleMapsListingQuery(searchQuery)
     if (listed) {
       address = listed.address
       location = listed.location
+      trustedCity = hasStrongCityLocation(location)
     }
   }
 
@@ -416,6 +459,7 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
     if (listed) {
       address = listed.address
       location = listed.location
+      trustedCity = hasStrongCityLocation(location)
     }
   }
 
@@ -423,26 +467,43 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
     try {
       const geo = await reverseGeocode(parsed.lat, parsed.lng, parsed.name)
 
-      // Prefer Google's published city/address over OSM (College Park vs Atlanta at ATL).
-      if (parsed.name && geo.stateName) {
+      // Best-effort Google listing (may fail on Vercel egress).
+      if (!trustedCity && parsed.name && geo.stateName) {
         const listed = await lookupGoogleMapsListing(parsed.name, geo.stateName)
         if (listed) {
           address = listed.address || address
           location = listed.location
+          trustedCity = hasStrongCityLocation(location)
         }
       }
-      if ((!location || !address) && searchQuery && geo.stateName) {
+      if (!trustedCity && searchQuery && geo.stateName) {
         const listed = await lookupGoogleMapsListingQuery(`${searchQuery} ${geo.stateName}`)
         if (listed) {
           address = listed.address || address
           location = listed.location
+          trustedCity = hasStrongCityLocation(location)
         }
       }
 
       if (!address && geo.address) address = geo.address
-      if (!location && hasStrongCityLocation(geo.location)) location = geo.location
 
-      // Place-title city hint + reverse state beats OSM hamlets.
+      // ZIP postal city — works from Vercel (30320 → Atlanta, not College Park).
+      if (!trustedCity) {
+        const zip =
+          geo.postcode ||
+          postcodeFromAddress(address) ||
+          postcodeFromAddress(geo.address || '')
+        if (zip) {
+          const postal = await lookupUsZipCity(zip)
+          if (postal && hasStrongCityLocation(postal)) {
+            location = postal
+            trustedCity = true
+          }
+        }
+      }
+
+      if (!trustedCity && hasStrongCityLocation(geo.location)) location = geo.location
+
       if ((!location || !hasStrongCityLocation(location)) && cityHint && geo.stateCode) {
         location = `${cityHint}, ${geo.stateCode}`
       } else if (!location && geo.location) {
