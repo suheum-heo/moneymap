@@ -17,6 +17,7 @@ import type { RecurringItem } from '../useRecurring'
 import EntryEditModal from './EntryEditModal'
 import ChevronDownIcon from './ChevronDownIcon'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
+import { looksLikeTripContext } from '../lib/contextTree'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -365,6 +366,15 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
 
   const periodNetHome = periodIncomeHome - periodExpensesHome
 
+  // Always all entries in this context — independent of the period filter below.
+  const tripExpenses = useMemo(() =>
+    contextEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toLocal(e), 0),
+    [contextEntries, cur, homeCur, convert])
+
+  const tripExpensesHome = useMemo(() =>
+    contextEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
+    [contextEntries, cur, homeCur, convert])
+
   const periodLabel = useMemo(() => {
     if (periodMode === 'all') return t('allTime')
     if (periodMode === 'year') return String(selectedPeriodYear)
@@ -651,6 +661,11 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     { label: t('net'), value: (periodNet < 0 ? '-' : '') + fmt(periodNet), sub: fmtHome(periodNetHome), color: periodNet < 0 ? 'app-negative' : 'app-accent' },
   ]
 
+  const isTripContext = looksLikeTripContext(activeContext, contexts || [])
+  const tripLabel = activeContext
+    ? `${activeContext.icon ? `${activeContext.icon} ` : ''}${activeContext.name}`
+    : ''
+
   return (
     <div className="overflow-x-hidden px-4 pb-6">
       <EntryEditModal
@@ -666,6 +681,28 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         onUpdate={onUpdate}
         onAdd={onAdd}
       />
+
+      {isTripContext && (
+        <button
+          type="button"
+          onClick={() => onNavigate('entries', 'expense')}
+          className="app-panel mb-3 flex w-full items-end justify-between gap-4 p-5 text-left transition-transform hover:-translate-y-0.5"
+        >
+          <div className="min-w-0">
+            <div className="app-kicker mb-2">{t('spentOnThisTrip')}</div>
+            <div className="truncate text-sm font-medium text-slate-700 dark:text-zinc-200">{tripLabel}</div>
+            <div className="mt-1 text-xs text-slate-400">{t('allTime')}</div>
+          </div>
+          <div className="flex-shrink-0 text-right">
+            <div className="whitespace-nowrap text-[1.72rem] font-semibold tracking-tight app-negative sm:text-[1.9rem]">
+              {fmt(tripExpenses)}
+            </div>
+            {fmtHome(tripExpensesHome) && (
+              <div className="mt-1 text-sm text-slate-400">{fmtHome(tripExpensesHome)}</div>
+            )}
+          </div>
+        </button>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-3">
         {[
@@ -693,9 +730,11 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
           aria-expanded={periodExpanded}
         >
           <div className="min-w-0 flex-1">
-            <div className="app-kicker mb-2">{t('periodTotals')}</div>
+            <div className="app-kicker mb-2">{isTripContext ? t('tripTotal') : t('periodTotals')}</div>
             <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:gap-3">
-              <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-zinc-50">{periodLabel}</h3>
+              <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-zinc-50">
+                {isTripContext && periodMode === 'all' ? t('spentOnThisTrip') : periodLabel}
+              </h3>
               <span className="text-xs text-slate-400">{t('entriesInPeriod', { count: periodEntries.length })}</span>
             </div>
           </div>

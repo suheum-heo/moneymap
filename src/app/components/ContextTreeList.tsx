@@ -165,6 +165,7 @@ function TreeRows({
   onDragHandleUp: (event: React.PointerEvent<HTMLButtonElement>) => void
   onDragHandleCancel: (event: React.PointerEvent<HTMLButtonElement>) => void
 }) {
+  const { t } = useTranslation()
   return (
     <>
       {nodes.map(node => {
@@ -276,8 +277,10 @@ function TreeRows({
                         type="button"
                         onClick={() => onAddChild(context)}
                         className="app-accent text-xs font-medium"
+                        title={t('newTrip')}
+                        aria-label={t('newTrip')}
                       >
-                        +
+                        {t('newTrip')}
                       </button>
                     )}
                     {onEdit && (
