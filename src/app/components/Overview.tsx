@@ -249,6 +249,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     return localStorage.getItem(PERIOD_TOTALS_EXPANDED_KEY) === 'true'
   })
   const periodContextRef = useRef<string | undefined>(undefined)
+  const overviewScopeContextRef = useRef<string | undefined>(undefined)
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
@@ -263,6 +264,11 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   const tooltipBorder = isDark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(203, 213, 225, 0.9)'
   const tooltipTitle = isDark ? '#f8fafc' : '#0f172a'
   const tooltipBody = isDark ? '#dbe4ef' : '#334155'
+
+  const isNestedLedger = looksLikeTripContext(activeContext, contexts || [])
+  const [overviewScope, setOverviewScope] = useState<'month' | 'year' | 'all'>(
+    () => (looksLikeTripContext(activeContext, contexts) ? 'all' : 'month'),
+  )
 
   // Overview rolls up trip children into spendable parents (e.g. Hidden Money + Japan).
   const contextEntries = useMemo(() => {
@@ -282,6 +288,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     [availableMonths])
 
   const currentMonthYear = Number(month.slice(0, 4))
+  const selectedYear = month.slice(0, 4)
   const defaultPeriodYear = availableYears.includes(currentMonthYear)
     ? currentMonthYear
     : availableYears[0] || currentMonthYear
@@ -297,6 +304,14 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   }, [activeContext?.id, defaultPeriodYear, minEntryMonth, maxEntryMonth])
 
   useEffect(() => {
+    const scopeContextId = activeContext?.id
+    if (overviewScopeContextRef.current === scopeContextId) return
+    overviewScopeContextRef.current = scopeContextId
+    // Nested ledgers default to all-time; flat daily ledgers stay on this month.
+    setOverviewScope(looksLikeTripContext(activeContext, contexts) ? 'all' : 'month')
+  }, [activeContext?.id, activeContext, contexts])
+
+  useEffect(() => {
     if (availableYears.length === 0) return
     if (!availableYears.includes(selectedPeriodYear)) setSelectedPeriodYear(defaultPeriodYear)
   }, [availableYears, defaultPeriodYear, selectedPeriodYear])
@@ -305,20 +320,29 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     localStorage.setItem(PERIOD_TOTALS_EXPANDED_KEY, periodExpanded ? 'true' : 'false')
   }, [periodExpanded])
 
-  const monthEntries = useMemo(() =>
-    contextEntries.filter(e => e.date.startsWith(month)),
-    [contextEntries, month])
+  // Main Overview cards/charts follow this scope (month / year / all).
+  const overviewEntries = useMemo(() => {
+    if (overviewScope === 'all') return contextEntries
+    if (overviewScope === 'year') return contextEntries.filter(e => e.date.startsWith(selectedYear))
+    return contextEntries.filter(e => e.date.startsWith(month))
+  }, [contextEntries, overviewScope, month, selectedYear])
+
+  const overviewScopeLabel = overviewScope === 'all'
+    ? t('allTime')
+    : overviewScope === 'year'
+      ? selectedYear
+      : t('thisMonth')
 
   const toLocal = (e: Entry) => convertEntryAmount(e, cur, homeCur, cur, convert)
 
   // Sum in local currency (cur) for display
   const expenses = useMemo(() =>
-    monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toLocal(e), 0),
-    [monthEntries, cur, homeCur, convert])
+    overviewEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toLocal(e), 0),
+    [overviewEntries, cur, homeCur, convert])
 
   const income = useMemo(() =>
-    monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + toLocal(e), 0),
-    [monthEntries, cur, homeCur, convert])
+    overviewEntries.filter(e => e.type === 'income').reduce((s, e) => s + toLocal(e), 0),
+    [overviewEntries, cur, homeCur, convert])
 
   const net = income - expenses
 
@@ -385,12 +409,12 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   }, [language, periodBounds.end, periodBounds.start, periodMode, selectedPeriodYear, t])
 
   const expensesHome = useMemo(() =>
-    monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
-    [monthEntries, showConversion, cur, homeCur, convert])
+    overviewEntries.filter(e => e.type === 'expense').reduce((s, e) => s + toHome(e), 0),
+    [overviewEntries, showConversion, cur, homeCur, convert])
 
   const incomeHome = useMemo(() =>
-    monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + toHome(e), 0),
-    [monthEntries, showConversion, cur, homeCur, convert])
+    overviewEntries.filter(e => e.type === 'income').reduce((s, e) => s + toHome(e), 0),
+    [overviewEntries, showConversion, cur, homeCur, convert])
 
   const netHome = incomeHome - expensesHome
 
@@ -420,16 +444,16 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
 
   const byCategory = useMemo(() => {
     const cats: Record<string, number> = {}
-    monthEntries.filter(e => e.type === 'expense').forEach(e => {
+    overviewEntries.filter(e => e.type === 'expense').forEach(e => {
       cats[e.category] = (cats[e.category] || 0) + toLocal(e)
     })
     return Object.entries(cats).sort((a, b) => b[1] - a[1])
-  }, [monthEntries, cur, homeCur, convert])
+  }, [overviewEntries, cur, homeCur, convert])
 
   const byPaymentMethod = useMemo(() => {
     const methods: Record<string, number> = {}
     const counts: Record<string, number> = {}
-    monthEntries.filter(e => e.type === 'expense').forEach(e => {
+    overviewEntries.filter(e => e.type === 'expense').forEach(e => {
       const key = e.paymentMethod?.trim() || UNSPECIFIED_PAYMENT_METHOD
       methods[key] = (methods[key] || 0) + toLocal(e)
       counts[key] = (counts[key] || 0) + 1
@@ -442,7 +466,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         amount,
         count: counts[key] || 0,
       }))
-  }, [monthEntries, cur, homeCur, convert, t])
+  }, [overviewEntries, cur, homeCur, convert, t])
 
   const paymentMethodSummary = useMemo(() => {
     if (byPaymentMethod.length === 0 || expenses <= 0) return ''
@@ -454,38 +478,38 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
 
   const byLocation = useMemo(() => {
     const locs: Record<string, number> = {}
-    monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
+    overviewEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
       locs[e.location.trim()] = (locs[e.location.trim()] || 0) + toLocal(e)
     })
     return Object.entries(locs).sort((a, b) => b[1] - a[1])
-  }, [monthEntries, cur, homeCur, convert])
+  }, [overviewEntries, cur, homeCur, convert])
 
   const locationEntryCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
+    overviewEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
       const loc = e.location.trim()
       counts[loc] = (counts[loc] || 0) + 1
     })
     return counts
-  }, [monthEntries])
+  }, [overviewEntries])
 
   const byLocationRegion = useMemo(() => {
     const regions: Record<string, number> = {}
-    monthEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
+    overviewEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
       const region = getLocationRegion(e.location, language)
       if (!region) return
       regions[region] = (regions[region] || 0) + toLocal(e)
     })
     return Object.entries(regions).sort((a, b) => b[1] - a[1])
-  }, [monthEntries, cur, homeCur, convert, language])
+  }, [overviewEntries, cur, homeCur, convert, language])
 
   const locationEntries = useMemo(() => {
     if (!expandedLocation) return []
     return sortEntriesForDisplay(
-      monthEntries.filter(e => e.type === 'expense' && e.location?.trim() === expandedLocation),
+      overviewEntries.filter(e => e.type === 'expense' && e.location?.trim() === expandedLocation),
       sortOrder,
     )
-  }, [expandedLocation, monthEntries, sortOrder])
+  }, [expandedLocation, overviewEntries, sortOrder])
 
   useEffect(() => {
     if (expandedLocation && !byLocation.some(([loc]) => loc === expandedLocation)) {
@@ -664,7 +688,6 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   ]
 
   // Nested ledger under a spendable parent (daily list, trip, etc.) — not always a "trip".
-  const isNestedLedger = looksLikeTripContext(activeContext, contexts || [])
   const hasNestedChildren = Boolean(
     activeContext && !isNestedLedger && hasContextChildren(activeContext, contexts || []),
   )
@@ -714,6 +737,25 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         <p className="mb-3 text-xs text-slate-400">{t('includesNestedSpend')}</p>
       )}
 
+      <div className="mb-3 inline-flex max-w-full flex-wrap rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
+        {([
+          ['month', t('thisMonth')],
+          ['year', t('year')],
+          ['all', t('allTime')],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setOverviewScope(value)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${overviewScope === value
+              ? 'bg-white text-slate-900 shadow-[0_8px_18px_-14px_rgba(15,23,42,0.26)] dark:bg-slate-950 dark:text-zinc-100'
+              : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-zinc-200'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           { label: t('expenses'), value: fmt(expenses), sub: fmtHome(expensesHome), color: 'app-negative', filter: 'expense' },
@@ -722,11 +764,12 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         ].map(m => (
           <button
             key={m.label}
-            onClick={() => onNavigate('entries', m.filter)}
+            onClick={() => onNavigate('entries', m.filter, undefined, overviewScope)}
             className="app-panel flex flex-col items-start gap-2.5 p-5 text-left transition-transform hover:-translate-y-0.5"
           >
             <span className="app-kicker">{m.label}</span>
             <span className={`whitespace-nowrap text-[1.58rem] font-semibold tracking-tight sm:text-[1.72rem] xl:text-[1.82rem] ${m.color}`}>{m.value}</span>
+            <span className="text-xs text-slate-400">{overviewScopeLabel}</span>
             {m.sub && <span className="text-sm text-slate-400">{m.sub}</span>}
           </button>
         ))}
@@ -841,7 +884,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         )}
       </div>
 
-      {lastMonthExpenses > 0 && (
+      {overviewScope === 'month' && lastMonthExpenses > 0 && (
         <div className="app-panel mt-4 px-4 py-4 sm:px-5">
           <div className="app-kicker mb-3">{t('vsLastMonth')}</div>
           <div className="flex flex-col gap-2">
@@ -863,11 +906,11 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         </div>
       )}
 
-      {monthEntries.length === 0 && (
+      {overviewEntries.length === 0 && (
         <div className="app-panel mt-5 py-12 text-center text-sm text-slate-400">{t('noEntries')}</div>
       )}
 
-      {monthEntries.length > 0 && (
+      {overviewEntries.length > 0 && (
         <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.95fr)]">
           <div className="app-panel p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -882,14 +925,17 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
               {byCategory.map(([cat, amt]) => {
                 const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                 const col = getCategoryColor(cat, 'expense')
-                const budget = activeContext ? getBudget(activeContext.id, cat) : null
+                // Monthly budgets only make sense against this-month spend.
+                const budget = overviewScope === 'month' && activeContext
+                  ? getBudget(activeContext.id, cat)
+                  : null
                 const budgetPct = budget ? (amt / budget) * 100 : null
                 const isWarning = budgetPct !== null && budgetPct >= 80 && budgetPct < 100
                 const isDanger = budgetPct !== null && budgetPct >= 100
                 const isExpanded = expandedCat === cat
                 const catEntriesForCat = isExpanded
                   ? sortEntriesForDisplay(
-                    monthEntries.filter(e => e.type === 'expense' && e.category === cat),
+                    overviewEntries.filter(e => e.type === 'expense' && e.category === cat),
                     sortOrder,
                   )
                   : []
@@ -957,7 +1003,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                             {t('entryCount', { count: catEntriesForCat.length })} · {t('total')} {formatAmount(amt, cur)}
                           </div>
                           <button
-                            onClick={() => onNavigate('entries', 'expense', cat)}
+                            onClick={() => onNavigate('entries', 'expense', cat, overviewScope)}
                             className="flex-shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-[#5b8ef0] transition-colors hover:text-[#255fcb] dark:text-sky-300 dark:hover:text-sky-200"
                           >
                             {t('viewAllInEntries')}
@@ -1007,7 +1053,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
               const isExpanded = expandedPaymentMethod === item.key
               const methodEntries = isExpanded
                 ? sortEntriesForDisplay(
-                  monthEntries.filter(e =>
+                  overviewEntries.filter(e =>
                     e.type === 'expense'
                     && ((e.paymentMethod?.trim() || UNSPECIFIED_PAYMENT_METHOD) === item.key),
                   ),
