@@ -25,7 +25,7 @@ interface Props {
   entries: Entry[]
   items?: RecurringItem[]
   month: string
-  onNavigate: (tab: string, filter?: string, categoryFilter?: string) => void
+  onNavigate: (tab: string, filter?: string, categoryFilter?: string, dateScope?: 'month' | 'year' | 'all') => void
   onUpdate: (entry: Entry) => void
   onAdd?: (entry: Entry) => Promise<void> | void
   sortOrder: EntrySortOrder
@@ -691,13 +691,13 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
       {isNestedLedger && (
         <button
           type="button"
-          onClick={() => onNavigate('entries', 'expense')}
+          onClick={() => onNavigate('entries', 'expense', undefined, 'all')}
           className="app-panel mb-3 flex w-full items-end justify-between gap-4 p-5 text-left transition-transform hover:-translate-y-0.5"
         >
           <div className="min-w-0">
             <div className="app-kicker mb-2">{t('totalSpent')}</div>
             <div className="truncate text-sm font-medium text-slate-700 dark:text-zinc-200">{contextLabel}</div>
-            <div className="mt-1 text-xs text-slate-400">{t('allTime')}</div>
+            <div className="mt-1 text-xs text-slate-400">{t('viewAllEntries')}</div>
           </div>
           <div className="flex-shrink-0 text-right">
             <div className="whitespace-nowrap text-[1.72rem] font-semibold tracking-tight app-negative sm:text-[1.9rem]">
