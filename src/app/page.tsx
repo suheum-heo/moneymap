@@ -14,7 +14,7 @@ import Calendar from './components/Calendar'
 import AuthGate from './components/AuthGate'
 import Onboarding from './components/Onboarding'
 import ContextTreeList from './components/ContextTreeList'
-import { canHoldEntries, getContextDisplayName } from './lib/contextTree'
+import { canHoldEntries, getContextDisplayName, looksLikeTripContext } from './lib/contextTree'
 import { UserContext } from './UserContext'
 import { formatFullDate, getEntryCurrency, shouldRepairLegacyEntryCurrency, Context, EntrySortOrder } from './types'
 import type { User } from '@supabase/supabase-js'
@@ -89,6 +89,7 @@ function AppContent({ user }: { user: User }) {
   const [tab, setTab] = useState<Tab>('overview')
   const [entriesFilter, setEntriesFilter] = useState<string>('all')
   const [entriesCategoryFilter, setEntriesCategoryFilter] = useState<string>('all')
+  const [entriesDateScope, setEntriesDateScope] = useState<'month' | 'year' | 'all'>('month')
   const [entrySortOrder, setEntrySortOrder] = useState<EntrySortOrder | null>(null)
   const [dark, setDark] = useState<boolean | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -110,11 +111,26 @@ function AppContent({ user }: { user: User }) {
     settings: t('settings'),
   } as const)[tab]
 
-  const navigateTo = (newTab: string, filter?: string, categoryFilter?: string) => {
+  const navigateTo = (
+    newTab: string,
+    filter?: string,
+    categoryFilter?: string,
+    dateScope?: 'month' | 'year' | 'all',
+  ) => {
     setTab(newTab as Tab)
     setEntriesFilter(filter || 'all')
     setEntriesCategoryFilter(categoryFilter || 'all')
+    // Explicit scope from Overview (e.g. Total spent → all). Month cards stay month.
+    if (dateScope) setEntriesDateScope(dateScope)
+    else if (newTab === 'entries') setEntriesDateScope('month')
   }
+
+  // Nested ledgers (trips / sublists) default Entries to all-time; flat ledgers stay month.
+  useEffect(() => {
+    setEntriesDateScope(
+      looksLikeTripContext(activeContext, contexts) ? 'all' : 'month',
+    )
+  }, [activeContext?.id]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only on context switch
 
   const openAddEntry = useCallback((date: string | null = null) => {
     setCalendarAddDate(date)
@@ -309,7 +325,7 @@ function AppContent({ user }: { user: User }) {
   const renderTabContent = () => (
     <>
       {tab === 'overview' && <Overview entries={entries} items={items} month={month} onNavigate={navigateTo} onUpdate={updateEntry} onAdd={addEntry} sortOrder={entrySortOrder} activeContext={activeContext} contexts={contexts} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'entries' && <Entries entries={entries} items={items} month={month} onDelete={deleteEntry} onUpdate={updateEntry} onAdd={addEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} contexts={contexts} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
+      {tab === 'entries' && <Entries entries={entries} items={items} month={month} onDelete={deleteEntry} onUpdate={updateEntry} onAdd={addEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} initialDateScope={entriesDateScope} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} contexts={contexts} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} items={items} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={openAddEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} contexts={contexts} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} sortOrder={entrySortOrder || 'newest'} />}
       {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} moveContext={moveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} rateSource={rateSource} effectiveRateSource={effectiveRateSource} rateFallback={rateFallback} setRateSource={setRateSource} cardFeePct={cardFeePct} setCardFeePct={setCardFeePct} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} importRecurringFromContext={importRecurringFromContext} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} importCategoriesFromContext={importCategoriesFromContext} moveEntriesFromContext={moveEntriesFromContext} renamePaymentMethod={renamePaymentMethod} renameVenue={renameVenue} renameLocation={renameLocation} />}

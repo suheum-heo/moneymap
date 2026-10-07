@@ -58,6 +58,7 @@ interface Props {
   onAdd?: (entry: Entry) => Promise<void> | void
   initialTypeFilter?: string
   initialCategoryFilter?: string
+  initialDateScope?: 'month' | 'year' | 'all'
   sortOrder: EntrySortOrder
   onSortOrderChange: (sortOrder: EntrySortOrder) => void
   activeContext?: Context
@@ -90,14 +91,14 @@ function formatManualOrderCreatedAt(index: number, total: number, sortOrder: Ent
   return new Date(baseMs + orderedIndex).toISOString()
 }
 
-export default function Entries({ entries, items = [], month, onDelete, onUpdate, onAdd, initialTypeFilter = 'all', initialCategoryFilter = 'all', sortOrder, onSortOrderChange, activeContext, contexts = [], convert, expenseCategories, incomeCategories }: Props) {
+export default function Entries({ entries, items = [], month, onDelete, onUpdate, onAdd, initialTypeFilter = 'all', initialCategoryFilter = 'all', initialDateScope = 'month', sortOrder, onSortOrderChange, activeContext, contexts = [], convert, expenseCategories, incomeCategories }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter)
   const [catFilter, setCatFilter] = useState(initialCategoryFilter)
   const [search, setSearch] = useState('')
   const [weekOnly, setWeekOnly] = useState(false)
-  const [dateScope, setDateScope] = useState<'month' | 'year' | 'all'>('month')
+  const [dateScope, setDateScope] = useState<'month' | 'year' | 'all'>(initialDateScope)
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
@@ -107,6 +108,24 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const listTopRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    setTypeFilter(initialTypeFilter)
+  }, [initialTypeFilter])
+
+  useEffect(() => {
+    setCatFilter(initialCategoryFilter)
+  }, [initialCategoryFilter])
+
+  useEffect(() => {
+    setDateScope(initialDateScope)
+    if (initialDateScope !== 'month') {
+      setWeekOnly(false)
+      setReorderMode(false)
+      setDraggedId(null)
+      setDropTargetId(null)
+    }
+  }, [initialDateScope])
 
   const cur = activeContext?.currency || 'USD'
   const homeCur = activeContext?.homeCurrency || cur
