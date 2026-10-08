@@ -21,6 +21,11 @@ import {
   type NaverPlaceInfo,
 } from '../lib/naverPlace'
 import {
+  koreanAreaToEnglish,
+  normalizeLocationNames,
+  type LocationNames,
+} from '../lib/locationBilingual'
+import {
   normalizePlaceSuggestionKey,
   type VenueLocationOption,
 } from '../lib/placeSuggestions'
@@ -28,7 +33,7 @@ import {
 type PlaceInfo = NaverPlaceInfo | GooglePlaceInfo
 
 // Bump when place-lookup semantics change so stale wrong cities (e.g. College Park) are dropped.
-const CLIENT_CACHE_KEY = 'map-place-cache-v2'
+const CLIENT_CACHE_KEY = 'map-place-cache-v3'
 
 function readClientCache(placeId: string): PlaceInfo | null {
   if (!placeId) return null
@@ -123,13 +128,30 @@ interface Props {
   venue: string
   location: string
   onVenueChange: (value: string) => void
-  onLocationChange: (value: string) => void
+  /** Second arg carries save-time bilingual labels from map lookup (cleared on manual edit). */
+  onLocationChange: (value: string, names?: LocationNames) => void
   placeholders: { venue: string; location: string }
   inputCls: string
   venueListId?: string
   locationListId?: string
   venueLocationOptions?: VenueLocationOption[]
   gridClassName?: string
+}
+
+function namesFromPlace(data: PlaceInfo, locationValue: string): LocationNames {
+  const fromApi = normalizeLocationNames({
+    locationLocal: data.locationLocal,
+    locationEn: data.locationEn,
+  })
+  if (fromApi.locationLocal || fromApi.locationEn) return fromApi
+
+  // Offline Naver share paste: still attach English via the static KR map.
+  const local = locationValue.trim()
+  const en = koreanAreaToEnglish(local)
+  return normalizeLocationNames({
+    locationLocal: local || undefined,
+    locationEn: en || undefined,
+  })
 }
 
 export default function VenueLocationFields({
@@ -164,7 +186,9 @@ export default function VenueLocationFields({
     (data: PlaceInfo) => {
       const normalized = normalizeGooglePlaceFields(data)
       if (normalized.name) onVenueChange(normalized.name)
-      if (normalized.location) onLocationChange(normalized.location)
+      if (normalized.location) {
+        onLocationChange(normalized.location, namesFromPlace({ ...data, ...normalized }, normalized.location))
+      }
       triggerBoom()
       writeClientCache({ ...data, ...normalized })
       setLookupError('')
@@ -230,7 +254,9 @@ export default function VenueLocationFields({
       })
       const optimisticAddress = optimistic.address
       if (optimistic.name) onVenueChange(optimistic.name)
-      if (optimistic.location) onLocationChange(optimistic.location)
+      if (optimistic.location) {
+        onLocationChange(optimistic.location, namesFromPlace(optimistic, optimistic.location))
+      }
 
       setLookingUp(true)
       setLookupError('')
@@ -379,18 +405,24 @@ export default function VenueLocationFields({
       const venueKey = normalizePlaceSuggestionKey(value)
       if (!venueKey) return
 
-      const matchingLocations = new Map<string, string>()
+      const matchingLocations = new Map<string, VenueLocationOption>()
       venueLocationOptions.forEach(option => {
         if (normalizePlaceSuggestionKey(option.venue) !== venueKey) return
         const nextLocation = option.location.trim()
         const locationKey = normalizePlaceSuggestionKey(nextLocation)
         if (!locationKey || matchingLocations.has(locationKey)) return
-        matchingLocations.set(locationKey, nextLocation)
+        matchingLocations.set(locationKey, option)
       })
 
       if (matchingLocations.size !== 1) return
-      const [nextLocation] = matchingLocations.values()
-      if (nextLocation !== location) onLocationChange(nextLocation)
+      const [option] = matchingLocations.values()
+      const nextLocation = option.location.trim()
+      if (nextLocation !== location) {
+        onLocationChange(nextLocation, normalizeLocationNames({
+          locationLocal: option.locationLocal,
+          locationEn: option.locationEn,
+        }))
+      }
     },
     [location, onLocationChange, venueLocationOptions],
   )
@@ -412,7 +444,8 @@ export default function VenueLocationFields({
   }
 
   const handleLocationChange = (value: string) => {
-    onLocationChange(value)
+    // Manual typing clears bilingual labels; map paste/lookup re-fills them.
+    onLocationChange(value, {})
     if (containsMapLink(value)) {
       void fillFromMapText(value)
       return

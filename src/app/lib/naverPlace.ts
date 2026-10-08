@@ -3,6 +3,10 @@ export interface NaverPlaceInfo {
   location: string
   address: string
   placeId: string
+  /** Korean short area (same as location for Naver). */
+  locationLocal?: string
+  /** English short area, e.g. "Gangnam-gu, Seoul". */
+  locationEn?: string
 }
 
 export interface NaverShareParse {

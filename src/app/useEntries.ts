@@ -31,6 +31,8 @@ function decodeEntryPayment(
   let encodedTime = ''
   let encodedHomeAmountCurrency = ''
   let encodedCopyGroupId = ''
+  let encodedLocationLocal = ''
+  let encodedLocationEn = ''
 
   if (match?.[1] && match.index != null) {
     cleanRemarks = remarks.slice(0, match.index).trimEnd()
@@ -40,16 +42,22 @@ function decodeEntryPayment(
         time?: unknown
         homeAmountCurrency?: unknown
         copyGroupId?: unknown
+        locationLocal?: unknown
+        locationEn?: unknown
       }
       encodedPaymentMethod = typeof parsed.paymentMethod === 'string' ? parsed.paymentMethod : ''
       encodedTime = typeof parsed.time === 'string' ? parsed.time : ''
       encodedHomeAmountCurrency = typeof parsed.homeAmountCurrency === 'string' ? parsed.homeAmountCurrency : ''
       encodedCopyGroupId = typeof parsed.copyGroupId === 'string' ? parsed.copyGroupId : ''
+      encodedLocationLocal = typeof parsed.locationLocal === 'string' ? parsed.locationLocal : ''
+      encodedLocationEn = typeof parsed.locationEn === 'string' ? parsed.locationEn : ''
     } catch {
       encodedPaymentMethod = ''
       encodedTime = ''
       encodedHomeAmountCurrency = ''
       encodedCopyGroupId = ''
+      encodedLocationLocal = ''
+      encodedLocationEn = ''
     }
   }
 
@@ -61,6 +69,8 @@ function decodeEntryPayment(
       ? rawHomeAmountCurrency
       : encodedHomeAmountCurrency,
     copyGroupId: encodedCopyGroupId.trim() || undefined,
+    locationLocal: encodedLocationLocal.trim() || undefined,
+    locationEn: encodedLocationEn.trim() || undefined,
   }
 }
 
@@ -70,6 +80,8 @@ function encodeEntryRemarks(
   time = '',
   homeAmountCurrency = '',
   copyGroupId = '',
+  locationLocal = '',
+  locationEn = '',
 ) {
   const decoded = decodeEntryPayment(remarks, '')
   const cleanRemarks = decoded.remarks.trim()
@@ -77,12 +89,26 @@ function encodeEntryRemarks(
   const cleanTime = time.trim()
   const cleanHomeAmountCurrency = homeAmountCurrency.trim()
   const cleanCopyGroupId = copyGroupId.trim() || decoded.copyGroupId || ''
-  if (!cleanPaymentMethod && !cleanTime && !cleanHomeAmountCurrency && !cleanCopyGroupId) return cleanRemarks
+  // Prefer explicit bilingual args (empty clears). Do not revive from remarks.
+  const cleanLocationLocal = locationLocal.trim()
+  const cleanLocationEn = locationEn.trim()
+  if (
+    !cleanPaymentMethod
+    && !cleanTime
+    && !cleanHomeAmountCurrency
+    && !cleanCopyGroupId
+    && !cleanLocationLocal
+    && !cleanLocationEn
+  ) {
+    return cleanRemarks
+  }
   const metadata = JSON.stringify({
     ...(cleanPaymentMethod ? { paymentMethod: cleanPaymentMethod } : {}),
     ...(cleanTime ? { time: cleanTime } : {}),
     ...(cleanHomeAmountCurrency ? { homeAmountCurrency: cleanHomeAmountCurrency } : {}),
     ...(cleanCopyGroupId ? { copyGroupId: cleanCopyGroupId } : {}),
+    ...(cleanLocationLocal ? { locationLocal: cleanLocationLocal } : {}),
+    ...(cleanLocationEn ? { locationEn: cleanLocationEn } : {}),
   })
   return `${cleanRemarks}${cleanRemarks ? '\n' : ''}${PAYMENT_META_PREFIX}${metadata}${PAYMENT_META_SUFFIX}`
 }
@@ -127,14 +153,18 @@ function buildEntryRemarksPayload(
   includeHomeAmountCurrencyColumn: boolean,
 ) {
   const needsMetaFallback = !includePaymentMethodColumn || !includeTimeColumn || !includeHomeAmountCurrencyColumn
-  // Always persist copyGroupId in remarks meta — it has no dedicated column.
-  if (!needsMetaFallback && !entry.copyGroupId) return entry.remarks
+  // Always persist copyGroupId + bilingual location in remarks meta — no dedicated columns.
+  if (!needsMetaFallback && !entry.copyGroupId && !entry.locationLocal && !entry.locationEn) {
+    return entry.remarks
+  }
   return encodeEntryRemarks(
     entry.remarks,
     includePaymentMethodColumn ? '' : entry.paymentMethod || '',
     includeTimeColumn ? '' : entry.time || '',
     includeHomeAmountCurrencyColumn ? '' : entry.homeAmountCurrency || '',
     entry.copyGroupId || '',
+    entry.locationLocal || '',
+    entry.locationEn || '',
   )
 }
 
@@ -207,6 +237,8 @@ export function useEntries() {
                 ? normalizeCurrencyCode(decoded.homeAmountCurrency)
                 : undefined,
               copyGroupId: decoded.copyGroupId,
+              locationLocal: decoded.locationLocal,
+              locationEn: decoded.locationEn,
             }
           })()
         })))

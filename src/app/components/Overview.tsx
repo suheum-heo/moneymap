@@ -19,8 +19,8 @@ import ChevronDownIcon from './ChevronDownIcon'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
 import { entryBelongsToContext, hasContextChildren, looksLikeTripContext } from '../lib/contextTree'
 import {
-  formatLocationLabelForMode,
-  getLocationRegionForMode,
+  formatLocationLabelForModeFromSource,
+  getLocationRegionForModeFromSource,
   type LocationNameMode,
 } from '../lib/locationLabels'
 import { Chart, registerables } from 'chart.js'
@@ -334,10 +334,35 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     return counts
   }, [overviewEntries])
 
+  /** First bilingual names seen per canonical location string (for chart labels). */
+  const locationNameLookup = useMemo(() => {
+    const map = new Map<string, { locationLocal?: string; locationEn?: string }>()
+    overviewEntries.forEach(e => {
+      const key = e.location?.trim()
+      if (!key || map.has(key)) return
+      if (e.locationLocal?.trim() || e.locationEn?.trim()) {
+        map.set(key, {
+          ...(e.locationLocal?.trim() ? { locationLocal: e.locationLocal.trim() } : {}),
+          ...(e.locationEn?.trim() ? { locationEn: e.locationEn.trim() } : {}),
+        })
+      }
+    })
+    return map
+  }, [overviewEntries])
+
+  const labelForLocation = (location: string) => {
+    const names = locationNameLookup.get(location.trim())
+    return formatLocationLabelForModeFromSource(
+      { location, locationLocal: names?.locationLocal, locationEn: names?.locationEn },
+      language,
+      locationNameMode,
+    )
+  }
+
   const byLocationRegion = useMemo(() => {
     const regions: Record<string, number> = {}
     overviewEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
-      const region = getLocationRegionForMode(e.location, language, locationNameMode)
+      const region = getLocationRegionForModeFromSource(e, language, locationNameMode)
       if (!region) return
       regions[region] = (regions[region] || 0) + toLocal(e)
     })
@@ -420,7 +445,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     locChartInstance.current = new Chart(locChartRef.current, {
       type: 'bar',
       data: {
-        labels: byLocation.map(([l]) => formatLocationLabelForMode(l, language, locationNameMode)),
+        labels: byLocation.map(([l]) => labelForLocation(l)),
         datasets: [{
           data: byLocation.map(([, v]) => parseFloat(v.toFixed(2))),
           backgroundColor: accentBarColor,
@@ -462,7 +487,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
       }
     })
     return () => { locChartInstance.current?.destroy() }
-  }, [byLocation, chartGridColor, chartTextColor, locationChartTextColor, accentBarColor, cur, language, locationNameMode])
+  }, [byLocation, chartGridColor, chartTextColor, locationChartTextColor, accentBarColor, cur, language, locationNameMode, locationNameLookup])
 
   useEffect(() => {
     if (!regionChartRef.current || byLocationRegion.length === 0) {
@@ -827,7 +852,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                 <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                  {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabelForMode(e.location, language, locationNameMode)}` : ''}</div>}
+                                  {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabelForModeFromSource(e, language, locationNameMode)}` : ''}</div>}
                                   {e.paymentMethod && <div className="truncate text-xs text-slate-400">{e.paymentMethod}</div>}
                                 </div>
                                 <div className="min-w-0 flex-shrink-0 text-right">
@@ -951,7 +976,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                               <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
                               <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabelForMode(e.location, language, locationNameMode)}` : ''}</div>}
+                                {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabelForModeFromSource(e, language, locationNameMode)}` : ''}</div>}
                                 <div className="truncate text-xs text-slate-400">{e.category}</div>
                               </div>
                               <div className="min-w-0 flex-shrink-0 text-right">
@@ -1064,7 +1089,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
               {byLocation.map(([loc, amt]) => {
                 const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                 const isExpanded = expandedLocation === loc
-                const locationLabel = formatLocationLabelForMode(loc, language, locationNameMode)
+                const locationLabel = labelForLocation(loc)
                 return (
                   <div key={loc} className="min-w-0 space-y-2">
                     <button
@@ -1125,7 +1150,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
                                           <span>{formatEntryDate(e.date, language)}</span>
                                           <span aria-hidden="true">·</span>
-                                          <span className="truncate">{formatLocationLabelForMode(e.location, language, locationNameMode)}</span>
+                                          <span className="truncate">{formatLocationLabelForModeFromSource(e, language, locationNameMode)}</span>
                                           {e.venue ? (
                                             <>
                                               <span aria-hidden="true">·</span>

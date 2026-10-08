@@ -64,6 +64,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const [summary, setSummary] = useState(saved.summary || '')
   const [venue, setVenue] = useState(saved.venue || '')
   const [location, setLocation] = useState(saved.location || '')
+  const [locationLocal, setLocationLocal] = useState(saved.locationLocal || '')
+  const [locationEn, setLocationEn] = useState(saved.locationEn || '')
   const [category, setCategory] = useState(saved.category || '')
   const [paymentMethod, setPaymentMethod] = useState(saved.paymentMethod || '')
   const [remarks, setRemarks] = useState(saved.remarks || '')
@@ -83,10 +85,10 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   useEffect(() => {
     if (savingRef.current || isSaving) return
     sessionStorage.setItem('addentry-draft', JSON.stringify({
-      entryType, amount, summary, venue, location, category, paymentMethod, remarks,
+      entryType, amount, summary, venue, location, locationLocal, locationEn, category, paymentMethod, remarks,
       month, day, year,
     }))
-  }, [entryType, amount, summary, venue, location, category, paymentMethod, remarks, month, day, year, isSaving])
+  }, [entryType, amount, summary, venue, location, locationLocal, locationEn, category, paymentMethod, remarks, month, day, year, isSaving])
 
   const cats = entryType === 'expense' ? expenseCategories : incomeCategories
   const maxDay = daysInMonth(month, year)
@@ -131,6 +133,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     setActualCharged('')
     setActualChargedCurrency(homeCur)
     setVenue(r.venue || ''); setLocation(r.location || '')
+    setLocationLocal(''); setLocationEn('')
     setShowRecurring(false)
   }
 
@@ -189,6 +192,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       summary: summary.trim(),
       venue: venue.trim(),
       location: location.trim(),
+      locationLocal: locationLocal.trim() || undefined,
+      locationEn: locationEn.trim() || undefined,
       category,
       amount: parsed,
       paymentMethod: paymentMethod.trim(),
@@ -206,7 +211,8 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       if (shouldCopy) {
         await addEntryCopiesToContexts(entry, copyTargetIds, [...entries, entry], onAdd, sortOrder, copyGroupId)
       }
-      setSummary(''); setAmount(''); setVenue(''); setLocation(''); setPaymentMethod(''); setRemarks('')
+      setSummary(''); setAmount(''); setVenue(''); setLocation(''); setLocationLocal(''); setLocationEn('')
+      setPaymentMethod(''); setRemarks('')
       setCurrency(contextCur); setShowCurrencyOverride(false); setActualCharged('')
       setAlsoCopyEnabled(false); setCopyTargetIds([])
       onDone()
@@ -329,7 +335,13 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
             venue={venue}
             location={location}
             onVenueChange={setVenue}
-            onLocationChange={setLocation}
+            onLocationChange={(value, names) => {
+              setLocation(value)
+              if (names) {
+                setLocationLocal(names.locationLocal || '')
+                setLocationEn(names.locationEn || '')
+              }
+            }}
             placeholders={placeholders}
             inputCls={inputCls}
             venueListId="venue-list"

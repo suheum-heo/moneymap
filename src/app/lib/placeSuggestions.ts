@@ -3,6 +3,8 @@ import { Entry, sortEntriesForDisplay } from '../types'
 export interface VenueLocationOption {
   venue: string
   location: string
+  locationLocal?: string
+  locationEn?: string
 }
 
 export interface PaymentMethodSuggestionSource {
@@ -64,7 +66,12 @@ export function getContextPlaceSuggestions(
     if (!venueKey || !locationKey) return
     const pairKey = `${venueKey}|${locationKey}`
     if (venueLocationPairs.has(pairKey)) return
-    venueLocationPairs.set(pairKey, { venue, location })
+    venueLocationPairs.set(pairKey, {
+      venue,
+      location,
+      ...(entry.locationLocal?.trim() ? { locationLocal: entry.locationLocal.trim() } : {}),
+      ...(entry.locationEn?.trim() ? { locationEn: entry.locationEn.trim() } : {}),
+    })
   })
 
   sortEntriesForDisplay(entries, 'newest').forEach(entry => {
