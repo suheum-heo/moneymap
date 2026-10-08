@@ -7,6 +7,13 @@ import {
   entryContentChanged,
   findCopyGroupEntries,
 } from './lib/entryCopy'
+import {
+  deriveLocationNamesFromStored,
+  hasCompleteLocationBilingual,
+  locationNamesNeedNetworkEnrichment,
+  mergeLocationNames,
+} from './lib/locationBackfill'
+import { normalizeLocationNames } from './lib/locationBilingual'
 import { Entry, coerceAmount, normalizeCurrencyCode } from './types'
 import { useUserId } from './UserContext'
 
@@ -215,33 +222,59 @@ export function useEntries() {
   const [loaded, setLoaded] = useState(false)
   const entriesRef = useRef<Entry[]>([])
   entriesRef.current = entries
+  /** Entry ids that received offline-derived bilingual labels at load and still need DB persist. */
+  const pendingLocationPersistIdsRef = useRef<Set<string>>(new Set())
+  const locationBackfillUserRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!userId) { setLoaded(true); return }
+    pendingLocationPersistIdsRef.current = new Set()
+    locationBackfillUserRef.current = null
     supabase.from('entries').select('*').eq('user_id', userId).order('date')
       .then(({ data }) => {
-        setEntries((data || []).map(r => ({
-          ...(() => {
-            const decoded = decodeEntryPayment(r.remarks || '', r.payment_method, r.time, r.home_amount_currency)
-            return {
-              id: r.id, type: r.type, date: r.date, summary: r.summary,
-              time: decoded.time || undefined,
-              venue: r.venue || '', location: r.location || '', category: r.category,
-              amount: coerceAmount(r.amount), remarks: decoded.remarks,
-              paymentMethod: decoded.paymentMethod,
-              currency: normalizeCurrencyCode(r.currency || 'USD'),
-              context: r.context,
-              createdAt: typeof r.created_at === 'string' ? r.created_at : undefined,
-              homeAmount: r.home_amount == null ? undefined : coerceAmount(r.home_amount),
-              homeAmountCurrency: decoded.homeAmountCurrency
-                ? normalizeCurrencyCode(decoded.homeAmountCurrency)
-                : undefined,
-              copyGroupId: decoded.copyGroupId,
-              locationLocal: decoded.locationLocal,
-              locationEn: decoded.locationEn,
-            }
-          })()
-        })))
+        const pendingPersist = new Set<string>()
+        setEntries((data || []).map(r => {
+          const decoded = decodeEntryPayment(r.remarks || '', r.payment_method, r.time, r.home_amount_currency)
+          const location = r.location || ''
+          const storedComplete = hasCompleteLocationBilingual({
+            locationLocal: decoded.locationLocal,
+            locationEn: decoded.locationEn,
+          })
+          // Instant offline backfill so Overview toggle works before persist finishes.
+          const derived = storedComplete ? {} : deriveLocationNamesFromStored(location)
+          const bilingual = mergeLocationNames(
+            { locationLocal: decoded.locationLocal, locationEn: decoded.locationEn },
+            derived,
+          )
+          if (
+            !storedComplete
+            && (bilingual.locationLocal || bilingual.locationEn)
+            && (
+              bilingual.locationLocal !== decoded.locationLocal
+              || bilingual.locationEn !== decoded.locationEn
+            )
+          ) {
+            pendingPersist.add(r.id)
+          }
+          return {
+            id: r.id, type: r.type, date: r.date, summary: r.summary,
+            time: decoded.time || undefined,
+            venue: r.venue || '', location, category: r.category,
+            amount: coerceAmount(r.amount), remarks: decoded.remarks,
+            paymentMethod: decoded.paymentMethod,
+            currency: normalizeCurrencyCode(r.currency || 'USD'),
+            context: r.context,
+            createdAt: typeof r.created_at === 'string' ? r.created_at : undefined,
+            homeAmount: r.home_amount == null ? undefined : coerceAmount(r.home_amount),
+            homeAmountCurrency: decoded.homeAmountCurrency
+              ? normalizeCurrencyCode(decoded.homeAmountCurrency)
+              : undefined,
+            copyGroupId: decoded.copyGroupId,
+            locationLocal: bilingual.locationLocal,
+            locationEn: bilingual.locationEn,
+          }
+        }))
+        pendingLocationPersistIdsRef.current = pendingPersist
         setLoaded(true)
       })
   }, [userId])
@@ -332,6 +365,90 @@ export function useEntries() {
 
     return error
   }, [userId])
+
+  // One-shot per sign-in: persist offline-derived bilingual labels, then enrich
+  // remaining CJK locations via /api/location-names (Nominatim).
+  useEffect(() => {
+    if (!loaded || !userId) return
+    if (locationBackfillUserRef.current === userId) return
+    locationBackfillUserRef.current = userId
+
+    let cancelled = false
+
+    const applyNamesToLocation = (
+      location: string,
+      names: { locationLocal?: string; locationEn?: string },
+    ) => {
+      const mergedNames = normalizeLocationNames(names)
+      if (!mergedNames.locationLocal && !mergedNames.locationEn) return [] as Entry[]
+
+      const patched: Entry[] = []
+      const nextEntries = entriesRef.current.map(entry => {
+        if (entry.location.trim() !== location) return entry
+        const merged = mergeLocationNames(
+          { locationLocal: entry.locationLocal, locationEn: entry.locationEn },
+          mergedNames,
+        )
+        if (
+          (merged.locationLocal || undefined) === (entry.locationLocal || undefined)
+          && (merged.locationEn || undefined) === (entry.locationEn || undefined)
+        ) {
+          return entry
+        }
+        const next = { ...entry, ...merged }
+        patched.push(next)
+        return next
+      })
+      if (patched.length) setEntries(nextEntries)
+      return patched
+    }
+
+    ;(async () => {
+      const pendingIds = pendingLocationPersistIdsRef.current
+      const syncPersist = entriesRef.current.filter(entry => pendingIds.has(entry.id))
+      pendingLocationPersistIdsRef.current = new Set()
+
+      for (const entry of syncPersist) {
+        if (cancelled) return
+        const error = await persistEntryUpdate(entry)
+        if (error) console.warn('Location bilingual backfill persist failed', entry.id, error)
+      }
+
+      const uniqueLocations = Array.from(new Set(
+        entriesRef.current
+          .filter(entry => {
+            const location = entry.location?.trim()
+            return Boolean(location)
+              && locationNamesNeedNetworkEnrichment(location, {
+                locationLocal: entry.locationLocal,
+                locationEn: entry.locationEn,
+              })
+          })
+          .map(entry => entry.location.trim()),
+      ))
+
+      for (const location of uniqueLocations) {
+        if (cancelled) return
+        try {
+          const res = await fetch(`/api/location-names?location=${encodeURIComponent(location)}`)
+          if (!res.ok) continue
+          const names = await res.json() as { locationLocal?: string; locationEn?: string }
+          const patched = applyNamesToLocation(location, names)
+          for (const entry of patched) {
+            if (cancelled) return
+            const error = await persistEntryUpdate(entry)
+            if (error) console.warn('Location bilingual enrich persist failed', entry.id, error)
+          }
+        } catch (err) {
+          console.warn('Location bilingual enrich failed', location, err)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [loaded, persistEntryUpdate, userId])
 
   const updateEntry = useCallback(async (updated: Entry) => {
     if (!userId) return
