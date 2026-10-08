@@ -84,6 +84,13 @@ const KR_DISTRICT_EN: Record<string, string> = {
   안양시: 'Anyang',
   남양주시: 'Namyangju',
   화성시: 'Hwaseong',
+  동탄: 'Dongtan',
+  동탄구: 'Dongtan',
+  동탄동: 'Dongtan',
+  동탄1동: 'Dongtan 1(il)-dong',
+  동탄2동: 'Dongtan 2(i)-dong',
+  동탄3동: 'Dongtan 3(sam)-dong',
+  동탄4동: 'Dongtan 4(sa)-dong',
   평택시: 'Pyeongtaek',
   의정부시: 'Uijeongbu',
   시흥시: 'Siheung',
@@ -159,26 +166,35 @@ export function koreanAreaToEnglish(area: string): string {
   if (parts.length === 0) return ''
 
   const translated = parts.map(part => KR_DISTRICT_EN[part] || KR_ADMIN_EN[part] || '')
-  if (translated.every(Boolean)) {
-    // "Gangnam-gu, Seoul" reads more naturally than "Seoul Gangnam-gu".
-    if (parts.length === 2 && KR_ADMIN_EN[parts[0]] && KR_DISTRICT_EN[parts[1]]) {
-      return `${translated[1]}, ${translated[0]}`
-    }
-    if (parts.length === 3 && KR_ADMIN_EN[parts[0]] && KR_DISTRICT_EN[parts[1]] && KR_DISTRICT_EN[parts[2]]) {
-      return `${translated[2]}, ${translated[1]}, ${translated[0]}`
-    }
-    return translated.join(' ')
-  }
+  // Only return when every token maps — never emit mixed "Gyeonggi … 동탄구".
+  if (!translated.every(Boolean)) return ''
 
-  // Partial: translate what we can, keep unknown Hangul tokens.
-  const mixed = parts.map((part, i) => translated[i] || part)
-  if (mixed.some((part, i) => part !== parts[i])) return mixed.join(' ')
-  return ''
+  // "Gangnam-gu, Seoul" / "Dongtan, Hwaseong, Gyeonggi" read more naturally reversed.
+  if (parts.length === 2 && KR_ADMIN_EN[parts[0]] && KR_DISTRICT_EN[parts[1]]) {
+    return `${translated[1]}, ${translated[0]}`
+  }
+  if (
+    parts.length === 3
+    && KR_ADMIN_EN[parts[0]]
+    && KR_DISTRICT_EN[parts[1]]
+    && KR_DISTRICT_EN[parts[2]]
+  ) {
+    return `${translated[2]}, ${translated[1]}, ${translated[0]}`
+  }
+  return translated.join(', ')
+}
+
+/** Drop English labels that still contain Hangul/Japanese (partial translations). */
+export function sanitizeEnglishLocationLabel(value: string | undefined): string {
+  const trimmed = (value || '').trim()
+  if (!trimmed) return ''
+  if (looksLikeHangul(trimmed) || looksLikeJapanese(trimmed)) return ''
+  return trimmed
 }
 
 export function normalizeLocationNames(names?: LocationNames | null): LocationNames {
   const locationLocal = (names?.locationLocal || '').trim()
-  const locationEn = (names?.locationEn || '').trim()
+  const locationEn = sanitizeEnglishLocationLabel(names?.locationEn)
   return {
     ...(locationLocal ? { locationLocal } : {}),
     ...(locationEn ? { locationEn } : {}),

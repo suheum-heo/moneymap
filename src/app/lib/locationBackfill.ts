@@ -4,6 +4,7 @@ import {
   looksLikeHangul,
   looksLikeJapanese,
   normalizeLocationNames,
+  sanitizeEnglishLocationLabel,
   type LocationNames,
 } from './locationBilingual'
 import { isUsStateCode, JP_PREFECTURE_NAMES } from './locationLabels'
@@ -162,8 +163,11 @@ export function mergeLocationNames(
   current: LocationNames | undefined,
   next: LocationNames,
 ): LocationNames {
+  const nextEn = sanitizeEnglishLocationLabel(next.locationEn)
+  const currentEn = sanitizeEnglishLocationLabel(current?.locationEn)
   return normalizeLocationNames({
     locationLocal: next.locationLocal || current?.locationLocal,
-    locationEn: next.locationEn || current?.locationEn,
+    // Prefer next English; never keep a prior mixed CJK "English" label.
+    locationEn: nextEn || currentEn,
   })
 }
