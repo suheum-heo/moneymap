@@ -1,6 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
+import {
+  applySyncedCopyFields,
+  createCopyGroupId,
+  entryContentChanged,
+  findCopyGroupEntries,
+} from './lib/entryCopy'
 import { Entry, coerceAmount, normalizeCurrencyCode } from './types'
 import { useUserId } from './UserContext'
 
@@ -246,10 +252,8 @@ export function useEntries() {
     }
   }, [userId])
 
-  const updateEntry = useCallback(async (updated: Entry) => {
-    if (!userId) return
-    const previous = entries.find(e => e.id === updated.id)
-    setEntries(prev => prev.map(e => e.id === updated.id ? { ...updated, createdAt: updated.createdAt || e.createdAt } : e))
+  const persistEntryUpdate = useCallback(async (updated: Entry) => {
+    if (!userId) return new Error('Not signed in')
     let includePaymentMethodColumn = canUseEntryPaymentMethodColumn
     let includeTimeColumn = canUseEntryTimeColumn
     let includeHomeAmountCurrencyColumn = canUseEntryHomeAmountCurrencyColumn
@@ -264,7 +268,7 @@ export function useEntries() {
         .eq('id', updated.id)
         .eq('user_id', userId)
       error = result.error
-      if (!error) break
+      if (!error) return null
 
       const missingColumns = getMissingEntryColumns(error)
       if (missingColumns) {
@@ -291,11 +295,43 @@ export function useEntries() {
       break
     }
 
-    if (error) {
-      if (previous) setEntries(prev => prev.map(e => e.id === previous.id ? previous : e))
-      console.error('Failed to update entry', error)
+    return error
+  }, [userId])
+
+  const updateEntry = useCallback(async (updated: Entry) => {
+    if (!userId) return
+    const previous = entries.find(e => e.id === updated.id)
+    const contentChanged = !previous || entryContentChanged(previous, updated)
+    // Reorder-only edits (time/createdAt) stay local; content edits sync across copies.
+    const siblings = contentChanged ? findCopyGroupEntries(updated, entries, previous) : []
+    const groupId = siblings.length > 0
+      ? (updated.copyGroupId || previous?.copyGroupId || createCopyGroupId())
+      : updated.copyGroupId
+    const updatedWithGroup = groupId ? { ...updated, copyGroupId: groupId } : updated
+    const siblingUpdates = groupId
+      ? siblings.map(sibling => applySyncedCopyFields(sibling, updatedWithGroup, groupId))
+      : []
+    const toPersist = [updatedWithGroup, ...siblingUpdates]
+    const rollbackById = new Map(
+      toPersist.map(entry => [entry.id, entries.find(item => item.id === entry.id)] as const),
+    )
+
+    setEntries(prev => prev.map(entry => {
+      const next = toPersist.find(item => item.id === entry.id)
+      if (!next) return entry
+      return { ...next, createdAt: next.createdAt || entry.createdAt }
+    }))
+
+    const results = await Promise.all(toPersist.map(entry => persistEntryUpdate(entry)))
+    const failed = results.some(Boolean)
+    if (failed) {
+      setEntries(prev => prev.map(entry => {
+        const prior = rollbackById.get(entry.id)
+        return prior || entry
+      }))
+      console.error('Failed to update entry', results.find(Boolean))
     }
-  }, [entries, userId])
+  }, [entries, persistEntryUpdate, userId])
 
   const renameCategory = useCallback(async (from: string, to: string, type: 'expense' | 'income', contextId?: string) => {
     if (!userId || !from.trim() || !to.trim()) return

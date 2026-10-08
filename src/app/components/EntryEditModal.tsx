@@ -326,7 +326,9 @@ export default function EntryEditModal({
           <div className="mt-3 space-y-3 rounded-[18px] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/5">
             <div>
               <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{t('copyEntryToContext')}</div>
-              <div className="mt-0.5 text-xs text-slate-400">{t('alsoAddToOtherContextsHint')}</div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {alreadyCopiedIds.length > 0 ? t('copyGroupSyncHint') : t('alsoAddToOtherContextsHint')}
+              </div>
             </div>
             <div className="flex flex-col gap-2">
               {copyTargets.map(context => {

@@ -43,6 +43,71 @@ export function findCopiedContextIds(entry: Entry, entries: Entry[]): string[] {
   return Array.from(ids)
 }
 
+/** Content fields that stay in sync across a copy group. */
+export function getSyncedCopyFields(source: Entry): Pick<
+  Entry,
+  | 'type'
+  | 'date'
+  | 'summary'
+  | 'venue'
+  | 'location'
+  | 'category'
+  | 'amount'
+  | 'remarks'
+  | 'paymentMethod'
+  | 'currency'
+  | 'homeAmount'
+  | 'homeAmountCurrency'
+> {
+  return {
+    type: source.type,
+    date: source.date,
+    summary: source.summary,
+    venue: source.venue,
+    location: source.location,
+    category: source.category,
+    amount: source.amount,
+    remarks: source.remarks,
+    paymentMethod: source.paymentMethod,
+    currency: source.currency,
+    homeAmount: source.homeAmount,
+    homeAmountCurrency: source.homeAmountCurrency,
+  }
+}
+
+export function entryContentChanged(a: Entry, b: Entry) {
+  const left = getSyncedCopyFields(a)
+  const right = getSyncedCopyFields(b)
+  return (Object.keys(left) as Array<keyof typeof left>).some(key => left[key] !== right[key])
+}
+
+/**
+ * Other entries linked to this one.
+ * Prefer copyGroupId; for legacy copies (no group id), fingerprint against
+ * `previous` so siblings are still found after the edit changes content.
+ */
+export function findCopyGroupEntries(entry: Entry, entries: Entry[], previous?: Entry): Entry[] {
+  const groupId = entry.copyGroupId || previous?.copyGroupId
+  if (groupId) {
+    return entries.filter(candidate => candidate.id !== entry.id && candidate.copyGroupId === groupId)
+  }
+  const fingerprintSource = previous || entry
+  return entries.filter(candidate => entriesLookLikeCopies(fingerprintSource, candidate))
+}
+
+/** Apply synced content onto a sibling; keep id/context/time/createdAt local. */
+export function applySyncedCopyFields(target: Entry, source: Entry, copyGroupId: string): Entry {
+  return {
+    ...target,
+    ...getSyncedCopyFields(source),
+    id: target.id,
+    context: target.context,
+    time: target.time,
+    createdAt: target.createdAt,
+    copyGroupId,
+  }
+}
+
 export function buildEntryCopyForContext(
   source: Entry,
   targetContextId: string,
