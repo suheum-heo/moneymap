@@ -58,6 +58,8 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
   const [editSummary, setEditSummary] = useState('')
   const [editVenue, setEditVenue] = useState('')
   const [editLocation, setEditLocation] = useState('')
+  const [editLocationLocal, setEditLocationLocal] = useState('')
+  const [editLocationEn, setEditLocationEn] = useState('')
   const [editCategory, setEditCategory] = useState('')
   const [editPaymentMethod, setEditPaymentMethod] = useState('')
   const [editRemarks, setEditRemarks] = useState('')
@@ -116,6 +118,7 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
     setEditMonth(mo - 1); setEditDay(day); setEditYear(y)
     setEditAmount(e.amount.toString()); setEditSummary(e.summary)
     setEditVenue(e.venue || ''); setEditLocation(e.location || '')
+    setEditLocationLocal(e.locationLocal || ''); setEditLocationEn(e.locationEn || '')
     setEditCategory(e.category); setEditPaymentMethod(e.paymentMethod || ''); setEditRemarks(e.remarks || '')
     setEditActualCharged(e.homeAmount == null ? '' : e.homeAmount.toString())
     setEditActualChargedCurrency(getEntryHomeAmountCurrency(e, homeCur) || homeCur)
@@ -150,6 +153,8 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
       summary: editSummary.trim(),
       venue: editVenue.trim(),
       location: editLocation.trim(),
+      locationLocal: editLocationLocal.trim() || undefined,
+      locationEn: editLocationEn.trim() || undefined,
       category: editCategory,
       paymentMethod: editPaymentMethod.trim(),
       remarks: editRemarks.trim(),
@@ -239,7 +244,13 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
               venue={editVenue}
               location={editLocation}
               onVenueChange={setEditVenue}
-              onLocationChange={setEditLocation}
+              onLocationChange={(value, names) => {
+                setEditLocation(value)
+                if (names) {
+                  setEditLocationLocal(names.locationLocal || '')
+                  setEditLocationEn(names.locationEn || '')
+                }
+              }}
               placeholders={editPlaceholders}
               inputCls={inputCls}
               venueListId="calendar-edit-venue-list"

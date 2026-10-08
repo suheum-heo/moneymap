@@ -63,6 +63,8 @@ export default function EntryEditModal({
   const [editSummary, setEditSummary] = useState('')
   const [editVenue, setEditVenue] = useState('')
   const [editLocation, setEditLocation] = useState('')
+  const [editLocationLocal, setEditLocationLocal] = useState('')
+  const [editLocationEn, setEditLocationEn] = useState('')
   const [editCategory, setEditCategory] = useState('')
   const [editPaymentMethod, setEditPaymentMethod] = useState('')
   const [editRemarks, setEditRemarks] = useState('')
@@ -99,6 +101,8 @@ export default function EntryEditModal({
     setEditSummary(entry.summary)
     setEditVenue(entry.venue || '')
     setEditLocation(entry.location || '')
+    setEditLocationLocal(entry.locationLocal || '')
+    setEditLocationEn(entry.locationEn || '')
     setEditCategory(entry.category)
     setEditPaymentMethod(entry.paymentMethod || '')
     setEditRemarks(entry.remarks || '')
@@ -156,6 +160,8 @@ export default function EntryEditModal({
       summary: editSummary.trim(),
       venue: editVenue.trim(),
       location: editLocation.trim(),
+      locationLocal: editLocationLocal.trim() || undefined,
+      locationEn: editLocationEn.trim() || undefined,
       category: editCategory,
       paymentMethod: editPaymentMethod.trim(),
       remarks: editRemarks.trim(),
@@ -302,7 +308,13 @@ export default function EntryEditModal({
           venue={editVenue}
           location={editLocation}
           onVenueChange={setEditVenue}
-          onLocationChange={setEditLocation}
+          onLocationChange={(value, names) => {
+            setEditLocation(value)
+            if (names) {
+              setEditLocationLocal(names.locationLocal || '')
+              setEditLocationEn(names.locationEn || '')
+            }
+          }}
           placeholders={placeholders}
           inputCls={inputCls}
           venueListId="edit-venue-list"

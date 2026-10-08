@@ -21,6 +21,10 @@ export interface Entry {
   homeAmountCurrency?: string
   /** Shared across an entry and its copies in other contexts. */
   copyGroupId?: string
+  /** Place-local script for location (e.g. 成田市, 千葉 / 서울 강남구). */
+  locationLocal?: string
+  /** English location label captured at save time (e.g. Narita, Chiba). */
+  locationEn?: string
 }
 
 export interface Context {

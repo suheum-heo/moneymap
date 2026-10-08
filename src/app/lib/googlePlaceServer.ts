@@ -7,6 +7,14 @@ import {
   toGoogleLocationArea,
   type GooglePlaceInfo,
 } from './googlePlace'
+import {
+  formatJpCityPrefecture,
+  koreanAreaToEnglish,
+  looksLikeHangul,
+  looksLikeJapanese,
+  normalizeLocationNames,
+} from './locationBilingual'
+import { JP_PREFECTURE_NAMES } from './locationLabels'
 
 const BROWSER_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
@@ -75,12 +83,22 @@ async function resolveGoogleMapsUrl(url: string): Promise<string> {
   }
 }
 
-type GeoResult = { location: string; address: string; postcode?: string }
+type GeoResult = {
+  location: string
+  address: string
+  postcode?: string
+  countryCode?: string
+  isoSubdivision?: string
+  city?: string
+  stateName?: string
+}
 
 function stateCodeFromAddress(addr: Record<string, string>): string {
-  const stateName = addr.state || ''
+  const stateName = addr.state || addr.province || ''
+  const iso = (addr['ISO3166-2-lvl4'] || '').toUpperCase()
+  if (iso.startsWith('US-')) return iso.replace(/^US-/i, '')
+  if (iso.startsWith('JP-') || iso.startsWith('KR-')) return iso
   return (
-    (addr['ISO3166-2-lvl4'] || '').replace(/^US-/i, '') ||
     US_STATE_ABBR[stateName] ||
     (stateName.length === 2 ? stateName.toUpperCase() : '') ||
     ''
@@ -98,6 +116,8 @@ function localityFromAddress(addr: Record<string, string>): string {
     addr.town ||
     addr.village ||
     addr.municipality ||
+    addr.borough ||
+    addr.suburb ||
     ''
   )
 }
@@ -125,7 +145,9 @@ function hasStrongCityLocation(location: string): boolean {
 
 function formatGeoResult(addr: Record<string, string>, displayName = ''): GeoResult {
   const city = localityFromAddress(addr)
-  const stateName = addr.state || ''
+  const stateName = addr.state || addr.province || ''
+  const countryCode = (addr.country_code || '').toLowerCase()
+  const isoRaw = (addr['ISO3166-2-lvl4'] || '').toUpperCase()
   const stateCode = stateCodeFromAddress(addr) || (stateName.length === 2 ? stateName : '')
   const postcode = (addr.postcode || '').match(/\d{5}/)?.[0] || ''
 
@@ -139,7 +161,15 @@ function formatGeoResult(addr: Record<string, string>, displayName = ''): GeoRes
   const address =
     [road, city, stateCode || stateName].filter(Boolean).join(', ') || displayName || ''
 
-  return { location, address, postcode: postcode || undefined }
+  return {
+    location,
+    address,
+    postcode: postcode || undefined,
+    countryCode: countryCode || undefined,
+    isoSubdivision: isoRaw || (stateCode.startsWith('JP-') || stateCode.startsWith('KR-') ? stateCode : undefined),
+    city: city || undefined,
+    stateName: stateName || undefined,
+  }
 }
 
 /** USPS-style postal city from ZIP — matches Google mailing cities (30320 → Atlanta, not College Park). */
@@ -172,15 +202,17 @@ function postcodeFromAddress(address: string): string {
   return address.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] || ''
 }
 
-async function nominatimReverse(lat: number, lng: number): Promise<GeoResult> {
+async function nominatimReverse(lat: number, lng: number, language = ''): Promise<GeoResult> {
   const endpoint =
     `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(String(lat))}` +
-    `&lon=${encodeURIComponent(String(lng))}&format=json&zoom=16&addressdetails=1`
+    `&lon=${encodeURIComponent(String(lng))}&format=json&zoom=16&addressdetails=1` +
+    (language ? `&accept-language=${encodeURIComponent(language)}` : '')
 
   const res = await fetch(endpoint, {
     headers: {
       'User-Agent': NOMINATIM_UA,
       Accept: 'application/json',
+      ...(language ? { 'Accept-Language': language } : {}),
     },
     signal: AbortSignal.timeout(8000),
     next: { revalidate: 86400 },
@@ -195,6 +227,137 @@ async function nominatimReverse(lat: number, lng: number): Promise<GeoResult> {
     address?: Record<string, string>
   }
   return formatGeoResult(data.address || {}, data.display_name || '')
+}
+
+async function nominatimSearchArea(query: string, language: string): Promise<GeoResult | null> {
+  const q = query.trim()
+  if (q.length < 2) return null
+  const endpoint =
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}` +
+    `&format=json&limit=1&addressdetails=1&accept-language=${encodeURIComponent(language)}`
+
+  try {
+    const res = await fetch(endpoint, {
+      headers: {
+        'User-Agent': NOMINATIM_UA,
+        Accept: 'application/json',
+        'Accept-Language': language,
+      },
+      signal: AbortSignal.timeout(8000),
+      next: { revalidate: 86400 },
+    })
+    if (!res.ok) return null
+    const rows = await res.json() as Array<{
+      display_name?: string
+      address?: Record<string, string>
+    }>
+    if (!Array.isArray(rows) || rows.length === 0) return null
+    return formatGeoResult(rows[0].address || {}, rows[0].display_name || '')
+  } catch {
+    return null
+  }
+}
+
+function jpIsoFromLocation(location: string): string {
+  const tail = location.split(',').map(p => p.trim()).filter(Boolean).pop() || ''
+  const code = tail.toUpperCase()
+  return JP_PREFECTURE_NAMES[code] ? code : ''
+}
+
+function bilingualFromJp(cityLocal: string, cityEn: string, iso: string) {
+  const prefLocal = JP_PREFECTURE_NAMES[iso]?.ja || ''
+  const prefEn = JP_PREFECTURE_NAMES[iso]?.en || ''
+  return normalizeLocationNames({
+    locationLocal: formatJpCityPrefecture(cityLocal, prefLocal),
+    locationEn: formatJpCityPrefecture(cityEn || cityLocal, prefEn),
+  })
+}
+
+/**
+ * Build local + English labels for display toggle.
+ * Keeps canonical `location` (often city + ISO) separate for grouping.
+ */
+async function resolveBilingualLocation(input: {
+  location: string
+  address?: string
+  lat?: number | null
+  lng?: number | null
+  countryCode?: string
+  isoSubdivision?: string
+  city?: string
+}): Promise<{ locationLocal?: string; locationEn?: string }> {
+  const location = input.location.trim()
+  if (!location) return {}
+
+  const iso =
+    (input.isoSubdivision || '').toUpperCase()
+    || jpIsoFromLocation(location)
+  const country =
+    (input.countryCode || '').toLowerCase()
+    || (iso.startsWith('JP-') ? 'jp' : iso.startsWith('KR-') ? 'kr' : '')
+
+  // Japan: dual-language city + prefecture names.
+  if (country === 'jp' || iso.startsWith('JP-')) {
+    let cityLocal = input.city || location.split(',')[0]?.trim() || ''
+    let cityEn = ''
+
+    if (input.lat != null && input.lng != null) {
+      try {
+        const [jaGeo, enGeo] = await Promise.all([
+          nominatimReverse(input.lat, input.lng, 'ja'),
+          nominatimReverse(input.lat, input.lng, 'en'),
+        ])
+        cityLocal = jaGeo.city || cityLocal
+        cityEn = enGeo.city || ''
+        const resolvedIso = (jaGeo.isoSubdivision || enGeo.isoSubdivision || iso).toUpperCase()
+        if (JP_PREFECTURE_NAMES[resolvedIso]) {
+          return bilingualFromJp(cityLocal, cityEn, resolvedIso)
+        }
+      } catch {
+        // fall through
+      }
+    }
+
+    if (iso && JP_PREFECTURE_NAMES[iso]) {
+      // City already Japanese → keep; English city via search when possible.
+      if (!cityEn && cityLocal) {
+        const enGeo = await nominatimSearchArea(
+          `${cityLocal} ${JP_PREFECTURE_NAMES[iso].en}`,
+          'en',
+        )
+        cityEn = enGeo?.city || ''
+      }
+      return bilingualFromJp(cityLocal, cityEn, iso)
+    }
+  }
+
+  // Korea: Hangul short area + English (static map, then Nominatim).
+  if (country === 'kr' || looksLikeHangul(location)) {
+    const locationLocal = location
+    let locationEn = koreanAreaToEnglish(locationLocal)
+    if (!locationEn) {
+      const enGeo = await nominatimSearchArea(input.address || location, 'en')
+      if (enGeo?.location && !looksLikeHangul(enGeo.location)) {
+        locationEn = enGeo.location.replace(/,\s*KR-\d+$/i, '').trim()
+      } else if (enGeo?.city) {
+        locationEn = enGeo.city
+      }
+    }
+    return normalizeLocationNames({ locationLocal, locationEn })
+  }
+
+  // Japan city without ISO in string but Japanese script in city part.
+  if (looksLikeJapanese(location) && iso && JP_PREFECTURE_NAMES[iso]) {
+    const cityLocal = location.split(',')[0]?.trim() || location
+    return bilingualFromJp(cityLocal, '', iso)
+  }
+
+  // Default (US / already English): both sides match canonical location.
+  if (!looksLikeHangul(location) && !looksLikeJapanese(location)) {
+    return normalizeLocationNames({ locationLocal: location, locationEn: location })
+  }
+
+  return normalizeLocationNames({ locationLocal: location })
 }
 
 /** When reverse only has a county, a nearby named place often has the town (e.g. Suwanee). */
@@ -526,11 +689,20 @@ export async function fetchGooglePlaceFromUrl(urlOrText: string): Promise<Google
     throw new Error('Could not parse place info')
   }
 
+  const bilingual = await resolveBilingualLocation({
+    location,
+    address,
+    lat: parsed.lat,
+    lng: parsed.lng,
+  })
+
   const info = normalizeGooglePlaceFields({
     name: parsed.name,
     location,
     address,
     placeId: parsed.placeId || cacheKey,
+    locationLocal: bilingual.locationLocal,
+    locationEn: bilingual.locationEn,
   })
   setCached(cacheKey, info)
   return info

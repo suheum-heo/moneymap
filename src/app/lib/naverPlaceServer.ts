@@ -6,6 +6,9 @@ import {
   toLocationArea,
   type NaverPlaceInfo,
 } from './naverPlace'
+import { koreanAreaToEnglish, normalizeLocationNames } from './locationBilingual'
+
+const NOMINATIM_UA = 'MoneyMap/1.0 (expense tracker; place lookup)'
 
 const BROWSER_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
@@ -198,16 +201,60 @@ async function fetchPlacePageFast(placeId: string): Promise<{ name: string; addr
   return parsed
 }
 
+async function englishAreaForKorean(location: string, address: string): Promise<string> {
+  const fromMap = koreanAreaToEnglish(location)
+  if (fromMap) return fromMap
+
+  const query = (address || location).trim()
+  if (query.length < 2) return ''
+
+  try {
+    const endpoint =
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}` +
+      `&format=json&limit=1&addressdetails=1&accept-language=en`
+    const res = await fetch(endpoint, {
+      headers: {
+        'User-Agent': NOMINATIM_UA,
+        Accept: 'application/json',
+        'Accept-Language': 'en',
+      },
+      signal: AbortSignal.timeout(8000),
+      next: { revalidate: 86400 },
+    })
+    if (!res.ok) return ''
+    const rows = await res.json() as Array<{
+      address?: Record<string, string>
+      display_name?: string
+    }>
+    const addr = rows?.[0]?.address
+    if (!addr) return ''
+    const city = addr.city || addr.town || ''
+    const borough = addr.borough || addr.suburb || addr.city_district || ''
+    if (borough && city) return `${borough}, ${city}`
+    if (city) return city
+    const display = (rows[0].display_name || '').split(',').map(p => p.trim()).filter(Boolean)
+    if (display.length >= 2) return `${display[0]}, ${display[1]}`
+    return display[0] || ''
+  } catch {
+    return ''
+  }
+}
+
 export async function fetchNaverPlaceById(placeId: string): Promise<NaverPlaceInfo> {
   const cached = getCached(placeId)
   if (cached) return cached
 
   const parsed = await fetchPlacePageFast(placeId)
+  const location = toLocationArea(parsed.address)
+  const locationLocal = location
+  const locationEn = await englishAreaForKorean(location, parsed.address)
+  const bilingual = normalizeLocationNames({ locationLocal, locationEn })
   const info: NaverPlaceInfo = {
     placeId,
     name: parsed.name,
     address: parsed.address,
-    location: toLocationArea(parsed.address),
+    location,
+    ...bilingual,
   }
   setCached(info)
   return info

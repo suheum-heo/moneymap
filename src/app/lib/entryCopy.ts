@@ -54,6 +54,8 @@ export function getSyncedCopyFields(source: Entry): Pick<
   | 'summary'
   | 'venue'
   | 'location'
+  | 'locationLocal'
+  | 'locationEn'
   | 'category'
   | 'amount'
   | 'remarks'
@@ -68,6 +70,8 @@ export function getSyncedCopyFields(source: Entry): Pick<
     summary: source.summary,
     venue: source.venue,
     location: source.location,
+    locationLocal: source.locationLocal,
+    locationEn: source.locationEn,
     category: source.category,
     amount: source.amount,
     remarks: source.remarks,

@@ -1,6 +1,31 @@
 export type LocationNameMode = 'local' | 'app'
 export type LocationLabelLanguage = 'en' | 'ja' | 'ko'
 
+const HANGUL_RE = /[\uac00-\ud7a3]/
+const JAPANESE_RE = /[\u3040-\u30ff\u4e00-\u9fff]/
+
+function pickStoredLocationLabel(
+  names: { locationLocal?: string; locationEn?: string } | undefined,
+  appLanguage: string | undefined,
+  mode: LocationNameMode,
+): string {
+  const local = (names?.locationLocal || '').trim()
+  const en = (names?.locationEn || '').trim()
+  if (mode === 'local') return local
+
+  const base = (appLanguage || 'en').toLowerCase().split('-')[0]
+  if (base === 'en') return en || local
+  if (base === 'ja') {
+    if (local && JAPANESE_RE.test(local)) return local
+    return en || local
+  }
+  if (base === 'ko') {
+    if (local && HANGUL_RE.test(local)) return local
+    return en || local
+  }
+  return en || local
+}
+
 export const US_STATE_NAMES: Record<string, string> = {
   AL: 'Alabama',
   AK: 'Alaska',
@@ -209,4 +234,42 @@ export function getLocationRegionForMode(
   mode: LocationNameMode = 'app',
 ) {
   return getLocationRegion(location, resolveLocationLabelLanguage(location, appLanguage, mode))
+}
+
+export interface LocationLabelSource {
+  location: string
+  locationLocal?: string
+  locationEn?: string
+}
+
+/**
+ * Prefer save-time bilingual labels when present; otherwise expand ISO codes
+ * (e.g. JP-12) using the Local / App language toggle.
+ */
+export function formatLocationLabelForModeFromSource(
+  source: LocationLabelSource,
+  appLanguage: string | undefined,
+  mode: LocationNameMode = 'app',
+) {
+  const stored = pickStoredLocationLabel(
+    { locationLocal: source.locationLocal, locationEn: source.locationEn },
+    appLanguage,
+    mode,
+  )
+  if (stored) return stored
+  return formatLocationLabelForMode(source.location || '', appLanguage, mode)
+}
+
+export function getLocationRegionForModeFromSource(
+  source: LocationLabelSource,
+  appLanguage: string | undefined,
+  mode: LocationNameMode = 'app',
+) {
+  const label = formatLocationLabelForModeFromSource(source, appLanguage, mode)
+  if (!label) return null
+  // Region from the display label (last comma part), so bilingual strings
+  // like "Narita, Chiba" / "成田市, 千葉" group correctly per mode.
+  const commaParts = label.split(',').map(part => part.trim()).filter(Boolean)
+  if (commaParts.length > 1) return commaParts[commaParts.length - 1]
+  return getLocationRegionForMode(source.location || '', appLanguage, mode)
 }

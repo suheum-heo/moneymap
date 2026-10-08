@@ -3,6 +3,10 @@ export interface GooglePlaceInfo {
   location: string
   address: string
   placeId: string
+  /** Place-local script, e.g. "成田市, 千葉". */
+  locationLocal?: string
+  /** English label, e.g. "Narita, Chiba". */
+  locationEn?: string
 }
 
 export interface GoogleShareParse {
@@ -374,6 +378,8 @@ export function normalizeGooglePlaceFields(input: {
   address?: string
   location?: string
   placeId?: string
+  locationLocal?: string
+  locationEn?: string
 }): GooglePlaceInfo {
   let name = (input.name || '').trim()
   let address = (input.address || '').trim()
@@ -397,11 +403,16 @@ export function normalizeGooglePlaceFields(input: {
     location = toGoogleLocationArea(address)
   }
 
+  const locationLocal = (input.locationLocal || '').trim()
+  const locationEn = (input.locationEn || '').trim()
+
   return {
     name,
     location,
     address,
     placeId: input.placeId || '',
+    ...(locationLocal ? { locationLocal } : {}),
+    ...(locationEn ? { locationEn } : {}),
   }
 }
 
