@@ -10,7 +10,9 @@ function pickStoredLocationLabel(
   mode: LocationNameMode,
 ): string {
   const local = (names?.locationLocal || '').trim()
-  const en = (names?.locationEn || '').trim()
+  // Ignore partial translations like "Gyeonggi Hwaseong 동탄구".
+  const rawEn = (names?.locationEn || '').trim()
+  const en = rawEn && !HANGUL_RE.test(rawEn) && !JAPANESE_RE.test(rawEn) ? rawEn : ''
   if (mode === 'local') return local
 
   const base = (appLanguage || 'en').toLowerCase().split('-')[0]

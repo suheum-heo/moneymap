@@ -100,10 +100,10 @@ export async function resolveLocationNames(location: string): Promise<LocationNa
     })
   }
 
-  // Korea — static map first, then Nominatim.
+  // Korea — static map first, then Nominatim. Never keep mixed Hangul/English.
   if (looksLikeHangul(trimmed)) {
-    let locationEn = koreanAreaToEnglish(trimmed) || derived.locationEn || ''
-    if (!locationEn || looksLikeHangul(locationEn)) {
+    let locationEn = koreanAreaToEnglish(trimmed)
+    if (!locationEn) {
       const enHit = await nominatimSearch(trimmed, 'en')
       const city = localityFromAddress(enHit?.address || {})
       const borough = enHit?.address?.borough || enHit?.address?.suburb || ''
@@ -111,7 +111,10 @@ export async function resolveLocationNames(location: string): Promise<LocationNa
       else if (city) locationEn = city
       else if (enHit?.displayName) {
         const parts = enHit.displayName.split(',').map(p => p.trim()).filter(Boolean)
-        if (parts.length >= 2) locationEn = `${parts[0]}, ${parts[1]}`
+        // Drop trailing country; keep city-ish head without Hangul leftovers.
+        const latin = parts.filter(part => !looksLikeHangul(part) && !/korea/i.test(part))
+        if (latin.length >= 2) locationEn = `${latin[0]}, ${latin[1]}`
+        else if (latin.length === 1) locationEn = latin[0]
       }
     }
     return normalizeLocationNames({
