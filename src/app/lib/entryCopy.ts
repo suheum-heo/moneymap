@@ -13,18 +13,22 @@ function normalizeComparable(value: string | undefined) {
   return (value || '').normalize('NFKC').trim().toLocaleLowerCase()
 }
 
-/** Legacy copies (before copyGroupId) matched by shared content fingerprint. */
+function amountsMatch(a: number, b: number) {
+  return Number(a) === Number(b)
+}
+
+/**
+ * Legacy / partial copies matched by a stable content fingerprint.
+ * Venue/location/paymentMethod are ignored so small local tweaks still link.
+ */
 export function entriesLookLikeCopies(a: Entry, b: Entry) {
   if (a.context === b.context || a.id === b.id) return false
   return a.date === b.date
     && a.type === b.type
-    && a.amount === b.amount
-    && a.currency === b.currency
+    && amountsMatch(a.amount, b.amount)
+    && normalizeComparable(a.currency) === normalizeComparable(b.currency)
     && normalizeComparable(a.summary) === normalizeComparable(b.summary)
     && normalizeComparable(a.category) === normalizeComparable(b.category)
-    && normalizeComparable(a.venue) === normalizeComparable(b.venue)
-    && normalizeComparable(a.location) === normalizeComparable(b.location)
-    && normalizeComparable(a.paymentMethod) === normalizeComparable(b.paymentMethod)
 }
 
 export function findCopiedContextIds(entry: Entry, entries: Entry[]): string[] {
@@ -34,9 +38,8 @@ export function findCopiedContextIds(entry: Entry, entries: Entry[]): string[] {
       if (candidate.id === entry.id) return
       if (candidate.copyGroupId === entry.copyGroupId) ids.add(candidate.context)
     })
-    return Array.from(ids)
   }
-
+  // Also include fingerprint matches so partially stamped groups still show as copied.
   entries.forEach(candidate => {
     if (entriesLookLikeCopies(entry, candidate)) ids.add(candidate.context)
   })
@@ -83,16 +86,28 @@ export function entryContentChanged(a: Entry, b: Entry) {
 
 /**
  * Other entries linked to this one.
- * Prefer copyGroupId; for legacy copies (no group id), fingerprint against
- * `previous` so siblings are still found after the edit changes content.
+ * Prefer copyGroupId; always also fingerprint against `previous` so we still
+ * find siblings when only some members were stamped with a group id.
  */
 export function findCopyGroupEntries(entry: Entry, entries: Entry[], previous?: Entry): Entry[] {
+  const byId = new Map<string, Entry>()
   const groupId = entry.copyGroupId || previous?.copyGroupId
+
   if (groupId) {
-    return entries.filter(candidate => candidate.id !== entry.id && candidate.copyGroupId === groupId)
+    entries.forEach(candidate => {
+      if (candidate.id === entry.id) return
+      if (candidate.copyGroupId === groupId) byId.set(candidate.id, candidate)
+    })
   }
+
+  // Fingerprint against the pre-edit snapshot so content changes still find peers.
   const fingerprintSource = previous || entry
-  return entries.filter(candidate => entriesLookLikeCopies(fingerprintSource, candidate))
+  entries.forEach(candidate => {
+    if (candidate.id === entry.id) return
+    if (entriesLookLikeCopies(fingerprintSource, candidate)) byId.set(candidate.id, candidate)
+  })
+
+  return Array.from(byId.values())
 }
 
 /** Apply synced content onto a sibling; keep id/context/time/createdAt local. */

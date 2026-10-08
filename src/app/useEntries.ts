@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import {
   applySyncedCopyFields,
@@ -127,6 +127,7 @@ function buildEntryRemarksPayload(
   includeHomeAmountCurrencyColumn: boolean,
 ) {
   const needsMetaFallback = !includePaymentMethodColumn || !includeTimeColumn || !includeHomeAmountCurrencyColumn
+  // Always persist copyGroupId in remarks meta — it has no dedicated column.
   if (!needsMetaFallback && !entry.copyGroupId) return entry.remarks
   return encodeEntryRemarks(
     entry.remarks,
@@ -182,6 +183,8 @@ export function useEntries() {
   const userId = useUserId()
   const [entries, setEntries] = useState<Entry[]>([])
   const [loaded, setLoaded] = useState(false)
+  const entriesRef = useRef<Entry[]>([])
+  entriesRef.current = entries
 
   useEffect(() => {
     if (!userId) { setLoaded(true); return }
@@ -300,20 +303,22 @@ export function useEntries() {
 
   const updateEntry = useCallback(async (updated: Entry) => {
     if (!userId) return
-    const previous = entries.find(e => e.id === updated.id)
+    // Read latest list so sibling discovery isn't stale across rapid edits.
+    const currentEntries = entriesRef.current
+    const previous = currentEntries.find(e => e.id === updated.id)
     const contentChanged = !previous || entryContentChanged(previous, updated)
     // Reorder-only edits (time/createdAt) stay local; content edits sync across copies.
-    const siblings = contentChanged ? findCopyGroupEntries(updated, entries, previous) : []
+    const siblings = contentChanged ? findCopyGroupEntries(updated, currentEntries, previous) : []
     const groupId = siblings.length > 0
       ? (updated.copyGroupId || previous?.copyGroupId || createCopyGroupId())
-      : updated.copyGroupId
+      : (updated.copyGroupId || previous?.copyGroupId)
     const updatedWithGroup = groupId ? { ...updated, copyGroupId: groupId } : updated
     const siblingUpdates = groupId
       ? siblings.map(sibling => applySyncedCopyFields(sibling, updatedWithGroup, groupId))
       : []
     const toPersist = [updatedWithGroup, ...siblingUpdates]
     const rollbackById = new Map(
-      toPersist.map(entry => [entry.id, entries.find(item => item.id === entry.id)] as const),
+      toPersist.map(entry => [entry.id, currentEntries.find(item => item.id === entry.id)] as const),
     )
 
     setEntries(prev => prev.map(entry => {
@@ -322,16 +327,30 @@ export function useEntries() {
       return { ...next, createdAt: next.createdAt || entry.createdAt }
     }))
 
-    const results = await Promise.all(toPersist.map(entry => persistEntryUpdate(entry)))
-    const failed = results.some(Boolean)
-    if (failed) {
+    // Persist primary first so a sibling failure doesn't wipe the user's edit.
+    const primaryError = await persistEntryUpdate(updatedWithGroup)
+    if (primaryError) {
       setEntries(prev => prev.map(entry => {
         const prior = rollbackById.get(entry.id)
-        return prior || entry
+        return prior && entry.id === updatedWithGroup.id ? prior : entry
       }))
-      console.error('Failed to update entry', results.find(Boolean))
+      console.error('Failed to update entry', primaryError)
+      return
     }
-  }, [entries, persistEntryUpdate, userId])
+
+    if (siblingUpdates.length === 0) return
+
+    const siblingResults = await Promise.all(siblingUpdates.map(entry => persistEntryUpdate(entry)))
+    siblingResults.forEach((error, index) => {
+      if (!error) return
+      const failedEntry = siblingUpdates[index]
+      setEntries(prev => prev.map(entry => {
+        if (entry.id !== failedEntry.id) return entry
+        return rollbackById.get(entry.id) || entry
+      }))
+      console.error('Failed to sync copied entry', failedEntry.id, error)
+    })
+  }, [persistEntryUpdate, userId])
 
   const renameCategory = useCallback(async (from: string, to: string, type: 'expense' | 'income', contextId?: string) => {
     if (!userId || !from.trim() || !to.trim()) return
