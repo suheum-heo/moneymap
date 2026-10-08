@@ -18,6 +18,11 @@ import EntryEditModal from './EntryEditModal'
 import ChevronDownIcon from './ChevronDownIcon'
 import LocalizedMonthPicker from './LocalizedMonthPicker'
 import { entryBelongsToContext, hasContextChildren, looksLikeTripContext } from '../lib/contextTree'
+import {
+  formatLocationLabelForMode,
+  getLocationRegionForMode,
+  type LocationNameMode,
+} from '../lib/locationLabels'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
@@ -39,6 +44,7 @@ interface Props {
 
 type PeriodMode = 'all' | 'year' | 'custom'
 const PERIOD_TOTALS_EXPANDED_KEY = 'gagyebu-period-totals-expanded'
+const LOCATION_NAME_MODE_KEY = 'gagyebu-location-name-mode'
 const UNSPECIFIED_PAYMENT_METHOD = '__unspecified__'
 
 function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
@@ -48,179 +54,6 @@ function softenColor(hex: string, mix = 0.16, alpha = 0.88) {
   const channels = [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16))
   const softened = channels.map(channel => Math.round(channel + (255 - channel) * mix))
   return `rgba(${softened[0]}, ${softened[1]}, ${softened[2]}, ${alpha})`
-}
-
-const US_STATE_NAMES: Record<string, string> = {
-  AL: 'Alabama',
-  AK: 'Alaska',
-  AZ: 'Arizona',
-  AR: 'Arkansas',
-  CA: 'California',
-  CO: 'Colorado',
-  CT: 'Connecticut',
-  DE: 'Delaware',
-  FL: 'Florida',
-  GA: 'Georgia',
-  HI: 'Hawaii',
-  ID: 'Idaho',
-  IL: 'Illinois',
-  IN: 'Indiana',
-  IA: 'Iowa',
-  KS: 'Kansas',
-  KY: 'Kentucky',
-  LA: 'Louisiana',
-  ME: 'Maine',
-  MD: 'Maryland',
-  MA: 'Massachusetts',
-  MI: 'Michigan',
-  MN: 'Minnesota',
-  MS: 'Mississippi',
-  MO: 'Missouri',
-  MT: 'Montana',
-  NE: 'Nebraska',
-  NV: 'Nevada',
-  NH: 'New Hampshire',
-  NJ: 'New Jersey',
-  NM: 'New Mexico',
-  NY: 'New York',
-  NC: 'North Carolina',
-  ND: 'North Dakota',
-  OH: 'Ohio',
-  OK: 'Oklahoma',
-  OR: 'Oregon',
-  PA: 'Pennsylvania',
-  RI: 'Rhode Island',
-  SC: 'South Carolina',
-  SD: 'South Dakota',
-  TN: 'Tennessee',
-  TX: 'Texas',
-  UT: 'Utah',
-  VT: 'Vermont',
-  VA: 'Virginia',
-  WA: 'Washington',
-  WV: 'West Virginia',
-  WI: 'Wisconsin',
-  WY: 'Wyoming',
-  DC: 'District of Columbia',
-}
-
-type PrefectureNames = { en: string; ja: string; ko: string }
-
-const JP_PREFECTURE_NAMES: Record<string, PrefectureNames> = {
-  'JP-01': { en: 'Hokkaido', ja: '北海道', ko: '홋카이도' },
-  'JP-02': { en: 'Aomori', ja: '青森', ko: '아오모리' },
-  'JP-03': { en: 'Iwate', ja: '岩手', ko: '이와테' },
-  'JP-04': { en: 'Miyagi', ja: '宮城', ko: '미야기' },
-  'JP-05': { en: 'Akita', ja: '秋田', ko: '아키타' },
-  'JP-06': { en: 'Yamagata', ja: '山形', ko: '야마가타' },
-  'JP-07': { en: 'Fukushima', ja: '福島', ko: '후쿠시마' },
-  'JP-08': { en: 'Ibaraki', ja: '茨城', ko: '이바라키' },
-  'JP-09': { en: 'Tochigi', ja: '栃木', ko: '도치기' },
-  'JP-10': { en: 'Gunma', ja: '群馬', ko: '군마' },
-  'JP-11': { en: 'Saitama', ja: '埼玉', ko: '사이타마' },
-  'JP-12': { en: 'Chiba', ja: '千葉', ko: '치바' },
-  'JP-13': { en: 'Tokyo', ja: '東京', ko: '도쿄' },
-  'JP-14': { en: 'Kanagawa', ja: '神奈川', ko: '가나가와' },
-  'JP-15': { en: 'Niigata', ja: '新潟', ko: '니가타' },
-  'JP-16': { en: 'Toyama', ja: '富山', ko: '도야마' },
-  'JP-17': { en: 'Ishikawa', ja: '石川', ko: '이시카와' },
-  'JP-18': { en: 'Fukui', ja: '福井', ko: '후쿠이' },
-  'JP-19': { en: 'Yamanashi', ja: '山梨', ko: '야마나시' },
-  'JP-20': { en: 'Nagano', ja: '長野', ko: '나가노' },
-  'JP-21': { en: 'Gifu', ja: '岐阜', ko: '기후' },
-  'JP-22': { en: 'Shizuoka', ja: '静岡', ko: '시즈오카' },
-  'JP-23': { en: 'Aichi', ja: '愛知', ko: '아이치' },
-  'JP-24': { en: 'Mie', ja: '三重', ko: '미에' },
-  'JP-25': { en: 'Shiga', ja: '滋賀', ko: '시가' },
-  'JP-26': { en: 'Kyoto', ja: '京都', ko: '교토' },
-  'JP-27': { en: 'Osaka', ja: '大阪', ko: '오사카' },
-  'JP-28': { en: 'Hyogo', ja: '兵庫', ko: '효고' },
-  'JP-29': { en: 'Nara', ja: '奈良', ko: '나라' },
-  'JP-30': { en: 'Wakayama', ja: '和歌山', ko: '와카야마' },
-  'JP-31': { en: 'Tottori', ja: '鳥取', ko: '돗토리' },
-  'JP-32': { en: 'Shimane', ja: '島根', ko: '시마네' },
-  'JP-33': { en: 'Okayama', ja: '岡山', ko: '오카야마' },
-  'JP-34': { en: 'Hiroshima', ja: '広島', ko: '히로시마' },
-  'JP-35': { en: 'Yamaguchi', ja: '山口', ko: '야마구치' },
-  'JP-36': { en: 'Tokushima', ja: '徳島', ko: '도쿠시마' },
-  'JP-37': { en: 'Kagawa', ja: '香川', ko: '가가와' },
-  'JP-38': { en: 'Ehime', ja: '愛媛', ko: '에히메' },
-  'JP-39': { en: 'Kochi', ja: '高知', ko: '고치' },
-  'JP-40': { en: 'Fukuoka', ja: '福岡', ko: '후쿠오카' },
-  'JP-41': { en: 'Saga', ja: '佐賀', ko: '사가' },
-  'JP-42': { en: 'Nagasaki', ja: '長崎', ko: '나가사키' },
-  'JP-43': { en: 'Kumamoto', ja: '熊本', ko: '구마모토' },
-  'JP-44': { en: 'Oita', ja: '大分', ko: '오이타' },
-  'JP-45': { en: 'Miyazaki', ja: '宮崎', ko: '미야자키' },
-  'JP-46': { en: 'Kagoshima', ja: '鹿児島', ko: '가고시마' },
-  'JP-47': { en: 'Okinawa', ja: '沖縄', ko: '오키나와' },
-}
-
-function isUsStateCode(part: string) {
-  const code = part.replace(/[^A-Za-z]/g, '').toUpperCase()
-  return /^[A-Z]{2}$/.test(code) && Boolean(US_STATE_NAMES[code])
-}
-
-function resolveLanguageKey(language?: string): keyof PrefectureNames {
-  const base = (language || 'en').toLowerCase().split('-')[0]
-  if (base === 'ja' || base === 'ko') return base
-  return 'en'
-}
-
-function expandIsoSubdivisionCode(part: string, language?: string) {
-  const code = part.trim().toUpperCase()
-  const prefecture = JP_PREFECTURE_NAMES[code]
-  if (!prefecture) return null
-  return prefecture[resolveLanguageKey(language)]
-}
-
-function formatLocationLabel(location: string, language?: string) {
-  const trimmed = location.trim()
-  if (!trimmed) return trimmed
-
-  const commaParts = trimmed.split(',').map(part => part.trim()).filter(Boolean)
-  if (commaParts.length < 2) return trimmed
-
-  const lastPart = commaParts[commaParts.length - 1]
-  if (isUsStateCode(lastPart)) {
-    const stateCode = lastPart.replace(/[^A-Za-z]/g, '').toUpperCase()
-    return [...commaParts.slice(0, -1), US_STATE_NAMES[stateCode]].join(', ')
-  }
-
-  const expanded = expandIsoSubdivisionCode(lastPart, language)
-  if (expanded) {
-    return [...commaParts.slice(0, -1), expanded].join(', ')
-  }
-
-  return trimmed
-}
-
-function getLocationRegion(location: string, language?: string) {
-  const trimmed = location.trim()
-  if (!trimmed) return null
-
-  const commaParts = trimmed.split(',').map(part => part.trim()).filter(Boolean)
-  if (commaParts.length > 1) {
-    const lastPart = commaParts[commaParts.length - 1]
-
-    if (isUsStateCode(lastPart)) {
-      const stateCode = lastPart.replace(/[^A-Za-z]/g, '').toUpperCase()
-      return US_STATE_NAMES[stateCode]
-    }
-
-    // e.g. "成田市, JP-12" → Chiba / 千葉 / 치바
-    const expanded = expandIsoSubdivisionCode(lastPart, language)
-    if (expanded) return expanded
-
-    return lastPart
-  }
-
-  const spaceParts = trimmed.split(/\s+/).filter(Boolean)
-  if (spaceParts.length > 1) {
-    return spaceParts[0]
-  }
-
-  return null
 }
 
 function getEntryMonth(date: string) {
@@ -247,6 +80,10 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   const [periodExpanded, setPeriodExpanded] = useState(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem(PERIOD_TOTALS_EXPANDED_KEY) === 'true'
+  })
+  const [locationNameMode, setLocationNameMode] = useState<LocationNameMode>(() => {
+    if (typeof window === 'undefined') return 'app'
+    return localStorage.getItem(LOCATION_NAME_MODE_KEY) === 'local' ? 'local' : 'app'
   })
   const periodContextRef = useRef<string | undefined>(undefined)
   const overviewScopeContextRef = useRef<string | undefined>(undefined)
@@ -319,6 +156,10 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   useEffect(() => {
     localStorage.setItem(PERIOD_TOTALS_EXPANDED_KEY, periodExpanded ? 'true' : 'false')
   }, [periodExpanded])
+
+  useEffect(() => {
+    localStorage.setItem(LOCATION_NAME_MODE_KEY, locationNameMode)
+  }, [locationNameMode])
 
   // Main Overview cards/charts follow this scope (month / year / all).
   const overviewEntries = useMemo(() => {
@@ -496,12 +337,12 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
   const byLocationRegion = useMemo(() => {
     const regions: Record<string, number> = {}
     overviewEntries.filter(e => e.type === 'expense' && e.location?.trim()).forEach(e => {
-      const region = getLocationRegion(e.location, language)
+      const region = getLocationRegionForMode(e.location, language, locationNameMode)
       if (!region) return
       regions[region] = (regions[region] || 0) + toLocal(e)
     })
     return Object.entries(regions).sort((a, b) => b[1] - a[1])
-  }, [overviewEntries, cur, homeCur, convert, language])
+  }, [overviewEntries, cur, homeCur, convert, language, locationNameMode])
 
   const locationEntries = useMemo(() => {
     if (!expandedLocation) return []
@@ -579,7 +420,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
     locChartInstance.current = new Chart(locChartRef.current, {
       type: 'bar',
       data: {
-        labels: byLocation.map(([l]) => formatLocationLabel(l, language)),
+        labels: byLocation.map(([l]) => formatLocationLabelForMode(l, language, locationNameMode)),
         datasets: [{
           data: byLocation.map(([, v]) => parseFloat(v.toFixed(2))),
           backgroundColor: accentBarColor,
@@ -621,7 +462,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
       }
     })
     return () => { locChartInstance.current?.destroy() }
-  }, [byLocation, chartGridColor, chartTextColor, locationChartTextColor, accentBarColor, cur, language])
+  }, [byLocation, chartGridColor, chartTextColor, locationChartTextColor, accentBarColor, cur, language, locationNameMode])
 
   useEffect(() => {
     if (!regionChartRef.current || byLocationRegion.length === 0) {
@@ -986,7 +827,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                 <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                  {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabel(e.location, language)}` : ''}</div>}
+                                  {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabelForMode(e.location, language, locationNameMode)}` : ''}</div>}
                                   {e.paymentMethod && <div className="truncate text-xs text-slate-400">{e.paymentMethod}</div>}
                                 </div>
                                 <div className="min-w-0 flex-shrink-0 text-right">
@@ -1110,7 +951,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                               <div className="w-12 flex-shrink-0 text-xs text-slate-400">{formatEntryDate(e.date, language)}</div>
                               <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-100">{e.summary}</div>
-                                {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabel(e.location, language)}` : ''}</div>}
+                                {e.venue && <div className="truncate text-xs text-slate-400">{e.venue}{e.location ? ` · ${formatLocationLabelForMode(e.location, language, locationNameMode)}` : ''}</div>}
                                 <div className="truncate text-xs text-slate-400">{e.category}</div>
                               </div>
                               <div className="min-w-0 flex-shrink-0 text-right">
@@ -1137,9 +978,28 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
       {byLocation.length > 0 && (
         <div className="mt-3 grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <div className="app-panel min-w-0 overflow-hidden p-4 sm:p-5">
-            <div className="mb-4">
-              <div className="app-kicker mb-2">{t('location')}</div>
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t('locationBreakdown')}</h3>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div className="min-w-0">
+                <div className="app-kicker mb-2">{t('location')}</div>
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t('locationBreakdown')}</h3>
+              </div>
+              <div className="inline-flex rounded-full border border-slate-200/80 bg-slate-50/90 p-1 dark:border-white/10 dark:bg-slate-900/80">
+                {([
+                  ['local', t('locationNamesLocal')],
+                  ['app', t('locationNamesApp')],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setLocationNameMode(value)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${locationNameMode === value
+                      ? 'bg-white text-slate-900 shadow-[0_8px_18px_-14px_rgba(15,23,42,0.26)] dark:bg-slate-950 dark:text-zinc-100'
+                      : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-zinc-200'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {byLocationRegion.length > 0 && (
@@ -1204,7 +1064,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
               {byLocation.map(([loc, amt]) => {
                 const pct = expenses > 0 ? ((amt / expenses) * 100).toFixed(1) : '0'
                 const isExpanded = expandedLocation === loc
-                const locationLabel = formatLocationLabel(loc, language)
+                const locationLabel = formatLocationLabelForMode(loc, language, locationNameMode)
                 return (
                   <div key={loc} className="min-w-0 space-y-2">
                     <button
@@ -1265,7 +1125,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
                                           <span>{formatEntryDate(e.date, language)}</span>
                                           <span aria-hidden="true">·</span>
-                                          <span className="truncate">{formatLocationLabel(e.location, language)}</span>
+                                          <span className="truncate">{formatLocationLabelForMode(e.location, language, locationNameMode)}</span>
                                           {e.venue ? (
                                             <>
                                               <span aria-hidden="true">·</span>
