@@ -33,7 +33,7 @@ interface Props {
   incomeCategories: string[]
   sortOrder?: EntrySortOrder
   onClose: () => void
-  onUpdate: (entry: Entry) => void
+  onUpdate: (entry: Entry) => Promise<void> | void
   onAdd?: (entry: Entry) => Promise<void> | void
 }
 
@@ -173,7 +173,11 @@ export default function EntryEditModal({
     }
     const next = buildEditedEntry()
     if (!next) return
-    onUpdate(next)
+    // Preserve/repair copy link from the live entries list in case the modal
+    // prop is stale after a copy in this same edit session.
+    const live = entries.find(item => item.id === entry.id)
+    const linkedGroupId = next.copyGroupId || live?.copyGroupId || entry.copyGroupId
+    void Promise.resolve(onUpdate(linkedGroupId ? { ...next, copyGroupId: linkedGroupId } : next))
     onClose()
   }
 
@@ -198,8 +202,9 @@ export default function EntryEditModal({
     try {
       const groupId = next.copyGroupId || createCopyGroupId()
       const sourceWithGroup = { ...next, copyGroupId: groupId }
+      // Await source stamp so the group id is persisted before copies are added.
       if (!entry.copyGroupId || entry.copyGroupId !== groupId) {
-        onUpdate(sourceWithGroup)
+        await Promise.resolve(onUpdate(sourceWithGroup))
       }
       const result = await addEntryCopiesToContexts(
         sourceWithGroup,
