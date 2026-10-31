@@ -35,8 +35,9 @@ const GOOGLE_MAP_HOST_RE =
   /(?:^|\.)(?:google\.[a-z.]+|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl)$/i
 
 // Allow spaces: mobile pastes often decode %20 inside q= (e.g. "St, New York").
+// Short links often keep query flags (?g_st=ic) — consume them so leftovers aren't treated as a venue name.
 const GOOGLE_URL_IN_TEXT_RE =
-  /https?:\/\/(?:(?:maps\.app\.)?goo\.gl\/[A-Za-z0-9_-]+|(?:maps\.google\.[a-z.]+|(?:www\.)?google\.[a-z.]+\/maps)[^\n<>"']*)/i
+  /https?:\/\/(?:(?:maps\.app\.)?goo\.gl\/[A-Za-z0-9_-]+(?:\?[^\s<>"']*)?|(?:maps\.google\.[a-z.]+|(?:www\.)?google\.[a-z.]+\/maps)[^\n<>"']*)/i
 
 /** Mobile share pastes sometimes decode %20 to spaces, which breaks URL()/regex. */
 export function coerceGoogleMapsUrl(raw: string): string {
@@ -124,11 +125,31 @@ export function splitVenueAndCitySuffix(text: string): { name: string; city: str
   const city = match[2].replace(/\.$/, '').trim()
   if (!name || !city) return null
   if (/\d/.test(city)) return null
-  if (city.split(/\s+/).length > 4) return null
+  if (city.split(/\s+/).length > 3) return null
   if (/^[A-Z]{2}$/.test(city)) return null
+  // "Radical Storage - Luggage Storage Penn Station" is a venue subtitle, not a city.
+  if (/\b(storage|luggage|station|hotel|motel|cafe|café|restaurant|kitchen|shop|store|market|museum|gallery|theater|theatre|cinema|clinic|hospital|pharmacy|bank|gym|fitness|salon|bar|pub|lounge|airport|terminal)\b/i.test(city)) {
+    return null
+  }
   // Avoid chopping brand-style titles ("In-N-Out") — require a space after the dash.
   if (name.length < 2) return null
   return { name, city }
+}
+
+/** True when a "venue" string is really just a street line (weak / placeholder name). */
+export function isStreetOnlyVenueName(name: string, address?: string): boolean {
+  const cleaned = name.replace(/\s+/g, ' ').trim()
+  if (!cleaned) return true
+  if (/^\?[\w&=%-]+$/.test(cleaned)) return true // leftover shortlink query, e.g. ?g_st=ic
+  if (looksLikeStreetAddress(cleaned)) return true
+  if (/^\d{1,6}\s+\S+/.test(cleaned) && /\b(?:St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Way|Ct|Court|Ln|Lane|Pl|Place)\b/i.test(cleaned)) {
+    return true
+  }
+  if (address) {
+    const street = streetLineFromAddress(address)
+    if (street && cleaned.toLowerCase() === street.toLowerCase()) return true
+  }
+  return false
 }
 
 /**
@@ -482,6 +503,9 @@ export function parseGoogleShareText(text: string): GoogleShareParse | null {
         name = address
         address = swap
       }
+      if (url && isStreetOnlyVenueName(name, address)) {
+        return { address, url }
+      }
       return url ? { name, address, url } : { name, address, url: '' }
     }
     return url
@@ -495,8 +519,10 @@ export function parseGoogleShareText(text: string): GoogleShareParse | null {
       const split = splitNameAndAddress(only)
       if (split) return url ? { ...split, url } : { ...split, url: '' }
       if (looksLikeStreetAddress(only)) {
+        // With a Maps URL, leave name empty so lookup can fill the real venue
+        // (otherwise we stick the street line in Venue, e.g. "370 8th Ave").
         return url
-          ? { address: only, name: streetLineFromAddress(only), url }
+          ? { address: only, url }
           : { address: only, name: streetLineFromAddress(only), url: '' }
       }
       if (url) return { name: only, url }
@@ -509,19 +535,23 @@ export function parseGoogleShareText(text: string): GoogleShareParse | null {
     return null
   }
 
-  if (!withoutUrl) return { url }
+  // Strip leftover query crumbs if the URL regex missed them.
+  const cleanedWithoutUrl = withoutUrl.replace(/^\?[\w&=%-]+$/, '').trim()
+  if (!cleanedWithoutUrl) return { url }
 
-  const split = splitNameAndAddress(withoutUrl)
+  const split = splitNameAndAddress(cleanedWithoutUrl)
   if (split) return { ...split, url }
 
-  const addrMatch = withoutUrl.match(/(\d{1,5}\s+.+,\s*[A-Za-z .'-]+,\s*[A-Z]{2}(?:\s+\d{5})?)$/)
+  const addrMatch = cleanedWithoutUrl.match(/(\d{1,5}\s+.+,\s*[A-Za-z .'-]+,\s*[A-Z]{2}(?:\s+\d{5})?)$/)
   if (addrMatch) {
     const address = addrMatch[1].trim()
-    const name = withoutUrl.slice(0, addrMatch.index).trim()
-    if (name) return { name, address, url }
+    const name = cleanedWithoutUrl.slice(0, addrMatch.index).trim()
+    if (name && !isStreetOnlyVenueName(name, address)) return { name, address, url }
     return { address, url }
   }
 
-  if (withoutUrl) return { name: withoutUrl, url }
+  if (cleanedWithoutUrl && !isStreetOnlyVenueName(cleanedWithoutUrl)) {
+    return { name: cleanedWithoutUrl, url }
+  }
   return { url }
 }

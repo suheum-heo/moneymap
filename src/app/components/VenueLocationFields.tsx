@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import {
   containsGoogleMapsLink,
   findGoogleMapsUrlInText,
+  isStreetOnlyVenueName,
   parseGoogleMapsUrl,
   parseGoogleShareText,
   normalizeGooglePlaceFields,
@@ -32,8 +33,8 @@ import {
 
 type PlaceInfo = NaverPlaceInfo | GooglePlaceInfo
 
-// Bump when place-lookup semantics change so stale wrong cities (e.g. College Park) are dropped.
-const CLIENT_CACHE_KEY = 'map-place-cache-v3'
+// Bump when place-lookup semantics change so stale wrong cities / street-as-venue are dropped.
+const CLIENT_CACHE_KEY = 'map-place-cache-v4'
 
 function readClientCache(placeId: string): PlaceInfo | null {
   if (!placeId) return null
@@ -321,22 +322,42 @@ export default function VenueLocationFields({
       }
 
       const googleShare = parseGoogleShareText(text)
-      if (googleShare?.name && googleShare.address) {
-        applyPlace({
-          name: googleShare.name,
-          address: googleShare.address,
-          location: toGoogleLocationArea(googleShare.address),
-          placeId: googleShare.url ? parseGoogleMapsUrl(googleShare.url).placeId || '' : '',
-        })
-        setLookingUp(false)
-        // Optional URL lookup can refine coords later; share text is enough for venue/location.
-        if (googleShare.url && containsGoogleMapsLink(googleShare.url)) {
-          void lookupGoogleByUrl(googleShare.url, id, {
-            name: googleShare.name,
+      if (googleShare && (googleShare.name || googleShare.address)) {
+        const hasMapsUrl = Boolean(googleShare.url && containsGoogleMapsLink(googleShare.url))
+        const weakVenue = isStreetOnlyVenueName(googleShare.name || '', googleShare.address)
+        // Don't paint the street number into Venue when a Maps URL can supply the real name
+        // (e.g. share card "370 8th Ave…" + maps.app.goo.gl/… → Radical Storage).
+        if (googleShare.address && (!weakVenue || !hasMapsUrl)) {
+          applyPlace({
+            name: weakVenue ? '' : (googleShare.name || ''),
+            address: googleShare.address,
+            location: toGoogleLocationArea(googleShare.address),
+            placeId: googleShare.url ? parseGoogleMapsUrl(googleShare.url).placeId || '' : '',
+          })
+        } else if (googleShare.address && hasMapsUrl) {
+          // Address-only + URL: fill location now, venue from lookup.
+          onLocationChange(toGoogleLocationArea(googleShare.address), namesFromPlace({
+            name: '',
+            location: toGoogleLocationArea(googleShare.address),
+            address: googleShare.address,
+            placeId: '',
+          }, toGoogleLocationArea(googleShare.address)))
+        } else if (googleShare.name && !weakVenue) {
+          onVenueChange(googleShare.name)
+        }
+
+        if (hasMapsUrl) {
+          void lookupGoogleByUrl(googleShare.url!, id, {
+            name: weakVenue ? undefined : googleShare.name,
             address: googleShare.address,
           })
+          return true
         }
-        return true
+
+        if (googleShare.address || (googleShare.name && !weakVenue)) {
+          setLookingUp(false)
+          return true
+        }
       }
 
       const embedded = splitNameAndAddress(text)
