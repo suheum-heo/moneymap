@@ -139,6 +139,23 @@ export function isUsStateCode(part: string) {
   return /^[A-Z]{2}$/.test(code) && Boolean(US_STATE_NAMES[code])
 }
 
+const US_STATE_NAME_TO_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(US_STATE_NAMES).map(([code, name]) => [name.toLowerCase(), code]),
+)
+
+/** Canonical US region label: "NY" / "new york" → "New York". */
+export function normalizeUsRegionName(part: string): string {
+  const trimmed = part.trim()
+  if (!trimmed) return trimmed
+  if (isUsStateCode(trimmed)) {
+    const code = trimmed.replace(/[^A-Za-z]/g, '').toUpperCase()
+    return US_STATE_NAMES[code]
+  }
+  const code = US_STATE_NAME_TO_CODE[trimmed.toLowerCase()]
+  if (code) return US_STATE_NAMES[code]
+  return trimmed
+}
+
 export function resolveLanguageKey(language?: string): keyof PrefectureNames {
   const base = (language || 'en').toLowerCase().split('-')[0]
   if (base === 'ja' || base === 'ko') return base
@@ -181,9 +198,8 @@ export function getLocationRegion(location: string, language?: string) {
   if (commaParts.length > 1) {
     const lastPart = commaParts[commaParts.length - 1]
 
-    if (isUsStateCode(lastPart)) {
-      const stateCode = lastPart.replace(/[^A-Za-z]/g, '').toUpperCase()
-      return US_STATE_NAMES[stateCode]
+    if (isUsStateCode(lastPart) || US_STATE_NAME_TO_CODE[lastPart.toLowerCase()]) {
+      return normalizeUsRegionName(lastPart)
     }
 
     // e.g. "成田市, JP-12" → Chiba / 千葉 / 치바
@@ -258,7 +274,14 @@ export function formatLocationLabelForModeFromSource(
     appLanguage,
     mode,
   )
-  if (stored) return stored
+  // Still expand US state codes in stored bilingual labels ("Madison, WI" → Wisconsin)
+  // so place rows and region cards stay consistent.
+  if (stored) {
+    return formatLocationLabel(
+      stored,
+      resolveLocationLabelLanguage(source.location || stored, appLanguage, mode),
+    )
+  }
   return formatLocationLabelForMode(source.location || '', appLanguage, mode)
 }
 
@@ -271,7 +294,9 @@ export function getLocationRegionForModeFromSource(
   if (!label) return null
   // Region from the display label (last comma part), so bilingual strings
   // like "Narita, Chiba" / "成田市, 千葉" group correctly per mode.
+  // Normalize "NY" / "New York" → "New York" so US abbreviations don't split.
   const commaParts = label.split(',').map(part => part.trim()).filter(Boolean)
-  if (commaParts.length > 1) return commaParts[commaParts.length - 1]
-  return getLocationRegionForMode(source.location || '', appLanguage, mode)
+  if (commaParts.length > 1) return normalizeUsRegionName(commaParts[commaParts.length - 1])
+  const fallback = getLocationRegionForMode(source.location || '', appLanguage, mode)
+  return fallback ? normalizeUsRegionName(fallback) : null
 }
