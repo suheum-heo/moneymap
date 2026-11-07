@@ -343,6 +343,7 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
         items={items}
         activeContext={activeContext}
         contexts={contexts}
+        convert={convert}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
         sortOrder={sortOrder}
@@ -502,7 +503,12 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
             const col = getCategoryColor(e.category, e.type)
             const badgeStyle = getCategoryBadgeStyle(e.category, e.type)
             const isIncome = e.type === 'income'
-            const converted = showConversion ? convertEntryAmount(e, cur, homeCur, homeCur, convert) : null
+            const convertedToContext = entryCurrency !== cur
+              ? convertEntryAmount(e, cur, homeCur, cur, convert)
+              : null
+            const convertedToHome = showConversion && entryCurrency !== homeCur
+              ? convertEntryAmount(e, cur, homeCur, homeCur, convert)
+              : null
             const sameDateEntries = sameDateEntriesByDate.get(e.date) || []
             const dateIndex = sameDateEntries.findIndex(item => item.id === e.id)
             const canReorder = sameDateEntries.length > 1
@@ -606,7 +612,12 @@ export default function Entries({ entries, items = [], month, onDelete, onUpdate
                   <div className="text-sm font-semibold" style={{ color: col }}>
                     {isIncome ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
                   </div>
-                  {converted !== null && <div className="text-xs text-slate-400">≈{formatAmount(converted, homeCur)}</div>}
+                  {convertedToContext !== null && (
+                    <div className="text-xs text-slate-400">≈{formatAmount(convertedToContext, cur)}</div>
+                  )}
+                  {convertedToHome !== null && (
+                    <div className="text-xs text-slate-400">≈{formatAmount(convertedToHome, homeCur)}</div>
+                  )}
                   <div className="mt-1 flex gap-2">
                     <button onClick={() => openEdit(e)} className="app-accent text-xs font-medium transition-colors hover:text-[#255fcb] dark:hover:text-sky-200">{t('edit')}</button>
                     {confirmId === e.id ? (

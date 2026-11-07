@@ -1,5 +1,17 @@
-import { allocateTimeForNewEntry, Context, Entry, EntrySortOrder } from '../types'
+import {
+  allocateTimeForNewEntry,
+  coerceAmount,
+  Context,
+  convertEntryAmount,
+  Entry,
+  EntrySortOrder,
+  getEntryCurrency,
+  normalizeCurrencyCode,
+  usesZeroDecimalCurrency,
+} from '../types'
 import { getImportableContexts } from '../lib/contextTree'
+
+export type AmountConvertFn = (amount: number, from: string, to: string) => number
 
 export function getCopyTargetContexts(contexts: Context[], excludeId?: string) {
   return getImportableContexts(contexts, excludeId)
@@ -15,6 +27,76 @@ function normalizeComparable(value: string | undefined) {
 
 function amountsMatch(a: number, b: number) {
   return Number(a) === Number(b)
+}
+
+function roundAmountForCurrency(amount: number, currency: string): number {
+  if (!Number.isFinite(amount)) return 0
+  if (usesZeroDecimalCurrency(currency)) return Math.round(amount)
+  return Math.round(amount * 100) / 100
+}
+
+/**
+ * Rewrite amount fields so a copied/synced entry matches the target context currency.
+ * Prefers an explicit homeAmount (actual charged) when converting into the target.
+ */
+export function adaptEntryAmountsForContext(
+  source: Pick<Entry, 'amount' | 'currency' | 'homeAmount' | 'homeAmountCurrency'>,
+  sourceContext: Pick<Context, 'currency' | 'homeCurrency'> | null | undefined,
+  targetContext: Pick<Context, 'currency' | 'homeCurrency'> | null | undefined,
+  convert: AmountConvertFn,
+): Pick<Entry, 'amount' | 'currency' | 'homeAmount' | 'homeAmountCurrency'> {
+  const sourceLocal = normalizeCurrencyCode(sourceContext?.currency || source.currency || 'USD')
+  const sourceHome = normalizeCurrencyCode(sourceContext?.homeCurrency || sourceLocal)
+  const targetLocal = normalizeCurrencyCode(targetContext?.currency || sourceLocal)
+  const targetHome = normalizeCurrencyCode(targetContext?.homeCurrency || targetLocal)
+
+  const amount = roundAmountForCurrency(
+    convertEntryAmount(source, sourceLocal, sourceHome, targetLocal, convert),
+    targetLocal,
+  )
+
+  // Target ledger is single-currency: store only the local amount.
+  if (targetLocal === targetHome) {
+    return {
+      amount,
+      currency: targetLocal,
+      homeAmount: undefined,
+      homeAmountCurrency: undefined,
+    }
+  }
+
+  if (source.homeAmount != null) {
+    const homeAmount = roundAmountForCurrency(
+      convertEntryAmount(source, sourceLocal, sourceHome, targetHome, convert),
+      targetHome,
+    )
+    return {
+      amount,
+      currency: targetLocal,
+      homeAmount,
+      homeAmountCurrency: targetHome,
+    }
+  }
+
+  // Source has no explicit homeAmount. If its ledger amount is already in the
+  // target home currency (e.g. Hidden Money USD → Korea KRW/USD), keep it as
+  // actual charged. Otherwise leave unset so live rates can fill the gap.
+  const sourceEntryCurrency = getEntryCurrency(source, sourceLocal, sourceHome)
+  if (sourceEntryCurrency === targetHome) {
+    return {
+      amount,
+      currency: targetLocal,
+      homeAmount: roundAmountForCurrency(coerceAmount(source.amount), targetHome),
+      homeAmountCurrency: targetHome,
+    }
+  }
+
+  return {
+    amount,
+    currency: targetLocal,
+    homeAmount: undefined,
+    homeAmountCurrency: undefined,
+  }
 }
 
 /**
@@ -114,11 +196,38 @@ export function findCopyGroupEntries(entry: Entry, entries: Entry[], previous?: 
   return Array.from(byId.values())
 }
 
+export type CopyAmountOptions = {
+  sourceContext?: Context | null
+  targetContext?: Context | null
+  convert?: AmountConvertFn
+}
+
 /** Apply synced content onto a sibling; keep id/context/time/createdAt local. */
-export function applySyncedCopyFields(target: Entry, source: Entry, copyGroupId: string): Entry {
+export function applySyncedCopyFields(
+  target: Entry,
+  source: Entry,
+  copyGroupId: string,
+  options?: CopyAmountOptions,
+): Entry {
+  const synced = getSyncedCopyFields(source)
+  const adapted = options?.convert && options.targetContext
+    ? adaptEntryAmountsForContext(
+      source,
+      options.sourceContext,
+      options.targetContext,
+      options.convert,
+    )
+    : {
+      amount: synced.amount,
+      currency: synced.currency,
+      homeAmount: synced.homeAmount,
+      homeAmountCurrency: synced.homeAmountCurrency,
+    }
+
   return {
     ...target,
-    ...getSyncedCopyFields(source),
+    ...synced,
+    ...adapted,
     id: target.id,
     context: target.context,
     time: target.time,
@@ -133,17 +242,30 @@ export function buildEntryCopyForContext(
   knownEntries: Entry[],
   sortOrder: EntrySortOrder = 'newest',
   copyGroupId?: string,
+  options?: CopyAmountOptions,
 ): Entry {
   const sameDayEntries = knownEntries.filter(
     entry => entry.date === source.date && entry.context === targetContextId,
   )
-  return {
+  const copy: Entry = {
     ...source,
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     context: targetContextId,
     time: allocateTimeForNewEntry(sameDayEntries, sortOrder),
     createdAt: new Date().toISOString(),
     copyGroupId: copyGroupId || source.copyGroupId || createCopyGroupId(),
+  }
+
+  if (!options?.convert) return copy
+
+  return {
+    ...copy,
+    ...adaptEntryAmountsForContext(
+      source,
+      options.sourceContext,
+      options.targetContext,
+      options.convert,
+    ),
   }
 }
 
@@ -154,9 +276,15 @@ export async function addEntryCopiesToContexts(
   onAdd: (entry: Entry) => Promise<void> | void,
   sortOrder: EntrySortOrder = 'newest',
   copyGroupId?: string,
+  options?: {
+    contexts?: Context[]
+    convert?: AmountConvertFn
+  },
 ) {
   const groupId = copyGroupId || source.copyGroupId || createCopyGroupId()
   const uniqueTargets = Array.from(new Set(targetContextIds.filter(Boolean)))
+  const contexts = options?.contexts || []
+  const sourceContext = contexts.find(context => context.id === source.context)
   let known = [...knownEntries]
   let added = 0
   for (const targetId of uniqueTargets) {
@@ -168,7 +296,17 @@ export async function addEntryCopiesToContexts(
       ),
     )
     if (alreadyThere) continue
-    const copy = buildEntryCopyForContext(source, targetId, known, sortOrder, groupId)
+    const targetContext = contexts.find(context => context.id === targetId)
+    const copy = buildEntryCopyForContext(
+      source,
+      targetId,
+      known,
+      sortOrder,
+      groupId,
+      options?.convert
+        ? { sourceContext, targetContext, convert: options.convert }
+        : undefined,
+    )
     await onAdd(copy)
     known = [...known, copy]
     added += 1

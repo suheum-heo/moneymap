@@ -39,6 +39,12 @@ function AppContent({ user }: { user: User }) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const {
+    contexts, activeContext, activeContextId, switchContext,
+    addContext, removeContext, updateContext: saveContext, moveContext, reorderContexts,
+    convert, loaded: settingsLoaded, ratesUpdated,
+    rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct,
+  } = useSettings()
+  const {
     entries,
     loaded: entriesLoaded,
     addEntry,
@@ -49,13 +55,7 @@ function AppContent({ user }: { user: User }) {
     renameLocation: renameEntryLocation,
     deleteEntry,
     moveEntriesFromContext,
-  } = useEntries()
-  const {
-    contexts, activeContext, activeContextId, switchContext,
-    addContext, removeContext, updateContext: saveContext, moveContext, reorderContexts,
-    convert, loaded: settingsLoaded, ratesUpdated,
-    rateSource, effectiveRateSource, rateFallback, setRateSource, cardFeePct, setCardFeePct,
-  } = useSettings()
+  } = useEntries({ contexts, convert })
   const {
     items,
     loaded: recurringLoaded,
@@ -327,7 +327,7 @@ function AppContent({ user }: { user: User }) {
       {tab === 'overview' && <Overview entries={entries} items={items} month={month} onNavigate={navigateTo} onUpdate={updateEntry} onAdd={addEntry} sortOrder={entrySortOrder} activeContext={activeContext} contexts={contexts} convert={convert} getBudget={getBudget} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'entries' && <Entries entries={entries} items={items} month={month} onDelete={deleteEntry} onUpdate={updateEntry} onAdd={addEntry} initialTypeFilter={entriesFilter} initialCategoryFilter={entriesCategoryFilter} initialDateScope={entriesDateScope} sortOrder={entrySortOrder} onSortOrderChange={setEntrySortOrder} activeContext={activeContext} contexts={contexts} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
       {tab === 'calendar' && <Calendar entries={entries} items={items} month={month} onUpdate={updateEntry} onDelete={deleteEntry} onAddForDate={openAddEntry} sortOrder={entrySortOrder} activeContext={activeContext} convert={convert} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} contexts={contexts} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} sortOrder={entrySortOrder || 'newest'} />}
+      {tab === 'add' && <AddEntry onAdd={addEntry} onDone={() => setTab('entries')} entries={entries} defaultDate={calendarAddDate} activeContext={activeContext} contexts={contexts} convert={convert} items={items} expenseCategories={expenseCategories} incomeCategories={incomeCategories} sortOrder={entrySortOrder || 'newest'} />}
       {tab === 'settings' && <Settings userEmail={user.email || ''} contexts={contexts} addContext={addContext} removeContext={removeContext} updateContext={saveContext} moveContext={moveContext} reorderContexts={reorderContexts} convert={convert} activeContext={activeContext} ratesUpdated={ratesUpdated} rateSource={rateSource} effectiveRateSource={effectiveRateSource} rateFallback={rateFallback} setRateSource={setRateSource} cardFeePct={cardFeePct} setCardFeePct={setCardFeePct} setBudget={setBudget} getBudget={getBudget} entries={entries} items={items} addItem={addItem} updateItem={updateItem} deleteItem={deleteRecurringItem} importRecurringFromContext={importRecurringFromContext} categories={categories} expenseCategories={expenseCategories} incomeCategories={incomeCategories} addCategory={addCategory} updateCategory={renameCategory} removeCategory={removeCategory} importCategoriesFromContext={importCategoriesFromContext} moveEntriesFromContext={moveEntriesFromContext} renamePaymentMethod={renamePaymentMethod} renameVenue={renameVenue} renameLocation={renameLocation} />}
     </>
   )
