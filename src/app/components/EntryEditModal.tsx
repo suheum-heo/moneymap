@@ -29,6 +29,7 @@ interface Props {
   items?: RecurringItem[]
   activeContext?: Context
   contexts?: Context[]
+  convert?: (amount: number, from: string, to: string) => number
   expenseCategories: string[]
   incomeCategories: string[]
   sortOrder?: EntrySortOrder
@@ -47,6 +48,7 @@ export default function EntryEditModal({
   items = [],
   activeContext,
   contexts = [],
+  convert,
   expenseCategories,
   incomeCategories,
   sortOrder = 'newest',
@@ -219,6 +221,7 @@ export default function EntryEditModal({
         onAdd,
         sortOrder,
         groupId,
+        { contexts, convert },
       )
       setCopyStatus(t('copyEntrySuccess', { count: result.added }))
       setCopyTargetIds([])

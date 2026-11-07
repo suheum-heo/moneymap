@@ -361,6 +361,11 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
               <div className="flex flex-col gap-3">
                 {selectedEntries.map(e => {
                   const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                  const localAmount = convertEntryAmount(e, cur, homeCur, cur, convert)
+                  const convertedToContext = entryCurrency !== cur ? localAmount : null
+                  const convertedToHome = cur !== homeCur && entryCurrency !== homeCur
+                    ? convertEntryAmount(e, cur, homeCur, homeCur, convert)
+                    : null
                   const col = getCategoryColor(e.category, e.type)
                   const badgeStyle = getCategoryBadgeStyle(e.category, e.type, 0.16)
                   return (
@@ -377,6 +382,12 @@ export default function Calendar({ entries, items = [], month, onUpdate, onDelet
                         <div className="text-sm font-semibold" style={{ color: col }}>
                           {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
                         </div>
+                        {convertedToContext !== null && (
+                          <div className="text-xs text-slate-400">≈{formatAmount(convertedToContext, cur)}</div>
+                        )}
+                        {convertedToHome !== null && (
+                          <div className="text-xs text-slate-400">≈{formatAmount(convertedToHome, homeCur)}</div>
+                        )}
                         {confirmId === e.id ? (
                           <div className="flex gap-1" onClick={ev => ev.stopPropagation()}>
                             <button onClick={() => { onDelete(e.id); setConfirmId(null) }} className="rounded-full border border-rose-200/90 px-2 py-1 text-xs font-medium text-rose-400 dark:border-rose-400/20 dark:text-rose-300">{t('deleteEntry')}</button>

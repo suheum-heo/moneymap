@@ -569,6 +569,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
         items={items}
         activeContext={activeContext}
         contexts={contexts}
+        convert={convert}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
         sortOrder={sortOrder}
@@ -842,6 +843,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                         <div className="space-y-2">
                           {catEntriesForCat.map(e => {
                             const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                            const localAmount = toLocal(e)
                             return (
                               <button
                                 key={e.id}
@@ -857,8 +859,13 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                 </div>
                                 <div className="min-w-0 flex-shrink-0 text-right">
                                   <div className="text-sm font-semibold" style={{ color: col }}>
-                                    -{formatAmount(e.amount, entryCurrency)}
+                                    -{formatAmount(localAmount, cur)}
                                   </div>
+                                  {entryCurrency !== cur && (
+                                    <div className="text-xs text-slate-400">
+                                      {formatAmount(e.amount, entryCurrency)}
+                                    </div>
+                                  )}
                                 </div>
                               </button>
                             )
@@ -964,6 +971,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                       <div className="space-y-2">
                         {methodEntries.map(e => {
                           const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                          const localAmount = toLocal(e)
                           const col = getCategoryColor(e.category, e.type)
                           return (
                             <button
@@ -981,8 +989,13 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                               </div>
                               <div className="min-w-0 flex-shrink-0 text-right">
                                 <div className="text-sm font-semibold" style={{ color: col }}>
-                                  -{formatAmount(e.amount, entryCurrency)}
+                                  -{formatAmount(localAmount, cur)}
                                 </div>
+                                {entryCurrency !== cur && (
+                                  <div className="text-xs text-slate-400">
+                                    {formatAmount(e.amount, entryCurrency)}
+                                  </div>
+                                )}
                               </div>
                             </button>
                           )
@@ -1135,6 +1148,7 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                           <div className="max-h-[400px] min-w-0 space-y-2 overflow-y-auto pr-1">
                             {locationEntries.map(e => {
                               const entryCurrency = getEntryCurrency(e, cur, homeCur)
+                              const localAmount = toLocal(e)
                               const col = getCategoryColor(e.category, e.type)
                               return (
                                 <button
@@ -1161,8 +1175,15 @@ export default function Overview({ entries, items = [], month, onNavigate, onUpd
                                         {e.paymentMethod && <div className="mt-1 truncate text-xs text-slate-400">{e.paymentMethod}</div>}
                                         {e.remarks && <div className="mt-1 truncate text-xs text-slate-400">{e.remarks}</div>}
                                       </div>
-                                      <div className="flex-shrink-0 whitespace-nowrap text-sm font-semibold" style={{ color: col }}>
-                                        {e.type === 'income' ? '+' : '-'}{formatAmount(e.amount, entryCurrency)}
+                                      <div className="flex-shrink-0 text-right">
+                                        <div className="whitespace-nowrap text-sm font-semibold" style={{ color: col }}>
+                                          {e.type === 'income' ? '+' : '-'}{formatAmount(localAmount, cur)}
+                                        </div>
+                                        {entryCurrency !== cur && (
+                                          <div className="text-xs text-slate-400">
+                                            {formatAmount(e.amount, entryCurrency)}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="mt-2">

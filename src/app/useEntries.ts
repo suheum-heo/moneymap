@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import {
+  AmountConvertFn,
   applySyncedCopyFields,
   createCopyGroupId,
   entryContentChanged,
@@ -14,8 +15,13 @@ import {
   mergeLocationNames,
 } from './lib/locationBackfill'
 import { normalizeLocationNames } from './lib/locationBilingual'
-import { Entry, coerceAmount, normalizeCurrencyCode } from './types'
+import { Context, Entry, coerceAmount, normalizeCurrencyCode } from './types'
 import { useUserId } from './UserContext'
+
+export type UseEntriesOptions = {
+  contexts?: Context[]
+  convert?: AmountConvertFn
+}
 
 const PAYMENT_META_PREFIX = '[[moneymap:entry-payment-method:'
 const PAYMENT_META_SUFFIX = ']]'
@@ -216,8 +222,14 @@ function buildEntryUpdatePayload(
   }
 }
 
-export function useEntries() {
+export function useEntries(options: UseEntriesOptions = {}) {
   const userId = useUserId()
+  const contexts = options.contexts || []
+  const convert = options.convert
+  const contextsRef = useRef(contexts)
+  const convertRef = useRef(convert)
+  contextsRef.current = contexts
+  convertRef.current = convert
   const [entries, setEntries] = useState<Entry[]>([])
   const [loaded, setLoaded] = useState(false)
   const entriesRef = useRef<Entry[]>([])
@@ -463,7 +475,20 @@ export function useEntries() {
       : (updated.copyGroupId || previous?.copyGroupId)
     const updatedWithGroup = groupId ? { ...updated, copyGroupId: groupId } : updated
     const siblingUpdates = groupId
-      ? siblings.map(sibling => applySyncedCopyFields(sibling, updatedWithGroup, groupId))
+      ? siblings.map(sibling => {
+        const currentContexts = contextsRef.current
+        const convertFn = convertRef.current
+        const sourceContext = currentContexts.find(context => context.id === updatedWithGroup.context)
+        const targetContext = currentContexts.find(context => context.id === sibling.context)
+        return applySyncedCopyFields(
+          sibling,
+          updatedWithGroup,
+          groupId,
+          convertFn
+            ? { sourceContext, targetContext, convert: convertFn }
+            : undefined,
+        )
+      })
       : []
     const toPersist = [updatedWithGroup, ...siblingUpdates]
     const rollbackById = new Map(

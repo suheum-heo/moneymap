@@ -29,6 +29,7 @@ interface Props {
   defaultDate?: string | null
   activeContext?: Context
   contexts?: Context[]
+  convert?: (amount: number, from: string, to: string) => number
   items: RecurringItem[]
   expenseCategories: string[]
   incomeCategories: string[]
@@ -43,7 +44,7 @@ function daysInMonth(m: number, y: number) {
   return new Date(y, m + 1, 0).getDate()
 }
 
-export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, contexts = [], items, expenseCategories, incomeCategories, sortOrder = 'newest' }: Props) {
+export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, activeContext, contexts = [], convert, items, expenseCategories, incomeCategories, sortOrder = 'newest' }: Props) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
   const contextCur = activeContext?.currency || 'USD'
@@ -96,6 +97,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   const years = Array.from({ length: 80 }, (_, i) => 2020 + i)
   const monthLabels = getMonthLabels(language)
   const primaryAmountCurrency = showCurrencyOverride ? currency : contextCur
+  const showActualCharged = primaryAmountCurrency !== homeCur
   const primaryAmountProps = getAmountInputProps(primaryAmountCurrency)
   const placeholders = getEntryFormPlaceholders(language, contextCur, entryType)
 
@@ -104,8 +106,14 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
   }, [contextCur, showCurrencyOverride])
 
   useEffect(() => {
+    if (!showActualCharged) {
+      setActualCharged('')
+      setActualChargedCurrency(homeCur)
+      return
+    }
+    // Default the charged currency to home unless the user overrode the entry currency.
     if (!showCurrencyOverride) setActualChargedCurrency(homeCur)
-  }, [homeCur, showCurrencyOverride])
+  }, [homeCur, showActualCharged, showCurrencyOverride])
 
   useEffect(() => {
     setAmount((prev: string) => normalizeAmountInputValue(prev, primaryAmountCurrency))
@@ -160,10 +168,14 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
     const parsed = parseCurrencyInput(amount, primaryAmountCurrency)
     if (isNaN(parsed) || parsed <= 0) { setError(t('invalidAmount')); return }
     if (!category) { setError(t('selectCategoryError')); return }
-    const parsedActual = actualCharged.trim()
+    const parsedActual = showActualCharged && actualCharged.trim()
       ? parseCurrencyInput(actualCharged.trim(), actualChargedCurrency)
       : undefined
-    if (actualCharged.trim() && (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)) {
+    if (
+      showActualCharged
+      && actualCharged.trim()
+      && (parsedActual == null || isNaN(parsedActual) || parsedActual <= 0)
+    ) {
       setError(t('invalidAmount'))
       return
     }
@@ -201,15 +213,25 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
       currency: showCurrencyOverride ? currency : contextCur,
       context: activeContext?.id || '',
       createdAt,
-      homeAmount: parsedActual,
-      homeAmountCurrency: parsedActual && actualChargedCurrency !== homeCur ? actualChargedCurrency : undefined,
+      homeAmount: showActualCharged ? parsedActual : undefined,
+      homeAmountCurrency: showActualCharged && parsedActual && actualChargedCurrency !== homeCur
+        ? actualChargedCurrency
+        : undefined,
       copyGroupId,
     }
 
     try {
       await onAdd(entry)
       if (shouldCopy) {
-        await addEntryCopiesToContexts(entry, copyTargetIds, [...entries, entry], onAdd, sortOrder, copyGroupId)
+        await addEntryCopiesToContexts(
+          entry,
+          copyTargetIds,
+          [...entries, entry],
+          onAdd,
+          sortOrder,
+          copyGroupId,
+          { contexts, convert },
+        )
       }
       setSummary(''); setAmount(''); setVenue(''); setLocation(''); setLocationLocal(''); setLocationEn('')
       setPaymentMethod(''); setRemarks('')
@@ -311,7 +333,7 @@ export default function AddEntry({ onAdd, onDone, entries = [], defaultDate, act
           </div>
         </div>
 
-        {showCurrencyOverride && (
+        {showActualCharged && (
           <ActualChargedFields
             amount={actualCharged}
             currency={actualChargedCurrency}
